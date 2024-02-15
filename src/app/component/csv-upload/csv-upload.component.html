@@ -1,4 +1,8 @@
 <div>
-  <input #fileInput type="file" (change)="onFileSelected($event)" />
+  <input
+  #fileInput
+  type="file"
+  accept=".csv"
+  (change)="onFileSelected($event)" />
   <button (click)="clearFileInput()">Clear</button>
 </div>
