@@ -23,11 +23,26 @@ export class AppComponent implements OnInit {
     // if there is a key "genes" or lowercase "geneid" or "gene_id" or "gene", replace them with "geneID"
     this.replaceKeys(data, ['genes', 'geneid', 'gene_id', 'gene'], 'geneID');
 
+    // if the geneID column still doesn't exist, use the first column as geneID
+    if (!data.geneID) {
+      const keys = Object.keys(data);
+      if (keys.length > 0) {
+        data['geneID'] = data[keys[0]];
+        delete data[keys[0]];
+      }
+    }
+
     // same for logFC to log2FoldChange
     this.replaceKeys(data, ['logFC'], 'log2FoldChange');
 
     // same for FDR to padj
     this.replaceKeys(data, ['FDR'], 'padj');
+
+    // if the 3 columns needs are still not there, return early and alert the user
+    if (!data.geneID || !data.log2FoldChange || !data.padj) {
+      alert('Invalid CSV file. Please make sure the file contains geneID, log2FoldChange, and padj columns with column headers');
+      return;
+    }
 
     this.volcanoData = data;
     this.showVolcano = false;
