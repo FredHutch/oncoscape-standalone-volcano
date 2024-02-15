@@ -4,6 +4,7 @@ import {
   ChangeDetectorRef,
   Component,
   Input,
+  OnChanges,
   ViewChild,
 } from "@angular/core";
 // import { OncoData } from "app/oncoData";
@@ -100,8 +101,9 @@ export class VolcanoComponent implements AfterViewInit {
     genesToSelectByDefault: string[];
     genes: string[];
   } {
-    const firstGene = Object.keys(data)[0];
-    const genes = Object.keys(data[firstGene]);
+    const genes = Object.keys(Object.keys(data["geneID"]));
+    // const firstGene = Object.keys(data)[0];
+    // const genes = Object.keys(data[firstGene]);
 
     const x = Object.keys(data["log2FoldChange"]).map(
       (e) => data["log2FoldChange"][e]

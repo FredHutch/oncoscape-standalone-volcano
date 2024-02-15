@@ -1,9 +1,17 @@
 .container {
-  display: flex;
   /* center hor and ver */
   height: 100vh;
-  margin-top: 12.5%;
-  margin-left: 25%;
+  margin-top: 50px;
+  margin-left: 20%;
+  margin-right: 20%;
+  padding: 10px;
+}
+
+.upload-container {
+  padding: 10px;
+  margin-bottom: 10px;
+  margin-top: 10px;
+  background-color: rgba(86, 184, 230, 0.329);
 }
 
 table {

@@ -19,13 +19,15 @@ import { VolcanoComponent } from './component/volcano/volcano.component';
 import { VolcanoGeneTableComponent } from './component/volcano/volcano-gene-table/volcano-gene-table.component';
 import { CsvLoaderService } from './service/csv-loader.service';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { CsvUploadComponent } from './component/csv-upload/csv-upload.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     ScientificPipe,
     VolcanoComponent,
-    VolcanoGeneTableComponent
+    VolcanoGeneTableComponent,
+    CsvUploadComponent
   ],
   imports: [
     BrowserModule,
