@@ -101,7 +101,7 @@ export class VolcanoComponent implements AfterViewInit {
     genesToSelectByDefault: string[];
     genes: string[];
   } {
-    const genes = Object.keys(Object.keys(data["geneID"]));
+    const genes = Object.keys(data["geneID"]);
     // const firstGene = Object.keys(data)[0];
     // const genes = Object.keys(data[firstGene]);
 
@@ -695,18 +695,19 @@ export class VolcanoComponent implements AfterViewInit {
       title = `<a class="no-decorate-unhovered-tooltip" href="#" onclick="alert('ID: ${title}');">${shortTitle}</a>`;
     }
 
-    if (cnaData) {
-      detailsHtml += `
-      <hr />
-      CNA: Min=${cnaData.min} Max=${cnaData.max} Mean=${cnaData.mean}<br />
-      `;
-      // detailsHtml += `
-      // <hr />
-      // CNA: Min=${cnaData.min} Max=${cnaData.max} Mean=${(
-      //   cnaData.mean as number
-      // ).toPrecision(4)}<br />
-      // `;
-    }
+    // TODO: Is it worth calculating CNA data just for this iterative standalone application?
+    // if (cnaData) {
+    //   detailsHtml += `
+    //   <hr />
+    //   CNA: Min=${cnaData.min} Max=${cnaData.max} Mean=${cnaData.mean}<br />
+    //   `;
+    //   // detailsHtml += `
+    //   // <hr />
+    //   // CNA: Min=${cnaData.min} Max=${cnaData.max} Mean=${(
+    //   //   cnaData.mean as number
+    //   // ).toPrecision(4)}<br />
+    //   // `;
+    // }
 
     const html = `
     <span class="xtooltiptext" style="opacity: ${opacity}">
