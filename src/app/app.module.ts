@@ -1,7 +1,8 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 
-import { AppComponent, ScientificPipe } from './app.component';
+import { AppComponent } from './app.component';
+import { ScientificPipe } from './pipe/scientific.pipe';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import {MatSnackBarModule} from '@angular/material/snack-bar';
 import { MatButtonModule } from '@angular/material/button';
