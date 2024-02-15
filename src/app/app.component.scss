@@ -1,8 +1,9 @@
 .container {
   display: flex;
-  margin: 30px 0;
-  margin-left: 5%;
-  margin-right: 10%;
+  /* center hor and ver */
+  height: 100vh;
+  margin-top: 12.5%;
+  margin-left: 25%;
 }
 
 table {
@@ -68,3 +69,5 @@ h4 {
     color: lightgray
   }
 }
+
+

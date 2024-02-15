@@ -1,0 +1,1266 @@
+// @import '~handsontable/dist/handsontable.full.css';
+@import '~@angular/material/theming';
+// Include the common styles for Angular Material. We include this here so that you only
+// have to load a single css file for Angular Material in your app.
+// Be sure that you only ever include this mixin once!
+@include mat-core();
+// Define the palettes for your theme using the Material Design palettes available in palette.scss
+// (imported above). For each palette, you can optionally specify a default, lighter, and darker
+// hue.
+$primary: mat-palette($mat-blue, 600);
+$accent: mat-palette($mat-blue);
+$warn: mat-palette($mat-deep-orange);
+// Create the theme object (a Sass map containing all of the palettes).
+// $theme: mat-light-theme($primary, $accent, $warn);
+$theme: mat-light-theme($primary, $accent, $warn);
+// Include theme styles for core and each component used in your app.
+// Alternatively, you can import and @include the theme mixins for each component
+// that you are using.
+@include angular-material-theme($theme);
+// Define a custom typography config that overrides the font-family as well as the
+// `headlines` and `body-1` levels.
+$custom-typography: mat-typography-config(
+  $font-family: 'Roboto',
+  $headline: mat-typography-level(32px, 32px, 300),
+  $title: mat-typography-level(13px, 16px, 300),
+  $body-1: mat-typography-level(13px, 16px, 300),
+  $body-2: mat-typography-level(13px, 16px, 300),
+  $button: mat-typography-level(13px, 16px, 300),
+  $input: mat-typography-level(1em, 1, 300),
+  $subheading-2: mat-typography-level(13px, 16px, 300)
+);
+@include angular-material-typography($custom-typography);
+
+$application-bar-height: 40px;
+
+/* Disable Text Select */
+
+#gui { position: absolute; top: 45px; left: 5px; width: 270px }
+
+
+::ng-deep.mat-dialog-container {
+  padding: 0px !important;
+  border-radius: 0px !important;
+  margin: -0px -0px 0px -0px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+
+}
+
+::ng-deep.mat-dialog-content {
+  margin: -0px -0px 0px -0px !important;
+}
+
+[mat-dialog-title] {
+  background: #369;
+  color: #fff;
+  font-size:24px;
+  font-weight: bold;
+  cursor: move;
+}
+
+.drag-dialog {
+  padding-bottom: 24px;
+  padding-top: 0px;
+  padding-left: 0px;
+  padding-right: 0px;
+  border: solid 1px rgb(17, 17, 17);
+  background: white;
+  color: rgb(71, 70, 70);
+}
+
+.drag-dialog-inner {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  background: rgb(255, 255, 255);
+}
+
+.drag-dialog-xclose {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 5px;
+  line-height: 14px;
+  min-width: auto;
+  background: rgb(184, 63, 63);
+}
+
+.drag-dialog-toolbar {
+  height: 27px;
+}
+
+.drag-dialog-toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+// Hover Ellispe
+.ellipsis {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 20px;
+}
+
+// Twitter Overrides
+// .timeline-Header {
+//   display: none !important;
+// }
+// .timeline-Widget {
+//   font-family: 'Lato' !important;
+//   max-height: 405px !important;
+//   overflow: scroll !important;
+// }
+#twitter-widget-holder {
+  max-height: 405px;
+  background: #fff;
+  overflow: scroll;
+}
+
+.tour-tab-container {
+  font-family: Arial, sans-serif;
+}
+
+.tour-tabs {
+  overflow: hidden;
+  background: #f1f1f1;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+.tour-tab-button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  border-radius: 5px;
+}
+
+.tour-tab-button:hover {
+  background-color: #ddd;
+}
+
+.tour-tab-button.active {
+  background-color: #ccc;
+}
+
+.tour-tab-content {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+  border-radius: 5px;
+}
+
+// Global Styles
+* {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+body {
+  max-height: 100vh;
+}
+
+* :focus {
+  outline: 0;
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 30px white inset;
+  box-shadow: 0 0 0 30px white inset;
+}
+
+.z-label {
+  white-space: nowrap;
+}
+
+.z-tooltip {
+  padding-right: 5px;
+  padding-left: 5px;
+  position: relative;
+  background: #fff;
+  border: 3px solid #fff;
+}
+
+.z-tooltip:after,
+.z-tooltip:before {
+  right: 100%;
+  top: 12px;
+  border: solid transparent;
+  content: ' ';
+  height: 0;
+  width: 0;
+  position: absolute;
+  pointer-events: none;
+}
+
+.z-tooltip:after {
+  border-color: rgba(255, 255, 255, 0);
+  border-right-color: #fff;
+  border-width: 10px;
+  margin-top: -10px;
+}
+
+.z-tooltip:before {
+  border-color: rgba(255, 255, 255, 0);
+  border-right-color: #fff;
+  border-width: 16px;
+  margin-top: -16px;
+}
+
+
+
+.context-menu {
+  display: none;
+  position: absolurelativete;
+  z-index: 10;
+}
+
+.context-menu--active {
+  display: block;
+}
+
+.custom-menu {
+  display: none;
+  z-index: 1000;
+  width: 210px;
+  position: absolute;
+  overflow: hidden;
+  border: 1px solid #CCC;
+  white-space: nowrap;
+  font-family: sans-serif;
+  background: #FFF;
+  color: #333;
+  border-radius: 5px;
+  padding: 0;
+}
+
+/* Each of the items in the list */
+.custom-menu li {
+  padding: 5px 5px;
+  list-style-type: none;
+  transition: all .3s ease;
+  user-select: none;
+}
+
+.custom-menu li:hover {
+  background-color: #DEF;
+}
+
+/* Override li for the headers (this item selected items, all items) */
+.custom-menu-subgroup li {
+  padding: 5px 5px;
+  cursor: default;
+  margin-left: -30px;
+  list-style-type: none;
+  transition: all .3s ease;
+  user-select: none;
+  font-weight: normal;
+}
+
+.custom-menu-subgroup li:hover {
+  background-color: #FFF;
+}
+
+.custom-menu-item li {
+  cursor: pointer;
+  margin-left: -30px;
+  list-style-type: none;
+  transition: all .3s ease;
+  user-select: none;
+  font-weight: bold;
+}
+
+.custom-menu-item li:hover {
+  background-color: #DEF;
+}
+
+/*  SVG Timeline === */
+.timeline-svg-div {
+  position: absolute;
+  left: 325px; /* 295 */
+  top: 95px;
+  border: 1px solid #73AD21;
+  pointer-events: all;
+}
+
+.tooltip-nowrap {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display:block;
+  width:95%;
+  min-width:1px;
+}
+/* ========= OLD SVG TEST================== */
+
+
+.timeline-svg {
+  background-color: yellowgreen;
+  pointer-events: all;
+
+}
+
+
+.timeline-svg rect {
+  fill: steelblue;
+}
+
+.timeline-svg-test2 {
+  background-color: rgb(235, 193, 6);
+  fill: rgb(6, 235, 224);
+  pointer-events: all;
+
+}
+
+.timeline-svg-id-column-text text {
+  fill: white;
+  font: 10px sans-serif;
+  text-anchor: start;
+  alignment-baseline: central;
+}
+
+.timeline-svg-testcircle {
+  fill: blueviolet;
+}
+
+/* =========================== */
+
+
+.xtooltiptext {
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+  visibility: visible;
+  display: block;
+    /*width: 120px;*/
+  background-color: #fff;
+
+  border-width: 1px;
+  border-style: solid;
+  border-color: black black black black;
+
+
+  color: #000;
+  border-radius: 5px;
+  padding: 5px 10px;
+  position: absolute;
+  z-index: 1;
+  top: 0px;
+  left: -5px;
+}
+
+.xtooltipexpando {
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  visibility: visible;
+  display: block;
+  width: 200px;
+  background-color: #fff;
+  color: #000;
+  padding: 2px 2px;
+  position: relative;
+  z-index: 1;
+}
+
+/*.xtooltip
+*/
+ .xtooltiptext::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  right: 100%;
+  margin-top: -7px;
+  margin-right: 1px;
+  border-width: 7px;
+  border-style: solid;
+  border-color: transparent black transparent transparent;
+}
+
+.xtooltiptext:hover .xtooltipexpando {
+  visibility: visible;
+  display: block;
+}
+
+.xtooltip:hover .xtooltiptext {
+  visibility: visible;
+}
+
+
+/* Standard Tooltip container */
+.std-tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black; /* If you want dots under the hoverable text */
+}
+
+/* Tooltip text */
+.std-tooltip .std-tooltiptext {
+  visibility: hidden;
+  width: 120px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  padding: 5px 0;
+  border-radius: 6px;
+
+  position: absolute;
+  z-index: 1;
+
+  /* right side */
+  top: -5px;
+  left: 105%;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.std-tooltip:hover .std-tooltiptext {
+  visibility: visible;
+}
+
+
+
+// Material Overrides
+body .mat-button-focus-overlay {
+  background-color: transparent;
+}
+.mat-radio-outer-circle {
+  border-width: 1px;
+}
+.mat-checkbox-frame {
+  border-width: 1px;
+}
+.mat-menu-item {
+  height: 25px;
+  line-height: 25px;
+}
+
+.mat-expansion-panel {
+  box-shadow: none !important;
+}
+
+.mat-expansion-panel-body {
+  padding-top: 10px !important;
+  padding-left: 0px !important;
+  padding-right: 0px !important;
+  border: 0px solid #eeeeee;
+  border-bottom-width: 1px;
+}
+
+.mat-form-field-underline {
+  background-color: #eeeeee !important;
+}
+
+.mat-expansion-panel-header {
+  background: #fafafa !important;
+  border: 0px solid #eeeeee !important;
+  border-bottom-width: 1px !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  height: auto !important;
+}
+
+.mat-expansion-panel-header-title {
+  font-weight: 300; // background:rgba(0, 0, 0, 0.87);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+
+.mat-select {
+  padding-top: 3px;
+  .mat-select-arrow {
+    opacity: 1;
+  }
+}
+
+.mat-select:hover {
+  .mat-select-arrow {
+    opacity: 1;
+  }
+}
+
+/* Links */
+
+.os-link {
+  color: mat-color($primary);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.os-link:hover {
+  color: mat-color($primary);
+  text-decoration: none;
+}
+
+.os-link:visited {
+  color: mat-color($primary);
+  text-decoration: none;
+}
+
+.no-decorate-unhovered-tooltip {
+  color: black;
+  text-decoration:none;
+}
+
+.no-decorate-unhovered-tooltip:hover {
+  color: black;
+  text-decoration:underline;
+}
+
+/* Panel Config (geneset / cohort / pathway) */
+
+.panel-config-row-add {
+  padding-bottom: 5px;
+  position: relative;
+  cursor: pointer;
+  height: 45px;
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  i {
+    color: mat-color($primary);
+    margin-right: 10px;
+  }
+  div {
+    text-transform: capitalize;
+    position: absolute;
+    left: 30px;
+    top: 0px;
+  }
+}
+
+.panel-config-row-del {
+  padding-bottom: 5px;
+  position: relative;
+  cursor: pointer;
+  height: 26px;
+  line-height: 14px;
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 28px;
+  i {
+    color: mat-color($primary);
+    margin-right: 10px;
+  }
+  div {
+    text-transform: capitalize;
+    position: absolute;
+    left: 30px;
+    top: 0px;
+  }
+}
+
+.panel-config-row-del-dataset-list {
+  padding-bottom: 5px;
+  position: relative;
+  cursor: pointer;
+  height: 26px;
+  line-height: 14px;
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 28px;
+  i {
+    color: mat-color($primary);
+    margin-right: 10px;
+  }
+  div {
+    text-transform: capitalize;
+    position: absolute;
+    left: 60px;
+    top: 0px;
+  }
+}
+.panel-config-row-del-dataset-list:hover .private-dataset-delete-icon { color: #1e88e5 !important;  }
+
+.private-dataset-delete-icon { color: white !important; }
+
+.panel-builder-label {
+  display: inline-block;
+  text-align: left;
+  font-weight: 400;
+  text-transform: capitalize;
+  width: 50px;
+}
+
+.panel-builder-criteria-row {
+  .panel-builder-buttons {
+    visibility: hidden;
+  }
+}
+
+.panel-builder-criteria-row:hover {
+  .panel-builder-buttons {
+    visibility: visible;
+  }
+}
+
+/* Popup Panel */
+
+/* Angular Mobile First Cheat Sheet
+{
+  xs: 'screen and (max-width: 599px)'
+  sm: 'screen and (min-width: 600px) and (max-width: 959px)'
+  md: 'screen and (min-width: 960px) and (max-width: 1279px)'
+  lg: 'screen and (min-width: 1280px) and (max-width: 1919px)'
+  xl: 'screen and (min-width: 1920px) and (max-width: 5000px)'
+}
+*/
+
+/* Rules for sizing the icon. */
+
+.material-icons.md-18 {
+  font-size: 18px;
+}
+
+.material-icons.md-24 {
+  font-size: 24px;
+}
+
+.material-icons.md-36 {
+  font-size: 36px;
+}
+
+.material-icons.md-48 {
+  font-size: 48px;
+}
+
+.form-field {
+  width: 100%;
+}
+
+.form-field-1-2 {
+  width: 50%;
+}
+
+.form-field-1-3 {
+  width: 33%;
+}
+
+.modalClose {
+  $size: 50px;
+  height: $size;
+  width: $size;
+  position: fixed;
+  right: 40px;
+  top: 16px;
+  box-sizing: border-box;
+  line-height: $size;
+  display: inline-block;
+  color: black;
+  &:before,
+  &:after {
+    $width: 50px;
+    $height: 2px;
+    transform: rotate(-45deg);
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -$height/2;
+    margin-left: -$width/2;
+    display: block;
+    height: $height;
+    width: $width;
+    background-color: mat-color($primary);
+    transition: all 0.25s ease-out;
+  }
+  &:after {
+    transform: rotate(-135deg);
+  }
+  &:hover {
+    &:before,
+    &:after {
+      transform: rotate(0deg);
+    }
+  }
+}
+
+.modalCloseSmall {
+  $size: 20px;
+  height: $size;
+  width: $size;
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  box-sizing: border-box;
+  line-height: $size;
+  display: inline-block;
+  color: black;
+  &:before,
+  &:after {
+    $width: 20px;
+    $height: 2px;
+    transform: rotate(-45deg);
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -$height/2;
+    margin-left: -$width/2;
+    display: block;
+    height: $height;
+    width: $width;
+    background-color: mat-color($primary);
+    transition: all 0.25s ease-out;
+  }
+  &:after {
+    transform: rotate(-135deg);
+  }
+  &:hover {
+    &:before,
+    &:after {
+      transform: rotate(0deg);
+    }
+  }
+}
+
+// Main Themes XS
+.panel {
+  position: absolute;
+  left: 0px;
+  right: 0px;
+  top: $application-bar-height;
+  bottom: 0px;
+  overflow: hidden;
+  padding-top: 50px;
+  overflow-y: scroll;
+  padding: 50px 10px;
+  background: #fff;
+  z-index: 30 !important;
+}
+
+// Currently, we always show the application bar, so this hack just places the panel above it so the user can't see or interact with it.
+.panel.no-application-bar {
+  position:absolute;
+  top: 0px;
+  z-index:99999;
+  padding-bottom:0px;
+}
+
+.panel-sub-header {
+  padding: 0px;
+  margin-top: 18px !important;
+  margin-bottom: 0px !important;
+  line-height: 10px;
+  letter-spacing: 2px;
+  font-size: 18px !important;
+  line-height: 22px !important;
+  z-index: 30 !important;
+}
+
+.panel-header {
+  padding-bottom: 0px;
+  margin-bottom: 10px;
+}
+
+.panel-header-desc {
+  padding: 0px;
+  margin: 0px;
+  padding-top: 0px !important;
+  margin-bottom: 10px !important;
+}
+
+.panel-column-title {
+  margin-bottom: 0px;
+  font-weight: 400 !important;
+  padding-bottom: 0px !important;
+  padding-top: 30px;
+  letter-spacing: 1px;
+}
+
+.panel-button-link {
+  display: block;
+}
+
+.button {
+  color: #fff;
+  background: #1e88e5;
+}
+
+//footer (Landing/About)
+.landing-footer {
+  background-color: #1e88e5;
+  color: #fff;
+  position: relative;
+  left: -20%;
+  width: 100%;
+  padding: 20px 20%;
+}
+
+.footer-text {
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: 300;
+  line-height: 1rem;
+}
+
+.section-footer {
+  a {
+    color: #fff;
+  }
+  .social:hover {
+    -webkit-transform: scale(1.1);
+    -moz-transform: scale(1.1);
+    -o-transform: scale(1.1);
+    transform: scale(1.1);
+  }
+  .social {
+    -webkit-transform: scale(0.8);
+    -moz-transform: scale(0.8);
+    -o-transform: scale(0.8);
+    -webkit-transition-duration: 0.5s;
+    -moz-transition-duration: 0.5s;
+    -o-transition-duration: 0.5s;
+    transform: scale(0.8);
+    transition-duration: 0.5s;
+  }
+}
+
+@media screen and (min-width: 600px) and (max-width: 959px) {
+  .panel {
+    padding: 50px 50px;
+  }
+}
+
+@media screen and (min-width: 960px) and (max-width: 1279px) {
+  .panel {
+    padding: 50px 75px;
+  }
+  .panel-button-link {
+    display: inline-block;
+    width: 360px;
+    max-width: 360px;
+    text-overflow: ellipsis;
+  }
+}
+
+// LG
+@media screen and (min-width: 1280px) and (max-width: 1919px) {
+  .panel {
+    padding: 50px 100px;
+  }
+  .panel-button-link {
+    display: inline-block;
+    width: 360px;
+    max-width: 360px;
+    text-overflow: ellipsis;
+  }
+}
+
+// XL
+@media screen and (min-width: 1920px) and (max-width: 5000px) {
+  .panel {
+    padding: 50px 300px;
+  }
+  .panel-button-link {
+    display: inline-block;
+    width: 360px;
+    max-width: 360px;
+    text-overflow: ellipsis;
+  }
+}
+
+// Responsive Mobile First
+// Selectors and styles affecting screens SMALLER THAN 360px (smallPhones)
+.overlay {
+  padding: 20px;
+  background: #fff;
+  width: 100%;
+  height: 100vh;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 100%;
+  overflow: scroll;
+  z-index: 100;
+}
+
+.landing-panel {
+  z-index: 200;
+}
+
+.modal-panel {
+  z-index: 100;
+}
+
+.modalClose {
+  height: 115px;
+  width: 50px;
+  position: fixed;
+  right: 15px;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  line-height: 50px;
+  display: inline-block;
+}
+
+
+a {
+  text-decoration: none !important;
+}
+
+.dashboard-h1 {
+  font-size: 2rem;
+  font-weight: 300;
+  margin-bottom: 10px;
+  letter-spacing: 3px;
+  margin-top: 47px;
+  padding-bottom: 18px;
+}
+
+.dashboard-h2 {
+  font-size: 1rem;
+  line-height: 150%;
+  font-weight: 300;
+  margin-top: 0px;
+  margin-bottom: 10px;
+}
+
+@media (min-width: 767px) {
+  /* Selectors and styles affecting screens WIDER THAN 767px (tablets) */
+  .overlay {
+    padding: 40px;
+  }
+  .dashboard-h1 {
+    font-size: 3rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  /* Selectors and styles affecting screens WIDER THAN 1200px (Desktop) */
+  .overlay {
+    padding: 60px;
+  }
+  .modalClose {
+    height: 50px;
+    right: 60px;
+  }
+  .dashboard-h1 {
+    font-size: 3rem;
+    margin-bottom: 0px;
+    padding-bottom: 20px;
+  }
+  .dashboard-h2 {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+  }
+}
+
+.tool {
+  border: 1px solid #9e9e9e;
+  float: left;
+  margin-right: 20px;
+  background-image: url('/assets/sprite-tools-2x.png');
+}
+
+@media (min--moz-device-pixel-ratio: 1.5),
+  (-o-min-device-pixel-ratio: 3/2),
+  (-webkit-min-device-pixel-ratio: 1.5),
+  (min-device-pixel-ratio: 1.5),
+  (min-resolution: 1.5dppx) {
+  .tool {
+    background-image: url('/assets/sprite-tools.png');
+    background-size: 2000px 100px;
+  }
+}
+
+.tool-box-whiskers {
+  width: 100px;
+  height: 100px;
+  background-position: 0 0;
+}
+
+.tool-chromosome {
+  width: 100px;
+  height: 100px;
+  background-position: -100px 0;
+}
+
+.tool-dashboard {
+  width: 100px;
+  height: 100px;
+  background-position: -200px 0;
+}
+
+.tool-datahub {
+  width: 100px;
+  height: 100px;
+  background-position: -300px 0;
+}
+
+.tool-decomp {
+  width: 100px;
+  height: 100px;
+  background-position: -400px 0;
+}
+
+.tool-edges {
+  width: 100px;
+  height: 100px;
+  background-position: -500px 0;
+}
+
+.tool-forcedirected {
+  width: 100px;
+  height: 100px;
+  background-position: -600px 0;
+}
+
+.tool-genesets2 {
+  width: 100px;
+  height: 100px;
+  background-position: -700px 0;
+}
+
+.tool-genome {
+  width: 100px;
+  height: 100px;
+  background-position: -800px 0;
+}
+
+.tool-hazard {
+  width: 100px;
+  height: 100px;
+  background-position: -900px 0;
+}
+
+.tool-heatmap3 {
+  width: 100px;
+  height: 100px;
+  background-position: -1000px 0;
+}
+
+.tool-manifoldlearning {
+  width: 100px;
+  height: 100px;
+  background-position: -1100px 0;
+}
+
+.tool-opensource {
+  width: 100px;
+  height: 100px;
+  background-position: -1200px 0;
+}
+
+.tool-pathway-commons {
+  width: 100px;
+  height: 100px;
+  background-position: -1300px 0;
+}
+
+.tool-pathways-tool {
+  width: 100px;
+  height: 100px;
+  background-position: -1400px 0;
+}
+
+.tool-reproducible {
+  width: 100px;
+  height: 100px;
+  background-position: -1500px 0;
+}
+
+.tool-spreadsheet {
+  width: 100px;
+  height: 100px;
+  background-position: -1600px 0;
+}
+
+.tool-survival {
+  width: 100px;
+  height: 100px;
+  background-position: -1700px 0;
+}
+
+.tool-tcga {
+  width: 100px;
+  height: 100px;
+  background-position: -1800px 0;
+}
+
+.tool-timelines {
+  width: 100px;
+  height: 100px;
+  background-position: -1900px 0;
+}
+
+/* Be sure that you replace data URIs with generated images */
+.disease-img {
+  background-image: url('/assets/sprite-disease.png');
+  display: inline-block;
+  line-height: 30px;
+}
+
+@media (min--moz-device-pixel-ratio: 1.5),
+  (-o-min-device-pixel-ratio: 3/2),
+  (-webkit-min-device-pixel-ratio: 1.5),
+  (min-device-pixel-ratio: 1.5),
+  (min-resolution: 1.5dppx) {
+  .disease-img {
+    background-image: url('/assets/sprite-disease-2x.png');
+    background-size: 690px 30px;
+  }
+}
+
+.disease-imgDSadrenal {
+  width: 30px;
+  height: 30px;
+  background-position: 0 0;
+}
+
+.disease-imgDSbile {
+  width: 30px;
+  height: 30px;
+  background-position: -30px 0;
+}
+
+.disease-imgDSbladder {
+  width: 30px;
+  height: 30px;
+  background-position: -60px 0;
+}
+
+.disease-imgDSblood {
+  width: 30px;
+  height: 30px;
+  background-position: -90px 0;
+}
+
+.disease-imgDSbrain {
+  width: 30px;
+  height: 30px;
+  background-position: -120px 0;
+}
+
+.disease-imgDSbreast {
+  width: 30px;
+  height: 30px;
+  background-position: -150px 0;
+}
+
+.disease-imgDScoadread {
+  width: 30px;
+  height: 30px;
+  background-position: -180px 0;
+}
+
+.disease-imgDSeye {
+  width: 30px;
+  height: 30px;
+  background-position: -210px 0;
+}
+
+.disease-imgDSheadneck {
+  width: 30px;
+  height: 30px;
+  background-position: -240px 0;
+}
+
+.disease-imgDSkidney {
+  width: 30px;
+  height: 30px;
+  background-position: -270px 0;
+}
+
+.disease-imgDSliver {
+  width: 30px;
+  height: 30px;
+  background-position: -300px 0;
+}
+
+.disease-imgDSlung {
+  width: 30px;
+  height: 30px;
+  background-position: -330px 0;
+}
+
+.disease-imgDSovary {
+  width: 30px;
+  height: 30px;
+  background-position: -360px 0;
+}
+
+.disease-imgDSpancreas {
+  width: 30px;
+  height: 30px;
+  background-position: -390px 0;
+}
+
+.disease-imgDSprostate {
+  width: 30px;
+  height: 30px;
+  background-position: -420px 0;
+}
+
+.disease-imgDSsarc {
+  width: 30px;
+  height: 30px;
+  background-position: -450px 0;
+}
+.disease-imgDSsarcoma {
+  width: 30px;
+  height: 30px;
+  background-position: -450px 0;
+}
+.disease-imgna {
+  width: 30px;
+  height: 30px;
+  background-position: -480px 0;
+}
+.disease-imgDScancer {
+  width: 30px;
+  height: 30px;
+  background-position: -480px 0;
+}
+
+.disease-imgDSskin {
+  width: 30px;
+  height: 30px;
+  background-position: -510px 0;
+}
+
+.disease-imgDSstomach {
+  width: 30px;
+  height: 30px;
+  background-position: -540px 0;
+}
+
+.disease-imgDStesticules {
+  width: 30px;
+  height: 30px;
+  background-position: -570px 0;
+}
+
+.disease-imgDSthymus {
+  width: 30px;
+  height: 30px;
+  background-position: -600px 0;
+}
+
+.disease-imgDSthyroid {
+  width: 30px;
+  height: 30px;
+  background-position: -630px 0;
+}
+
+.disease-imgDSuterine {
+  width: 30px;
+  height: 30px;
+  background-position: -660px 0;
+}

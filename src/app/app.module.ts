@@ -2,8 +2,6 @@ import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 
 import { AppComponent, ScientificPipe } from './app.component';
-import { PyButtonComponent } from './py-button/py-button.component';
-import { CounterComponent } from './counter/counter.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import {MatSnackBarModule} from '@angular/material/snack-bar';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,13 +14,17 @@ import { MatFormFieldModule } from '@angular/material';
 import {MatInputModule} from '@angular/material/input';
 import {ReactiveFormsModule} from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material';
+import { VolcanoComponent } from './component/volcano/volcano.component';
+import { VolcanoGeneTableComponent } from './component/volcano/volcano-gene-table/volcano-gene-table.component';
+import { CsvLoaderService } from './service/csv-loader.service';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 
 @NgModule({
   declarations: [
     AppComponent,
-    PyButtonComponent,
-    CounterComponent,
-    ScientificPipe
+    ScientificPipe,
+    VolcanoComponent,
+    VolcanoGeneTableComponent
   ],
   imports: [
     BrowserModule,
@@ -37,9 +39,13 @@ import { MatButtonToggleModule } from '@angular/material';
     MatFormFieldModule,
     MatInputModule,
     ReactiveFormsModule,
-    MatButtonToggleModule
+    MatButtonToggleModule,
+    HttpClientModule
   ],
-  providers: [],
+  providers: [
+    CsvLoaderService,
+    HttpClient,
+  ],
   bootstrap: [AppComponent],
 })
 export class AppModule { }

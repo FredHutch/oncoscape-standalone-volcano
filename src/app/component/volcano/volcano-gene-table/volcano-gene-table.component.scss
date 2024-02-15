@@ -1,0 +1,51 @@
+table {
+  width: 100%;
+}
+
+#filter-form {
+  margin-top: 10px;
+
+  // set margin-left for all children except the first
+  & > *:not(:first-child) {
+    margin-left: 10px;
+  }
+}
+
+p {
+  margin: 0;
+}
+
+/* Adjust the "rank" column to only take up 15% of the table width */
+.mat-column-rank {
+  flex: 0 0 20%;
+}
+
+.mat-column-select {
+  overflow: initial;
+  flex: 0 0 5%;
+}
+
+.mat-cell {
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+.mat-header-cell {
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+td.mat-cell {
+  border: none;
+  padding: 0 !important;
+
+}
+
+th.mat-header-cell {
+  border: none;
+  padding: 0 !important;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+#selected-genes {
+  overflow-y: auto;
+  max-height: inherit;
+}

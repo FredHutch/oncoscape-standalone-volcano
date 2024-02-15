@@ -1,0 +1,42 @@
+<div class="volcano-container">
+  <div>
+    <svg [id]="'volcano-' + id"></svg>
+  </div>
+
+  <div id="side-bar">
+    <ng-container *ngIf="emittedPoints.length > 0">
+      <b>Selected Genes</b
+        ><span id="num-genes-selected" >
+          ({{ emittedPoints.length }} Genes)</span
+        >
+    </ng-container>
+
+    <app-volcano-gene-table
+      [selectedPoints]="emittedPoints"
+      (selectionChanged)="labelPoints($event)"
+      style="display: flex; flex-direction: column; max-height: 90%"
+    ></app-volcano-gene-table>
+    <div *ngIf="emittedPoints.length === 0" id="no-genes">
+      <h4>Interactivity Tips</h4>
+      <p>- Click on a point to select a gene</p>
+      <p>- Hold down the shift key to select multiple points</p>
+      <p>- Drag to select a region</p>
+      <p>- Drag while holding shift to add a region to the selection</p>
+      <p>- Drag while holding alt to deselect a region</p>
+    </div>
+    <!-- <h4>Interactivity Tips</h4>
+      <p>- Hold down the shift key to select multiple points</p>
+      <p>- Drag to select a region</p>
+      <p>- Drag while holding shift to add a region to the selection</p>
+      <p>- Drag while holding alt to deselect a region</p>
+      <div>
+        <b>Selected Genes</b
+        ><span id="num-genes-selected" *ngIf="selectedPoints.length > 0">
+          ({{ selectedPoints.length }} Genes)</span
+        >
+        <app-volcano-gene-table
+        [selectedPoints]="selectedPoints"
+      ></app-volcano-gene-table>
+      </div> -->
+  </div>
+</div>
