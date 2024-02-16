@@ -3,6 +3,7 @@
   height: 100vh;
   margin-left: 2vw;
   margin-right: 2vw;
+  margin-bottom: 2vh;
 }
 
 .upload-container {
@@ -22,6 +23,10 @@ table {
 
 p {
   margin: 0;
+}
+
+.mat-expansion-panel-header-title {
+  letter-spacing: normal;
 }
 
 /* Adjust the "rank" column to only take up 15% of the table width */

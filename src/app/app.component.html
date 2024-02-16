@@ -26,6 +26,7 @@
       style="margin-top: 5px;"
       (onDataUploaded)="onDataUploaded($event)"
     ></app-file-upload>
+    <mat-divider style="margin-top: 10px"></mat-divider>
   </mat-expansion-panel>
   <!-- <div class="upload-container">
     <p style="margin-bottom: 5px">Try it out on your own Differential Expression Analysis output</p>
@@ -47,6 +48,9 @@
       (onDataUploaded)="onDataUploaded($event)"
     ></app-file-upload>
   </div> -->
+
+
+
   <app-visualization-volcano
     *ngIf="volcanoData && showVolcano"
     [data]="volcanoData"

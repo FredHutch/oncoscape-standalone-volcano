@@ -1,8 +1,12 @@
-<form
+<mat-expansion-panel *ngIf="selectedPoints.length > 0" [hideToggle]="false" [expanded]="true" style="margin-bottom: 10px;">
+  <mat-expansion-panel-header>
+      <mat-panel-title style="text-transform: none;">Selected Genes <span id="num-genes-selected">&nbsp;({{ selectedPoints.length }} Genes)</span></mat-panel-title>
+  </mat-expansion-panel-header>
+  <form
   [formGroup]="filterForm"
   style="font-size: 12px"
   id="filter-form"
-  *ngIf="selectedPoints.length > 0"
+
 >
   <mat-form-field appearance="outline">
     <mat-label>Search Selected Genes</mat-label>
@@ -20,6 +24,16 @@
     <mat-button-toggle value="all" (click)="applyFilter()"
       >All</mat-button-toggle
     >
+    <mat-button-toggle value="downregulated" (click)="applyFilter()">
+      <span>
+        <mat-icon
+          style="color: #c90a0a; font-size: small"
+          matTooltip="downregulated"
+          >arrow_downward</mat-icon
+        >
+      </span>
+      Downregulated</mat-button-toggle
+    >
     <mat-button-toggle value="upregulated" (click)="applyFilter()">
       <span>
         <mat-icon
@@ -30,16 +44,6 @@
       </span>
 
       Upregulated</mat-button-toggle
-    >
-    <mat-button-toggle value="downregulated" (click)="applyFilter()">
-      <span>
-        <mat-icon
-          style="color: #c90a0a; font-size: small"
-          matTooltip="downregulated"
-          >arrow_downward</mat-icon
-        >
-      </span>
-      Downregulated</mat-button-toggle
     >
   </mat-button-toggle-group>
 
@@ -52,6 +56,9 @@
     <mat-icon>file_copy</mat-icon>
   </button>
 </form>
+</mat-expansion-panel>
+
+
 <!-- Import MatTableDataSource and MatSort from @angular/material -->
 <mat-table
   [dataSource]="dataSource"

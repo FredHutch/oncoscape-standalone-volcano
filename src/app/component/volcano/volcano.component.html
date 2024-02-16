@@ -4,17 +4,41 @@
   </div>
 
   <div id="side-bar">
-    <ng-container *ngIf="emittedPoints.length > 0">
-      <b>Selected Genes</b
-        ><span id="num-genes-selected" >
-          ({{ emittedPoints.length }} Genes)</span
-        >
-    </ng-container>
+
+    <mat-expansion-panel [hideToggle]="false" [expanded]="true" style="margin-bottom: 10px;">
+      <mat-expansion-panel-header>
+          <mat-panel-title style="text-transform: none;">Select by Statistical Thresholds</mat-panel-title>
+      </mat-expansion-panel-header>
+      <div id="select-by-stats">
+        <mat-form-field>
+          <mat-label>-log<sub>10</sub>(p-adjusted)</mat-label>
+          <input
+            matInput
+            type="number"
+            id="nlogpadj"
+            name="nlogpadj"
+            [(ngModel)]="selectByStatsForm.nlogpadj"
+          />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Log2 Fold Change</mat-label>
+          <input
+            matInput
+            type="number"
+            id="log2FoldChange"
+            name="log2FoldChange"
+            [(ngModel)]="selectByStatsForm.log2FoldChange"
+          />
+        </mat-form-field>
+        <button mat-flat-button color="primary" (click)="selectByStats(selectByStatsForm.nlogpadj, selectByStatsForm.log2FoldChange)">
+          Select
+        </button>
+      </div>
+  </mat-expansion-panel>
 
     <app-volcano-gene-table
       [selectedPoints]="emittedPoints"
       (selectionChanged)="labelPoints($event)"
-      style="display: flex; flex-direction: column; max-height: 90%"
     ></app-volcano-gene-table>
     <div *ngIf="emittedPoints.length === 0" id="no-genes">
       <h4>Interactivity Tips</h4>
@@ -24,19 +48,5 @@
       <p>- Drag while holding shift to add a region to the selection</p>
       <p>- Drag while holding alt to deselect a region</p>
     </div>
-    <!-- <h4>Interactivity Tips</h4>
-      <p>- Hold down the shift key to select multiple points</p>
-      <p>- Drag to select a region</p>
-      <p>- Drag while holding shift to add a region to the selection</p>
-      <p>- Drag while holding alt to deselect a region</p>
-      <div>
-        <b>Selected Genes</b
-        ><span id="num-genes-selected" *ngIf="selectedPoints.length > 0">
-          ({{ selectedPoints.length }} Genes)</span
-        >
-        <app-volcano-gene-table
-        [selectedPoints]="selectedPoints"
-      ></app-volcano-gene-table>
-      </div> -->
   </div>
 </div>

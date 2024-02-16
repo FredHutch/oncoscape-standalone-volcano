@@ -25,6 +25,14 @@ p {
   flex: 0 0 5%;
 }
 
+.mat-expansion-panel-header-title {
+  letter-spacing: normal;
+}
+
+::ng-deep .mat-expansion-panel-body {
+  border-bottom-width: 0px;
+}
+
 .mat-cell {
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }

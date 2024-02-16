@@ -14,7 +14,7 @@ import { MatTooltipModule } from '@angular/material';
 import { MatFormFieldModule } from '@angular/material';
 import {MatInputModule} from '@angular/material/input';
 import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
-import {ReactiveFormsModule} from '@angular/forms';
+import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material';
 import { VolcanoComponent } from './component/volcano/volcano.component';
 import { VolcanoGeneTableComponent } from './component/volcano/volcano-gene-table/volcano-gene-table.component';
@@ -22,6 +22,7 @@ import { CsvLoaderService } from './service/csv-loader.service';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { FileUploadComponent } from './component/file-upload/file-upload.component';
 import {MatExpansionModule} from '@angular/material/expansion';
+import {MatDividerModule} from '@angular/material/divider';
 
 @NgModule({
   declarations: [
@@ -47,7 +48,9 @@ import {MatExpansionModule} from '@angular/material/expansion';
     MatButtonToggleModule,
     HttpClientModule,
     MatProgressSpinnerModule,
-    MatExpansionModule
+    MatExpansionModule,
+    MatDividerModule,
+    FormsModule
   ],
   providers: [
     CsvLoaderService,

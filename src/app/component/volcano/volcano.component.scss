@@ -3,6 +3,11 @@
 .volcano-container {
   display: flex;
   margin: 0;
+  height: 80vh;
+}
+
+.mat-expansion-panel-header-title {
+  letter-spacing: normal;
 }
 
 p {
@@ -24,13 +29,29 @@ h4 {
 
 #side-bar {
   margin: 0;
-  max-height: 80vh;
   width: 100%;
   overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  #select-by-stats {
+    display: flex;
+    gap: 20px;
+
+    ::ng-deep .mat-form-field-wrapper{
+      margin-bottom: -1.25em;
+    }
+  }
 
   #num-genes-selected {
     margin-top: 10px;
     color: lightgray
+  }
+
+  app-volcano-gene-table {
+    flex: 1;
+    max-height: 60vh;
   }
 }
 

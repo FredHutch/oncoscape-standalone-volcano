@@ -91,6 +91,8 @@ THE SOFTWARE.
 
 @angular/material/checkbox
 
+@angular/material/divider
+
 @angular/material/expansion
 
 @angular/material/form-field
