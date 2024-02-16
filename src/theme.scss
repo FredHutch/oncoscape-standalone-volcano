@@ -452,9 +452,9 @@ body .mat-button-focus-overlay {
 }
 
 .mat-expansion-panel-body {
-  padding-top: 10px !important;
-  padding-left: 0px !important;
-  padding-right: 0px !important;
+  // padding-top: 10px !important;
+  // padding-left: 0px !important;
+  // padding-right: 0px !important;
   border: 0px solid #eeeeee;
   border-bottom-width: 1px;
 }
@@ -463,21 +463,21 @@ body .mat-button-focus-overlay {
   background-color: #eeeeee !important;
 }
 
-.mat-expansion-panel-header {
-  background: #fafafa !important;
-  border: 0px solid #eeeeee !important;
-  border-bottom-width: 1px !important;
-  padding-left: 4px !important;
-  padding-right: 4px !important;
-  height: auto !important;
-}
+// .mat-expansion-panel-header {
+//   background: #fafafa !important;
+//   border: 0px solid #eeeeee !important;
+//   border-bottom-width: 1px !important;
+//   padding-left: 4px !important;
+//   padding-right: 4px !important;
+//   height: auto !important;
+// }
 
-.mat-expansion-panel-header-title {
-  font-weight: 300; // background:rgba(0, 0, 0, 0.87);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 3px;
-}
+// .mat-expansion-panel-header-title {
+//   font-weight: 300; // background:rgba(0, 0, 0, 0.87);
+//   font-size: 12px;
+//   text-transform: uppercase;
+//   letter-spacing: 3px;
+// }
 
 .mat-select {
   padding-top: 3px;

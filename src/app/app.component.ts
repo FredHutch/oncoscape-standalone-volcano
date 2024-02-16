@@ -52,7 +52,7 @@ export class AppComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.csv.loadCsvData('assets/data/python_results_from_oncoscape_data.csv').subscribe((data) => {
+    this.csv.loadCsvData('assets/data/example.csv').subscribe((data) => {
 
 
       this.volcanoData = data;

@@ -13,13 +13,15 @@ import { MatIconModule } from '@angular/material';
 import { MatTooltipModule } from '@angular/material';
 import { MatFormFieldModule } from '@angular/material';
 import {MatInputModule} from '@angular/material/input';
+import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 import {ReactiveFormsModule} from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material';
 import { VolcanoComponent } from './component/volcano/volcano.component';
 import { VolcanoGeneTableComponent } from './component/volcano/volcano-gene-table/volcano-gene-table.component';
 import { CsvLoaderService } from './service/csv-loader.service';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { CsvUploadComponent } from './component/csv-upload/csv-upload.component';
+import { FileUploadComponent } from './component/file-upload/file-upload.component';
+import {MatExpansionModule} from '@angular/material/expansion';
 
 @NgModule({
   declarations: [
@@ -27,7 +29,7 @@ import { CsvUploadComponent } from './component/csv-upload/csv-upload.component'
     ScientificPipe,
     VolcanoComponent,
     VolcanoGeneTableComponent,
-    CsvUploadComponent
+    FileUploadComponent
   ],
   imports: [
     BrowserModule,
@@ -43,7 +45,9 @@ import { CsvUploadComponent } from './component/csv-upload/csv-upload.component'
     MatInputModule,
     ReactiveFormsModule,
     MatButtonToggleModule,
-    HttpClientModule
+    HttpClientModule,
+    MatProgressSpinnerModule,
+    MatExpansionModule
   ],
   providers: [
     CsvLoaderService,

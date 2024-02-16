@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, OnInit, ViewChild, Pipe, PipeTransform, Input, Output, ChangeDetectorRef } from '@angular/core';
-import { MatSnackBar, MatSort, MatTable, MatTableDataSource } from '@angular/material';
+import { MatCheckbox, MatSnackBar, MatSort, MatTable, MatTableDataSource } from '@angular/material';
 import { SelectionModel } from '@angular/cdk/collections';
 import {FormControl, FormGroup, Validators} from '@angular/forms';
 import { EventEmitter } from '@angular/core';
@@ -157,8 +157,16 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
     return numSelected == numRows;
   }
 
+  private masterToggleState: {checked: boolean, indeterminate: boolean} = {checked: false, indeterminate: false};
+
   /** Selects all rows if they are not all selected; otherwise clear selection. */
   toggleAllRows() {
+
+    if (!this.isAllSelected() && this.dataSource.data.length > 250) {
+      alert('When toggling all labels, please select less than 250 genes to avoid performance issues');
+      return;
+    }
+
     this.isAllSelected() ?
         this.selection.clear() :
         this.dataSource.data.forEach(row => this.selection.select(row));

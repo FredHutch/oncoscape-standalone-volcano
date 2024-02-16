@@ -1,0 +1,11 @@
+<div>
+  <input
+    #fileInput
+    type="file"
+    accept=".csv, .xlsx"
+    (change)="onFileSelected($event)"
+  />
+  <span *ngIf="loading">
+    Loading...
+  </span>
+</div>

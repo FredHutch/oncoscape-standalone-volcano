@@ -5,6 +5,7 @@ import {
   Component,
   Input,
   OnChanges,
+  OnInit,
   ViewChild,
 } from "@angular/core";
 // import { OncoData } from "app/oncoData";
@@ -27,15 +28,15 @@ export type Point = { x: number; y: number; gene: string };
   styleUrls: ["./volcano.component.scss"],
   changeDetection: ChangeDetectionStrategy.Default,
 })
-export class VolcanoComponent implements AfterViewInit {
+export class VolcanoComponent implements AfterViewInit, OnInit {
   static readonly OPACITY = 0.2;
   static readonly OPACITY_HOVER = 0.5;
   static readonly OPACITY_SELECTED = 1;
   static readonly AXIS_LABEL_PADDING = 20;
   static readonly TITLE_PADDING = 20;
   static readonly MARGIN = { top: 20, right: 20, bottom: 30, left: 30 };
-  static readonly WIDTH = 600;
-  static readonly HEIGHT = 400;
+  static WIDTH = Number(window.getComputedStyle(document.body).width.replace('px', '')) / 2
+  static HEIGHT = Number(window.getComputedStyle(document.body).height.replace('px', '')) / 1.5
   static readonly COLOR_UNSELECTED = "gray";
   static readonly COLOR_SELECTED = "#455ca3";
   static readonly POINT_RADIUS = 3;
@@ -68,6 +69,9 @@ export class VolcanoComponent implements AfterViewInit {
   // These will reset on mouseup
   private pointsNewToThisDrag = [];
   private pointsDeletedThisDrag = [];
+
+  // The names of the genes that has a visible tooltip
+  private activeGeneTooltips: string[] = [];
 
   private eventCoords: {
     draw: { x: number; y: number };
@@ -188,6 +192,7 @@ export class VolcanoComponent implements AfterViewInit {
 
     // remove all tooltips
     d3.selectAll(".volcano-tooltip").remove();
+    this.activeGeneTooltips.length = 0;
 
     this.labelPoints([]);
 
@@ -458,6 +463,18 @@ export class VolcanoComponent implements AfterViewInit {
     this.emitSelectionUpdate();
   }
 
+  onTooltipMouseOver(event: MouseEvent, point: Point) {
+    this.activeGeneTooltips.push(point.gene);
+  }
+
+  onTooltipMouseOut(event: MouseEvent, point: Point) {
+    this.activeGeneTooltips.splice(
+      this.activeGeneTooltips.indexOf(point.gene),
+      1
+    );
+    this.onPointMouseOut(event, point);
+  }
+
   onPointMouseOver(event: MouseEvent, point: Point) {
 
     // don't call the same hover event twice
@@ -508,6 +525,7 @@ export class VolcanoComponent implements AfterViewInit {
 
           // clear all tooltips
           d3.selectAll(".volcano-tooltip").remove();
+          this.activeGeneTooltips.length = 0;
 
           this.selectedPoints.push(point);
           this.stylePointOnClick(event, point);
@@ -538,39 +556,58 @@ export class VolcanoComponent implements AfterViewInit {
 
   }
   onPointMouseOut(event, point) {
-    this.hovered = null;
 
-    if (this.mostRecentSelectedPoint === point) {
-      this.mostRecentSelectedPoint = null;
-      return;
-    }
+    // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
+    this.activeGeneTooltips.splice(
+      this.activeGeneTooltips.indexOf(point.gene),
+      1
+    );
 
-    // remove the tooltip
-    d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
+    setTimeout(() => {
 
-    if (this.selectedPoints.includes(point)) {
-      return;
-    }
+      // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
+      if (this.activeGeneTooltips.includes(point.gene)) {
+        return;
+      }
 
+      this.hovered = null;
 
-    // see if the point has the "selected" class
-    const isSelected = d3
-      .select(`.point[name="${point.gene}"]`)
-      .classed("selected");
+      if (this.mostRecentSelectedPoint === point) {
+        this.mostRecentSelectedPoint = null;
+        return;
+      }
 
-    d3.select(`.point[name="${point.gene}"]`)
-      .attr(
-        "fill",
-        isSelected
-          ? VolcanoComponent.COLOR_SELECTED
-          : VolcanoComponent.COLOR_UNSELECTED
-      )
-      .attr(
-        "opacity",
-        isSelected
-          ? VolcanoComponent.OPACITY_SELECTED
-          : VolcanoComponent.OPACITY
+      // remove the tooltip
+      d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
+      this.activeGeneTooltips.splice(
+        this.activeGeneTooltips.indexOf(point.gene),
+        1
       );
+
+      if (this.selectedPoints.includes(point)) {
+        return;
+      }
+
+
+      // see if the point has the "selected" class
+      const isSelected = d3
+        .select(`.point[name="${point.gene}"]`)
+        .classed("selected");
+
+      d3.select(`.point[name="${point.gene}"]`)
+        .attr(
+          "fill",
+          isSelected
+            ? VolcanoComponent.COLOR_SELECTED
+            : VolcanoComponent.COLOR_UNSELECTED
+        )
+        .attr(
+          "opacity",
+          isSelected
+            ? VolcanoComponent.OPACITY_SELECTED
+            : VolcanoComponent.OPACITY
+        );
+    }, 1);
   }
 
   labelPoints(points: Point[]) {
@@ -584,11 +621,23 @@ export class VolcanoComponent implements AfterViewInit {
       if (point_) {
         const x = this.xScale(point_.x) + VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING;
         const y = this.yScale(point_.y) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING;
+
+        // // add a rectangle behind the text
+        // d3.select(`#${this.svgId}`).append("rect")
+        //   .attr("class", "volcano-label")
+        //   .attr("x", x + VolcanoComponent.LABEL_OFFSET.x - 2)
+        //   .attr("y", y + VolcanoComponent.LABEL_OFFSET.y - 12)
+        //   .attr("width", 10)
+        //   .attr("height", 10)
+        //   .attr("fill", "white");
+
+
         d3.select(`#${this.svgId}`).append("text")
           .attr("class", "volcano-label")
           .attr("x", x + VolcanoComponent.LABEL_OFFSET.x)
           .attr("y", y + VolcanoComponent.LABEL_OFFSET.y)
           .attr('font-size', '10px')
+          .attr('font-weight', 'bold')
           .text(point_.gene);
 
         // draw a line from the center left of the text to the point
@@ -672,6 +721,10 @@ export class VolcanoComponent implements AfterViewInit {
 
     // Remove the tooltip for this point if it already exists
     d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
+    this.activeGeneTooltips.splice(
+      this.activeGeneTooltips.indexOf(point.gene),
+      1
+    );
 
     const cnaData = {
       min: "--",
@@ -729,6 +782,10 @@ export class VolcanoComponent implements AfterViewInit {
       .style("left", (event.pageX + 20) + "px")
       .style("top", (event.pageY - 20) + "px")
       .html(html)
+      .on("mouseover", () => this.onTooltipMouseOver(event, point))
+      .on("mouseout", () => this.onTooltipMouseOut(event, point));
+
+    this.activeGeneTooltips.push(point.gene);
   }
 
   // #endregion
@@ -740,6 +797,9 @@ export class VolcanoComponent implements AfterViewInit {
       this.genesToSelectByDefault
     );
     this.points = processedData;
+
+    // clear out the container
+    d3.select(`#${this.svgId}`).selectAll("*").remove();
 
     const svg = d3
       .select(`#${this.svgId}`)
@@ -806,7 +866,7 @@ export class VolcanoComponent implements AfterViewInit {
       .attr("y", VolcanoComponent.HEIGHT + VolcanoComponent.MARGIN.bottom)
       .attr("text-anchor", "middle")
       .text(`Log2 Fold Change`)
-      .style("font-weight", "bold");
+
 
     // Add y-axis label
     svg
@@ -817,7 +877,6 @@ export class VolcanoComponent implements AfterViewInit {
       .attr("y", -VolcanoComponent.MARGIN.left)
       .attr("text-anchor", "middle")
       .text("-log10(p-adjusted)")
-      .style("font-weight", "bold");
 
     // Add x-axis spine
     svg
@@ -849,7 +908,8 @@ export class VolcanoComponent implements AfterViewInit {
       .attr("y", -VolcanoComponent.MARGIN.top)
       .attr("text-anchor", "middle")
       .text("Differential Expression Volcano Plot")
-      .style("font-size", "15px");
+      .style("font-size", "20px")
+      .style("font-weight", "bold")
 
     // Add x-axis ticks
     const xAxis = d3.axisBottom(this.xScale);
@@ -875,6 +935,16 @@ export class VolcanoComponent implements AfterViewInit {
     // select any genes that were specified to be selected by default
     this.selectGenesByName(genesToSelectByDefault);
   }
+
+  ngOnInit(): void {
+    // listen for window size changes
+    window.addEventListener("resize", () => {
+      VolcanoComponent.WIDTH = Number(window.getComputedStyle(document.body).width.replace('px', '')) / 2
+      VolcanoComponent.HEIGHT = Number(window.getComputedStyle(document.body).height.replace('px', '')) / 1.5
+      this.ngAfterViewInit();
+  })
+}
+
 
   constructor(private cd: ChangeDetectorRef) {}
 }
