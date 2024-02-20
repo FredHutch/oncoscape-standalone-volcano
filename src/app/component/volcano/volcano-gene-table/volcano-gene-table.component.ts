@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, OnInit, ViewChild, Pipe, PipeTransform, Input, Output, ChangeDetectorRef } from '@angular/core';
-import { MatCheckbox, MatSnackBar, MatSort, MatTable, MatTableDataSource } from '@angular/material';
+import { MatCheckbox, MatCheckboxChange, MatSnackBar, MatSort, MatTable, MatTableDataSource } from '@angular/material';
 import { SelectionModel } from '@angular/cdk/collections';
 import {FormControl, FormGroup, Validators} from '@angular/forms';
 import { EventEmitter } from '@angular/core';
@@ -43,6 +43,17 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
 
   selection: SelectionModel<Point>;
 
+  /**
+   * When we hold shift to select a range of rows, we need to know the starting index.
+   * This will reset to -1 on filtering and sorting, as the starting index will no longer be valid.
+   */
+  private shiftSelectionStartingIndex: number = -1;
+
+  /**
+   * The data that is currently rendered in the table. This is used to determine the shift selection starting index.
+   */
+  private renderedData: Point[] = [];
+
 
   formatNumber(num: number): string {
     // scientific notation, with 3 decimal places
@@ -83,6 +94,47 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
     this.dataSource.sort = this.sort;
     this.dataSource.filterPredicate = this.getFilterPredicate();
     this.dataSource.sortingDataAccessor = this.sortingDataAccessor;
+    this.dataSource.connect().subscribe((data) => {
+
+      // By only watching for when the subscribed data is the same length as the filtered data,
+      // we get the current filtered and sorted data
+      if (data.length === this.dataSource.filteredData.length) {
+        this.shiftSelectionStartingIndex = -1;
+        this.renderedData = data;
+      }
+    })
+  }
+
+  handleShiftSelection(event: MouseEvent, row: Point) {
+    // If the shift key is held, select all rows between the starting index and the current index
+    if (event.shiftKey && this.shiftSelectionStartingIndex >= 0) {
+      const start = Math.min(this.shiftSelectionStartingIndex, this.renderedData.indexOf(row));
+      const end = Math.max(this.shiftSelectionStartingIndex, this.renderedData.indexOf(row));
+      this.renderedData.slice(start + 1, end).forEach((point) => {
+        this.selection.select(point);
+      });
+    }
+
+    // If a label was just checked, update the starting index
+    // If a label was just unchecked, reset the starting index to -1
+    if (!this.selection.isSelected(row)) {
+      this.shiftSelectionStartingIndex = this.renderedData.indexOf(row);
+    } else {
+      this.shiftSelectionStartingIndex = -1;
+    }
+  }
+
+  /** Selects all rendered rows if they are not all selected; otherwise clear selection. */
+  handleMasterCheckboxClick() {
+    this.shiftSelectionStartingIndex = -1;
+    if (!this.allRenderedRowsSelected() && this.renderedData.length > 250) {
+      alert('To avoid performance issues, toggling all rows is disabled when more than 250 rows are visible. Please reduce the number of rows.');
+      return;
+    }
+
+    this.allRenderedRowsSelected() ?
+        this.selection.clear() :
+        this.renderedData.forEach(row => this.selection.select(row));
   }
 
   filterFormInit() {
@@ -132,7 +184,7 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   }
 
   copyToClipboard() {
-    const clipboardText = this._selectedPoints.map(p => p.gene).join('\n');
+    const clipboardText = this.dataSource.filteredData.map(p => p.gene).join('\n');
     navigator.clipboard.writeText(clipboardText).then(() => {
       this._snackbar.open('Copied selected genes to clipboard', '', {
         duration: 2000,
@@ -150,26 +202,14 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   }
 
 
-  /** Whether the number of selected elements matches the total number of rows. */
-  isAllSelected() {
-    const numSelected = this.selection.selected.length;
-    const numRows = this.dataSource.data.length;
-    return numSelected == numRows;
-  }
-
-  private masterToggleState: {checked: boolean, indeterminate: boolean} = {checked: false, indeterminate: false};
-
-  /** Selects all rows if they are not all selected; otherwise clear selection. */
-  toggleAllRows() {
-
-    if (!this.isAllSelected() && this.dataSource.data.length > 250) {
-      alert('When toggling all labels, please select less than 250 genes to avoid performance issues');
-      return;
+  allRenderedRowsSelected() {
+    for (let i = 0; i < this.renderedData.length; i++) {
+      if (!this.selection.isSelected(this.renderedData[i])) {
+        return false;
+      }
     }
 
-    this.isAllSelected() ?
-        this.selection.clear() :
-        this.dataSource.data.forEach(row => this.selection.select(row));
+    return true;
   }
 
   constructor(public cd: ChangeDetectorRef, private _snackbar: MatSnackBar) {}

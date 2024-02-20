@@ -4,7 +4,6 @@ import {
   ChangeDetectorRef,
   Component,
   Input,
-  OnChanges,
   OnInit,
   ViewChild,
 } from "@angular/core";
@@ -37,8 +36,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   static readonly MARGIN = { top: 20, right: 20, bottom: 30, left: 30 };
   static WIDTH = Number(window.getComputedStyle(document.body).width.replace('px', '')) / 2
   static HEIGHT = Number(window.getComputedStyle(document.body).height.replace('px', '')) / 1.5
-  static readonly COLOR_UNSELECTED = "gray";
-  static readonly COLOR_SELECTED = "#455ca3";
+  static readonly COLOR_UNSELECTED = "#454444";
+  static readonly COLOR_SELECTED = "black";
   static readonly POINT_RADIUS = 3;
   static readonly LABEL_OFFSET = {
     x: 4,
@@ -65,9 +64,13 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   public selectByStatsForm: {
     nlogpadj: number;
     log2FoldChange: number;
+    downregulatedColor: string;
+    upregulatedColor: string;
   } = {
     nlogpadj: 1.301,
     log2FoldChange: 0.58,
+    downregulatedColor: "red",
+    upregulatedColor: "green"
   };
 
   // this is the most recent selected point, if any.
@@ -91,6 +94,29 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   private hovered: Point;
 
   // #region Helper Functions
+
+  getGeneRegulation(point: Point): 'up' | 'down' | 'none' {
+    if (point.x > this.selectByStatsForm.log2FoldChange && point.y > this.selectByStatsForm.nlogpadj) {
+      return 'up';
+    }
+
+    if (point.x < -this.selectByStatsForm.log2FoldChange && point.y > this.selectByStatsForm.nlogpadj) {
+      return 'down';
+    }
+
+    return 'none';
+  }
+
+  getSelectedColor(point: Point): string {
+    switch (this.getGeneRegulation(point)) {
+      case 'up':
+        return this.selectByStatsForm.upregulatedColor;
+      case 'down':
+        return this.selectByStatsForm.downregulatedColor;
+      default:
+        return VolcanoComponent.COLOR_SELECTED;
+    }
+  }
 
   selectAll() {
     this.clearSelection();
@@ -182,7 +208,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     }
 
     this.emittedPoints = sortedSelectedPoints
-    console.log('emitting', this.emittedPoints);
     this.cd.detectChanges();
   }
 
@@ -200,9 +225,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     d3.selectAll(".volcano-tooltip").remove();
     this.activeGeneTooltips.length = 0;
 
-    // remove threshold lines
-    d3.select(`#${this.svgId}`).selectAll(".threshold-line").remove();
-
     this.labelPoints([]);
 
     // emit the new cleared selection so other elements on the page can respond
@@ -211,46 +233,42 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
   /**
    * Select up and down regulated genes by -log10(padj) and log2FoldChange thresholds
-   * @param padj the adjusted p-value
-   * @param log2FoldChange The log2 fold change
    */
-  selectByStats(nlogpadj: number, log2FoldChange: number) {
+  selectByStats() {
 
     // find all points that are above the -log10(padj) line and greater than the absolute value of log2FoldChange
     const upregulatedPoints = this.points.filter(
-      (point) => point.x > log2FoldChange && point.y > nlogpadj
+      (point) => this.getGeneRegulation(point) === 'up'
     );
 
     const downregulatedPoints = this.points.filter(
-      (point) => point.x < -log2FoldChange && point.y > nlogpadj
+      (point) => this.getGeneRegulation(point) === 'down'
     );
     this.clearSelection();
 
     this.selectGenesByName(
       downregulatedPoints.map((p) => p.gene),
-      {fill: "red"}
+      {fill: this.selectByStatsForm.downregulatedColor}
     );
 
     this.selectGenesByName(
       upregulatedPoints.map((p) => p.gene),
-      {fill: "green"}
+      {fill: this.selectByStatsForm.upregulatedColor}
     );
 
-
-
     // draw dashed lines to show the thresholds
-    this.drawThresholdLines(nlogpadj, log2FoldChange);
+    this.drawThresholdLines();
 
     this.emitSelectionUpdate();
   }
 
-  private drawThresholdLines(nlogpadj: number, log2FoldChange: number) {
+  private drawThresholdLines() {
     d3.select(`#${this.svgId}`).selectAll(".threshold-line").remove();
 
 
     // draw the log2FoldChange threshold lines
-    const lowerLog2FoldChange = -Math.abs(log2FoldChange);
-    const upperLog2FoldChange = Math.abs(log2FoldChange);
+    const lowerLog2FoldChange = -Math.abs(this.selectByStatsForm.log2FoldChange);
+    const upperLog2FoldChange = Math.abs(this.selectByStatsForm.log2FoldChange);
     [lowerLog2FoldChange, upperLog2FoldChange].forEach((x) => {
       d3.select(`#${this.svgId}`)
         .append("line")
@@ -268,9 +286,9 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .append("line")
       .attr("class", "threshold-line")
       .attr("x1", this.xScale(this.domain.x[0]) + VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING)
-      .attr("y1", this.yScale(nlogpadj) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
+      .attr("y1", this.yScale(this.selectByStatsForm.nlogpadj) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
       .attr("x2", this.xScale(this.domain.x[1]) + VolcanoComponent.MARGIN.left)
-      .attr("y2", this.yScale(nlogpadj) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
+      .attr("y2", this.yScale(this.selectByStatsForm.nlogpadj) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
       .attr("stroke", "black")
       .attr("stroke-dasharray", "5,5");
   }
@@ -348,8 +366,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     if (startCoords.x !== endCoords.x || startCoords.y !== endCoords.y) {
       tooltipText += ` from (${startDomain.x.toPrecision(3)}, ${startDomain.y.toPrecision(3)}) to (${endDomain.x.toPrecision(3)}, ${endDomain.y.toPrecision(3)})`
     }
-
-    console.log('tooltipText', tooltipText)
 
     // add hint text at the starting point of the rectangle
     d3.select(`#${this.svgId}`)
@@ -854,7 +870,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .classed("selected", false);
 
     unselectedPoints
-      .attr("fill", options.fill ? options.fill : VolcanoComponent.COLOR_SELECTED)
+      .attr("fill", d => options.fill ? options.fill : this.getSelectedColor(d))
       .attr("opacity", VolcanoComponent.OPACITY_SELECTED)
       .classed("selected", true);
 
@@ -1088,7 +1104,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
 
 
-    this.selectByStats(this.selectByStatsForm.nlogpadj, this.selectByStatsForm.log2FoldChange)
+    this.selectByStats()
     this.emitSelectionUpdate();
   }
 

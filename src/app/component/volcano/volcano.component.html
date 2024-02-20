@@ -17,6 +17,7 @@
             type="number"
             id="nlogpadj"
             name="nlogpadj"
+            step="0.05"
             [(ngModel)]="selectByStatsForm.nlogpadj"
           />
         </mat-form-field>
@@ -27,10 +28,11 @@
             type="number"
             id="log2FoldChange"
             name="log2FoldChange"
+            step="0.05"
             [(ngModel)]="selectByStatsForm.log2FoldChange"
           />
         </mat-form-field>
-        <button mat-flat-button color="primary" (click)="selectByStats(selectByStatsForm.nlogpadj, selectByStatsForm.log2FoldChange)">
+        <button mat-flat-button color="primary" (click)="selectByStats()">
           Select
         </button>
       </div>
