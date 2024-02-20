@@ -42,6 +42,11 @@ h4 {
     ::ng-deep .mat-form-field-wrapper{
       margin-bottom: -1.25em;
     }
+
+    button {
+      padding: 0;
+      height: fit-content;
+    }
   }
 
   #num-genes-selected {

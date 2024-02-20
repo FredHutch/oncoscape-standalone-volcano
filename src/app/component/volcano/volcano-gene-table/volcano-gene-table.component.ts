@@ -13,6 +13,11 @@ import { Point, VolcanoComponent } from "../volcano.component"
 export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
 
   @Input() getGeneRegulation: (point: Point) => 'up' | 'down' | 'none';
+  @Input() upregulatedColor: string = 'green';
+  @Input() downregulatedColor: string = 'red';
+  @Input() selectByStatsFormCollapsed: boolean = false;
+
+  controlsOpen: boolean = true;
 
   private _selectedPoints: Point[] = [];
   @Input() set selectedPoints(points: Point[]) {
@@ -78,6 +83,21 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
 
   ngAfterViewInit(): void {
     this.initDataSource();
+  }
+
+  calculateAvailableTableHeight() {
+    // Perform your height calculation logic here
+    const newHeight = 'calc(110% - ' + this.getControlsHeight() + ' - ' + this.getStatsPanelHeight() + ')';
+
+    return newHeight;
+  }
+
+  private getControlsHeight(): string {
+    return String(document.getElementById('controls').clientHeight) + 'px';
+  }
+
+  private getStatsPanelHeight(): string {
+    return document.getElementById('select-by-stats-exp-panel').clientHeight + 'px'
   }
 
   private sortingDataAccessor = (data: Point, sortHeaderId: string): string | number => {

@@ -69,9 +69,10 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   } = {
     nlogpadj: 1.301,
     log2FoldChange: 0.58,
-    downregulatedColor: "red",
-    upregulatedColor: "green"
+    downregulatedColor: "#CF492F",
+    upregulatedColor: "#2FCF3F"
   };
+  public selectByStatsFormCollapsed: boolean = false;
 
   // this is the most recent selected point, if any.
   public mostRecentSelectedPoint: Point = null;
@@ -115,6 +116,19 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
         return this.selectByStatsForm.downregulatedColor;
       default:
         return VolcanoComponent.COLOR_SELECTED;
+    }
+  }
+
+  updateRegulationColor(color: string, regulation: 'up' | 'down') {
+    console.log(color)
+    if (regulation === 'up') {
+      this.selectByStatsForm.upregulatedColor = color;
+      // select all points that are upregulated and currently selected
+      d3.selectAll(".point.upregulated.selected").attr("fill", color);
+
+    } else {
+      this.selectByStatsForm.downregulatedColor = color;
+      d3.selectAll(".point.downregulated.selected").attr("fill", color);
     }
   }
 
@@ -247,13 +261,11 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.clearSelection();
 
     this.selectGenesByName(
-      downregulatedPoints.map((p) => p.gene),
-      {fill: this.selectByStatsForm.downregulatedColor}
+      downregulatedPoints.map((p) => p.gene)
     );
 
     this.selectGenesByName(
-      upregulatedPoints.map((p) => p.gene),
-      {fill: this.selectByStatsForm.upregulatedColor}
+      upregulatedPoints.map((p) => p.gene)
     );
 
     // draw dashed lines to show the thresholds
@@ -665,96 +677,105 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   }
   onPointMouseOut(event, point) {
 
-    this.hovered = null;
+    // this.hovered = null;
 
-    if (this.mostRecentSelectedPoint === point) {
-      this.mostRecentSelectedPoint = null;
-      return;
-    }
+    // if (this.mostRecentSelectedPoint === point) {
+    //   this.mostRecentSelectedPoint = null;
 
-    // remove the tooltip
-    d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
+    //   // early exit for the most recent selected point, leaving the tooltip behind
+    //   return;
+    // }
 
-    if (this.selectedPoints.includes(point)) {
-      return;
-    }
+    // // remove the tooltip
+    // d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
 
-    // see if the point has the "selected" class
-    const isSelected = d3
-      .select(`.point[name="${point.gene}"]`)
-      .classed("selected");
-
-    const opacity = isSelected
-      ? VolcanoComponent.OPACITY_SELECTED
-      : VolcanoComponent.OPACITY;
-
-    let fill = ""
-    if (isSelected) {
-      fill = d3.select(`.point[name="${point.gene}"]`).attr("fill");
-    } else {
-      fill = VolcanoComponent.COLOR_UNSELECTED;
-    }
-
-    d3.select(`.point[name="${point.gene}"]`)
-      .attr(
-        "fill",
-        fill
-      )
-      .attr(
-        "opacity",
-        opacity
-      );
-
-    // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
+    // // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
     // this.activeGeneTooltips.splice(
     //   this.activeGeneTooltips.indexOf(point.gene),
     //   1
     // );
 
-    // setTimeout(() => {
+    // if (this.selectedPoints.includes(point)) {
+    //   return;
+    // }
 
-    //   // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
-    //   if (this.activeGeneTooltips.includes(point.gene)) {
-    //     return;
-    //   }
+    // const isSelected = d3
+    //   .select(`.point[name="${point.gene}"]`)
+    //   .classed("selected");
 
-    //   this.hovered = null;
+    //   // determine opacity and fill based on whether the point is selected
+    // const opacity = isSelected
+    //   ? VolcanoComponent.OPACITY_SELECTED
+    //   : VolcanoComponent.OPACITY;
 
-    //   if (this.mostRecentSelectedPoint === point) {
-    //     this.mostRecentSelectedPoint = null;
-    //     return;
-    //   }
+    // let fill = ""
+    // if (isSelected) {
+    //   // if the point is selected, keep the fill color the same
+    //   fill = d3.select(`.point[name="${point.gene}"]`).attr("fill");
+    // } else {
+    //   fill = VolcanoComponent.COLOR_UNSELECTED;
+    // }
 
-    //   // remove the tooltip
-    //   d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
-    //   this.activeGeneTooltips.splice(
-    //     this.activeGeneTooltips.indexOf(point.gene),
-    //     1
+    // d3.select(`.point[name="${point.gene}"]`)
+    //   .attr(
+    //     "fill",
+    //     fill
+    //   )
+    //   .attr(
+    //     "opacity",
+    //     opacity
     //   );
 
-    //   if (this.selectedPoints.includes(point)) {
-    //     return;
-    //   }
+    // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
+    this.activeGeneTooltips.splice(
+      this.activeGeneTooltips.indexOf(point.gene),
+      1
+    );
 
-    //   // see if the point has the "selected" class
-    //   const isSelected = d3
-    //     .select(`.point[name="${point.gene}"]`)
-    //     .classed("selected");
+    setTimeout(() => {
 
-    //   d3.select(`.point[name="${point.gene}"]`)
-    //     .attr(
-    //       "fill",
-    //       isSelected
-    //         ? VolcanoComponent.COLOR_SELECTED
-    //         : VolcanoComponent.COLOR_UNSELECTED
-    //     )
-    //     .attr(
-    //       "opacity",
-    //       isSelected
-    //         ? VolcanoComponent.OPACITY_SELECTED
-    //         : VolcanoComponent.OPACITY
-    //     );
-    // }, 1);
+      // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
+      if (this.activeGeneTooltips.includes(point.gene)) {
+        return;
+      }
+
+      this.hovered = null;
+
+      if (this.mostRecentSelectedPoint === point) {
+        this.mostRecentSelectedPoint = null;
+        return;
+      }
+
+      // remove the tooltip
+      d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
+      this.activeGeneTooltips.splice(
+        this.activeGeneTooltips.indexOf(point.gene),
+        1
+      );
+
+      if (this.selectedPoints.includes(point)) {
+        return;
+      }
+
+      // see if the point has the "selected" class
+      const isSelected = d3
+        .select(`.point[name="${point.gene}"]`)
+        .classed("selected");
+
+      d3.select(`.point[name="${point.gene}"]`)
+        .attr(
+          "fill",
+          isSelected
+            ? VolcanoComponent.COLOR_SELECTED
+            : VolcanoComponent.COLOR_UNSELECTED
+        )
+        .attr(
+          "opacity",
+          isSelected
+            ? VolcanoComponent.OPACITY_SELECTED
+            : VolcanoComponent.OPACITY
+        );
+    }, 1);
   }
 
   labelPoints(points: Point[]) {
@@ -867,12 +888,16 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     selectedPoints
       .attr("fill", options.fill ? options.fill : VolcanoComponent.COLOR_UNSELECTED)
       .attr("opacity", VolcanoComponent.OPACITY)
-      .classed("selected", false);
+      .classed("selected", false)
+      .classed("upregulated", false)
+      .classed("downregulated", false);
 
     unselectedPoints
       .attr("fill", d => options.fill ? options.fill : this.getSelectedColor(d))
       .attr("opacity", VolcanoComponent.OPACITY_SELECTED)
-      .classed("selected", true);
+      .classed("selected", true)
+      .classed("upregulated", d => this.getGeneRegulation(d) === 'up')
+      .classed("downregulated", d => this.getGeneRegulation(d) === 'down');
 
     if (options.tooltip) {
       points.forEach((p) => this.drawTooltip(event, p));
@@ -952,8 +977,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .style("left", (event.pageX + 20) + "px")
       .style("top", (event.pageY - 20) + "px")
       .html(html)
-      // .on("mouseover", () => this.onTooltipMouseOver(event, point))
-      // .on("mouseout", () => this.onTooltipMouseOut(event, point));
+      .on("mouseover", () => this.onTooltipMouseOver(event, point))
+      .on("mouseout", () => this.onTooltipMouseOut(event, point));
 
     this.activeGeneTooltips.push(point.gene);
   }

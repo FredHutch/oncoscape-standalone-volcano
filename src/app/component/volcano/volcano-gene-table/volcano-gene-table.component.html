@@ -1,63 +1,75 @@
-<mat-expansion-panel *ngIf="selectedPoints.length > 0" [hideToggle]="false" [expanded]="true" style="margin-bottom: 10px;">
-  <mat-expansion-panel-header>
-      <mat-panel-title style="text-transform: none;">Selected Genes <span id="num-genes-selected">&nbsp;({{ selectedPoints.length }} Genes)</span></mat-panel-title>
-  </mat-expansion-panel-header>
-  <form
-  [formGroup]="filterForm"
-  style="font-size: 12px"
-  id="filter-form"
-
+<mat-expansion-panel
+  *ngIf="selectedPoints.length > 0"
+  [hideToggle]="false"
+  [expanded]="true"
+  (opened)="controlsOpen = true"
+  (closed)="controlsOpen = false"
+  id="controls"
+  style="margin-bottom: 10px"
 >
-  <mat-form-field appearance="outline">
-    <mat-label>Search Selected Genes</mat-label>
-    <input
-      type="text"
-      aria-label="Search Selected Genes"
-      matInput
-      formControlName="geneName"
-      (keyup)="applyFilter()"
-      placeholder="Enter gene name from table"
-    />
-  </mat-form-field>
-
-  <mat-button-toggle-group formControlName="regulation" aria-label="Regulation">
-    <mat-button-toggle value="all" (click)="applyFilter()"
-      >All</mat-button-toggle
+  <mat-expansion-panel-header>
+    <mat-panel-title style="text-transform: none"
+      >Selected Genes
+      <span id="num-genes-selected"
+        >&nbsp;({{ selectedPoints.length }} Genes)</span
+      ></mat-panel-title
     >
-    <mat-button-toggle value="down" (click)="applyFilter()">
-      <span>
-        <mat-icon
-          style="color: #c90a0a; font-size: small"
-          matTooltip="downregulated"
-          >arrow_downward</mat-icon
-        >
-      </span>
-      Downregulated</mat-button-toggle
-    >
-    <mat-button-toggle value="up" (click)="applyFilter()">
-      <span>
-        <mat-icon
-          style="color: #0ac924; font-size: small"
-          matTooltip="upregulated"
-          >arrow_upward</mat-icon
-        >
-      </span>
+  </mat-expansion-panel-header>
+  <form [formGroup]="filterForm" style="font-size: 12px" id="filter-form">
+    <mat-form-field appearance="outline">
+      <mat-label>Search Selected Genes</mat-label>
+      <input
+        type="text"
+        aria-label="Search Selected Genes"
+        matInput
+        formControlName="geneName"
+        (keyup)="applyFilter()"
+        placeholder="Enter gene name from table"
+      />
+    </mat-form-field>
 
-      Upregulated</mat-button-toggle
+    <mat-button-toggle-group
+      formControlName="regulation"
+      aria-label="Regulation"
     >
-  </mat-button-toggle-group>
+      <mat-button-toggle value="all" (click)="applyFilter()"
+        >All</mat-button-toggle
+      >
+      <mat-button-toggle value="down" (click)="applyFilter()">
+        <span>
+          <mat-icon
+            style="font-size: small"
+            [style.color]="downregulatedColor"
+            matTooltip="downregulated"
+            >arrow_downward</mat-icon
+          >
+        </span>
+        Downregulated</mat-button-toggle
+      >
+      <mat-button-toggle value="up" (click)="applyFilter()">
+        <span>
+          <mat-icon
+            style="font-size: small"
+            [style.color]="upregulatedColor"
+            matTooltip="upregulated"
+            >arrow_upward</mat-icon
+          >
+        </span>
 
-  <button
-    mat-icon-button
-    matTooltip="Copy gene list to clipboard"
-    aria-label="Copy gene list to clipboard"
-    (click)="copyToClipboard()"
-  >
-    <mat-icon>file_copy</mat-icon>
-  </button>
-</form>
+        Upregulated</mat-button-toggle
+      >
+    </mat-button-toggle-group>
+
+    <button
+      mat-icon-button
+      matTooltip="Copy gene list to clipboard"
+      aria-label="Copy gene list to clipboard"
+      (click)="copyToClipboard()"
+    >
+      <mat-icon>file_copy</mat-icon>
+    </button>
+  </form>
 </mat-expansion-panel>
-
 
 <!-- Import MatTableDataSource and MatSort from @angular/material -->
 <mat-table
@@ -65,6 +77,7 @@
   *ngIf="selectedPoints.length > 0"
   matSort
   id="selected-genes"
+  [style.height]="calculateAvailableTableHeight()"
 >
   <ng-container matColumnDef="select">
     <th mat-header-cell *matHeaderCellDef>
@@ -107,14 +120,16 @@
     <mat-cell *matCellDef="let point">
       <span *ngIf="getGeneRegulation(point) == 'up'">
         <mat-icon
-          style="color: #0ac924; font-size: small; padding-top: 50%"
+          style="font-size: small; padding-top: 50%"
+          [style.color]="upregulatedColor"
           matTooltip="upregulated"
           >arrow_upward</mat-icon
         >
       </span>
       <span *ngIf="getGeneRegulation(point) == 'down'">
         <mat-icon
-          style="color: #c90a0a; font-size: small; padding-top: 50%"
+          style="font-size: small; padding-top: 50%"
+          [style.color]="downregulatedColor"
           matTooltip="downregulated"
           >arrow_downward</mat-icon
         >
@@ -132,7 +147,9 @@
   </ng-container>
 
   <ng-container matColumnDef="y">
-    <mat-header-cell *matHeaderCellDef mat-sort-header>-log<sub>10</sub>(p-adjusted)</mat-header-cell>
+    <mat-header-cell *matHeaderCellDef mat-sort-header
+      >-log<sub>10</sub>(p-adjusted)</mat-header-cell
+    >
     <mat-cell *matCellDef="let point">{{
       point.y | scientific : "5"
     }}</mat-cell>

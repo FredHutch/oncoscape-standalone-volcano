@@ -4,13 +4,21 @@
   </div>
 
   <div id="side-bar">
-
-    <mat-expansion-panel [hideToggle]="false" [expanded]="true" style="margin-bottom: 10px;">
+    <mat-expansion-panel
+      [hideToggle]="false"
+      [expanded]="true"
+      (opened)="selectByStatsFormCollapsed = false"
+      (closed)="selectByStatsFormCollapsed = true"
+      id="select-by-stats-exp-panel"
+      style="margin-bottom: 10px"
+    >
       <mat-expansion-panel-header>
-          <mat-panel-title style="text-transform: none;">Select by Statistical Thresholds</mat-panel-title>
+        <mat-panel-title style="text-transform: none"
+          >Select by Statistical Thresholds</mat-panel-title
+        >
       </mat-expansion-panel-header>
       <div id="select-by-stats">
-        <mat-form-field>
+        <mat-form-field style="width: 100px">
           <mat-label>-log<sub>10</sub>(p-adjusted)</mat-label>
           <input
             matInput
@@ -21,7 +29,7 @@
             [(ngModel)]="selectByStatsForm.nlogpadj"
           />
         </mat-form-field>
-        <mat-form-field>
+        <mat-form-field style="width: 100px">
           <mat-label>Log2 Fold Change</mat-label>
           <input
             matInput
@@ -35,11 +43,32 @@
         <button mat-flat-button color="primary" (click)="selectByStats()">
           Select
         </button>
+        <mat-form-field>
+          <mat-label>Downregulated gene color</mat-label>
+          <input
+            matInput
+            type="color"
+            [value]="selectByStatsForm.downregulatedColor"
+            (change)="updateRegulationColor($event.target.value, 'down')"
+          />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Upregulated gene color</mat-label>
+          <input
+            matInput
+            type="color"
+            [value]="selectByStatsForm.upregulatedColor"
+            (change)="updateRegulationColor($event.target.value, 'up')"
+          />
+        </mat-form-field>
       </div>
-  </mat-expansion-panel>
+    </mat-expansion-panel>
 
     <app-volcano-gene-table
+      [upregulatedColor]="selectByStatsForm.upregulatedColor"
+      [downregulatedColor]="selectByStatsForm.downregulatedColor"
       [getGeneRegulation]="getGeneRegulation.bind(this)"
+      [selectByStatsFormCollapsed]="selectByStatsFormCollapsed"
       [selectedPoints]="emittedPoints"
       (selectionChanged)="labelPoints($event)"
     ></app-volcano-gene-table>
