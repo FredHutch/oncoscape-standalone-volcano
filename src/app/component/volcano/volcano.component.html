@@ -39,6 +39,7 @@
   </mat-expansion-panel>
 
     <app-volcano-gene-table
+      [getGeneRegulation]="getGeneRegulation.bind(this)"
       [selectedPoints]="emittedPoints"
       (selectionChanged)="labelPoints($event)"
     ></app-volcano-gene-table>

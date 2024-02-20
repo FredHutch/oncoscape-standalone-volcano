@@ -1,9 +1,9 @@
-import { AfterViewInit, Component, OnInit, ViewChild, Pipe, PipeTransform, Input, Output, ChangeDetectorRef } from '@angular/core';
+import { AfterViewInit, Component, OnInit, ViewChild, Pipe, PipeTransform, Input, Output, ChangeDetectorRef, Host } from '@angular/core';
 import { MatCheckbox, MatCheckboxChange, MatSnackBar, MatSort, MatTable, MatTableDataSource } from '@angular/material';
 import { SelectionModel } from '@angular/cdk/collections';
 import {FormControl, FormGroup, Validators} from '@angular/forms';
 import { EventEmitter } from '@angular/core';
-import { Point } from "../volcano.component"
+import { Point, VolcanoComponent } from "../volcano.component"
 
 @Component({
   selector: 'app-volcano-gene-table',
@@ -11,6 +11,8 @@ import { Point } from "../volcano.component"
   styleUrls: ['volcano-gene-table.component.scss']
 })
 export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
+
+  @Input() getGeneRegulation: (point: Point) => 'up' | 'down' | 'none';
 
   private _selectedPoints: Point[] = [];
   @Input() set selectedPoints(points: Point[]) {
@@ -155,7 +157,7 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
 
       // Fetch data from row
       const columnGene = row.gene;
-      const columnRegulation = row.x > 0 ? 'upregulated' : 'downregulated';
+      const columnRegulation = this.getGeneRegulation(row);
 
       // verify fetching data by our searching values
       const customFilterGeneName = columnGene.toLowerCase().includes(geneName.toLowerCase());

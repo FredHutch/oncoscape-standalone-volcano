@@ -24,7 +24,7 @@
     <mat-button-toggle value="all" (click)="applyFilter()"
       >All</mat-button-toggle
     >
-    <mat-button-toggle value="downregulated" (click)="applyFilter()">
+    <mat-button-toggle value="down" (click)="applyFilter()">
       <span>
         <mat-icon
           style="color: #c90a0a; font-size: small"
@@ -34,7 +34,7 @@
       </span>
       Downregulated</mat-button-toggle
     >
-    <mat-button-toggle value="upregulated" (click)="applyFilter()">
+    <mat-button-toggle value="up" (click)="applyFilter()">
       <span>
         <mat-icon
           style="color: #0ac924; font-size: small"
@@ -105,18 +105,25 @@
   <ng-container matColumnDef="x">
     <mat-header-cell *matHeaderCellDef mat-sort-header>LogFC</mat-header-cell>
     <mat-cell *matCellDef="let point">
-      <span *ngIf="point.x > 0">
+      <span *ngIf="getGeneRegulation(point) == 'up'">
         <mat-icon
           style="color: #0ac924; font-size: small; padding-top: 50%"
           matTooltip="upregulated"
           >arrow_upward</mat-icon
         >
       </span>
-      <span *ngIf="point.x < 0">
+      <span *ngIf="getGeneRegulation(point) == 'down'">
         <mat-icon
           style="color: #c90a0a; font-size: small; padding-top: 50%"
           matTooltip="downregulated"
           >arrow_downward</mat-icon
+        >
+      </span>
+      <span *ngIf="getGeneRegulation(point) == 'none'">
+        <mat-icon
+          style="color: #000000; font-size: small; padding-top: 50%"
+          matTooltip="no regulation"
+          >remove</mat-icon
         >
       </span>
 
