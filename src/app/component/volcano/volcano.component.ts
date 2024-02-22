@@ -155,7 +155,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     genesToSelectByDefault: string[];
     genes: string[];
   } {
-    const genes = Object.keys(data["geneID"]);
+    const genes = Object.keys(data["log2FoldChange"]);
     // const firstGene = Object.keys(data)[0];
     // const genes = Object.keys(data[firstGene]);
 

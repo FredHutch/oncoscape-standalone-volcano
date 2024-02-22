@@ -1,59 +1,72 @@
 <div class="container">
   <div style="margin-bottom: 10px">
-    <h2 style="margin-top: 10px;">Volcano Plot for Differential Expression Analysis</h2>
-  <p>
-    This is a standalone, interactive Volcano Plot to explore
-    the results of Differential Expression Analysis. It is an in-progress feature that will soon become available as part of <a href="https://oncoscape.sttrcancer.org/" target="_blank">Oncoscape</a>.
-  </p>
+    <h2 style="margin-top: 10px">
+      Volcano Plot for Differential Expression Analysis
+    </h2>
+    <p>
+      This is a standalone, interactive Volcano Plot to explore the results of
+      Differential Expression Analysis. It is an in-progress feature that will
+      soon become available as part of
+      <a href="https://oncoscape.sttrcancer.org/" target="_blank">Oncoscape</a>.
+    </p>
   </div>
-  <mat-expansion-panel [hideToggle]="false" [expanded]="true" style="margin-bottom: 10px;">
-      <mat-expansion-panel-header>
-          <mat-panel-title style="text-transform: none;">Try it out on your own Differential Expression Analysis output</mat-panel-title>
-      </mat-expansion-panel-header>
-      <p>
-        <b>Example: </b><a href="assets/data/example.csv" target="_blank">example.csv</a>
-      </p>
-      <p>
-        <b>Supported file formats: </b>.csv, .xlsx
-      </p>
-      <p>
-        <b>Columns: </b>geneID/gene/genes, log2FoldChange/logFC, padj
-      </p>
-      <p>
-        <b>Empty cells: </b>For missing values such as p-values for genes that have a base mean of 0, leave the cell empty.
-      </p>
-      <app-file-upload
-      style="margin-top: 5px;"
-      (onDataUploaded)="onDataUploaded($event)"
-    ></app-file-upload>
+  <mat-expansion-panel
+    [hideToggle]="false"
+    [expanded]="true"
+    style="margin-bottom: 10px"
+  >
+    <mat-expansion-panel-header>
+      <mat-panel-title style="text-transform: none"
+        >Run your own DEA / Explore existing results</mat-panel-title
+      >
+    </mat-expansion-panel-header>
+
+    <div style="display: flex;">
+      <!-- Run DEA -->
+      <div style="border-right: 1px solid grey; padding-right: 20px; margin-right: 20px;">
+        <h2 style="margin:0; margin-bottom: 10px">
+          Run your own Differential Expression Analysis (DEA)
+        </h2>
+        <app-dea-input></app-dea-input>
+      </div>
+
+
+      <!-- Explore Existing Results -->
+      <div>
+        <h2 style="margin:0; margin-bottom: 10px">
+          Explore existing results
+        </h2>
+        <div class="upload-container">
+
+          <div style="font-size: small; margin-bottom: 5px">
+            <p><b>Supported file formats:</b> .csv, .xlsx</p>
+            <p><b>Columns:</b> geneID/gene/genes, log2FoldChange/logFC, padj</p>
+            <p>
+              <b>Example:</b>
+              <a href="assets/data/example.csv" target="_blank">example.csv</a>
+            </p>
+            <p>
+              <b>Empty cells:</b> For missing values such as p-values for genes
+              that have a base mean of 0, leave the cell empty.
+            </p>
+          </div>
+          <app-file-upload
+            type="results"
+            (onDataUploaded)="onResultsUploaded($event)"
+          ></app-file-upload>
+        </div>
+      </div>
+
+    </div>
+
     <mat-divider style="margin-top: 10px"></mat-divider>
   </mat-expansion-panel>
-  <!-- <div class="upload-container">
-    <p style="margin-bottom: 5px">Try it out on your own Differential Expression Analysis output</p>
-    <div style="font-size: small; margin-bottom: 5px;">
-      <p>
-        <b>Supported file formats:</b> .csv, .xlsx
-      </p>
-      <p>
-        <b>Columns:</b> geneID/gene/genes, log2FoldChange/logFC, padj
-      </p>
-      <p>
-        <b>Example:</b> <a href="assets/data/example.csv" target="_blank">example.csv</a>
-      </p>
-      <p>
-        <b>Empty cells:</b> For missing values such as p-values for genes that have a base mean of 0, leave the cell empty.
-      </p>
-    </div>
-    <app-file-upload
-      (onDataUploaded)="onDataUploaded($event)"
-    ></app-file-upload>
-  </div> -->
 
+  <app-job-table [jobType]="'differentialExpression'"></app-job-table>
 
-
-  <app-visualization-volcano
+  <!-- <app-visualization-volcano
     *ngIf="volcanoData && showVolcano"
     [data]="volcanoData"
     id="1"
-  ></app-visualization-volcano>
+  ></app-visualization-volcano> -->
 </div>

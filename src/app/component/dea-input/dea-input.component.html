@@ -1,0 +1,58 @@
+<div style="display: flex; justify-content: flex-start; gap: 20px;">
+  <div>
+    <p><u>Raw Counts file (.csv, .xlsx)</u></p>
+    <p><b>Column headers:</b> sample IDs</p>
+    <p><b>Row indices:</b> genes</p>
+    <app-file-upload
+        type="rawCounts"
+        (onDataUploaded)="setRawCounts($event)"
+      ></app-file-upload>
+  </div>
+
+  <div>
+    <p><u>Cohort A sample IDs</u></p>
+    <p>Each ID on a new line</p>
+    <textarea
+    rows="4"
+    style="max-height: 100px; overflow-y: auto; resize: none"
+    (change)="cohortA = $event.target.value"
+  ></textarea>
+  </div>
+
+  <div>
+    <p><u>Cohort B sample IDs</u></p>
+    <p>Each ID on a new line</p>
+    <textarea
+    rows="4"
+    style="max-height: 100px; overflow-y: auto; resize: none"
+    (change)="cohortB = $event.target.value"
+  ></textarea>
+  </div>
+
+  <div>
+    <p><u>Use column mapping (for dev use only)</u></p>
+    <input type="checkbox" [(ngModel)]="useColumnMapping" />
+  </div>
+
+</div>
+
+<div style="display: flex; gap: 10px; margin-top: 10px;">
+
+  <mat-form-field>
+    <input matInput
+    placeholder="Analysis Name"
+    [(ngModel)]="analysisName"
+    appearance="outline"
+    style="flex: 0.5"
+    />
+  </mat-form-field>
+
+
+  <button
+  mat-flat-button
+  color="primary"
+  [matTooltip]="!canRunDEA() ? 'Please provide raw counts and cohort IDs' : ''"
+  [disabled]="!canRunDEA()"
+  (click)="runDiffExpJob()"
+  >Run Analysis</button>
+</div>

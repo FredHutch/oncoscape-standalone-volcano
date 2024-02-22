@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Output, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { CsvLoaderService } from 'app/service/csv-loader.service';
 import { ExcelLoaderService } from 'app/service/excel-loader.service';
 
@@ -11,36 +11,85 @@ import { ExcelLoaderService } from 'app/service/excel-loader.service';
 export class FileUploadComponent {
   @ViewChild('fileInput', {static: false}) fileInput: ElementRef<HTMLInputElement>;
 
+  @Input() type: 'rawCounts' | 'results';
+
 
   uploadedData: any;
   loading: boolean;
 
 
-  @Output() onDataUploaded = new EventEmitter<any>();
+  @Output() onDataUploaded = new EventEmitter<{filename: string, data: any, sids?: any}>();
 
   onFileSelected(event: any): void {
     const file = event.target.files[0];
     const extension = file.name.split('.').pop();
 
-    if (extension === 'csv') {
-      this.loadCsv(file);
-    } else if (extension === 'xlsx') {
-      this.loadExcel(file);
-    } else {
-      console.error('Invalid file type');
+    switch (this.type) {
+      case 'rawCounts':
+        if (extension === 'csv') {
+          this.loadRawCountsCSV(file);
+        } else if (extension === 'xlsx') {
+          alert('Excel not supported for raw counts yet')
+        } else {
+          console.error('Invalid file type');
+        }
+        break;
+      case 'results':
+        if (extension === 'csv') {
+          this.loadResultsCSV(file);
+        } else if (extension === 'xlsx') {
+          this.loadResultsExcel(file);
+        } else {
+          console.error('Invalid file type');
+        }
+        break;
+      default:
+        console.error('Invalid file type');
+        break;
     }
+
+
   }
 
-  loadCsv(file: File): void {
+  loadRawCountsCSV(file: File): void {
     this.loading = true;
     const reader = new FileReader();
     reader.onload = () => {
       const csvData: string = reader.result as string;
-      this.csvLoaderService.loadCsvDataFromString(csvData).subscribe(
+      this.csvLoaderService.loadRawCountsCSVFromString(csvData).subscribe(
+        (res) => {
+          this.loading = false;
+          this.uploadedData = res.data;
+          this.onDataUploaded.emit({
+            filename: file.name,
+            data: this.uploadedData,
+            sids: res.headers
+          });
+          console.log('CSV data:', this.uploadedData);
+          console.log('CSV headers:', res.headers)
+        },
+        (error) => {
+          this.loading = false;
+          console.error('Error parsing CSV:', error);
+        }
+      );
+    };
+    reader.readAsText(file);
+  }
+
+  loadResultsCSV(file: File): void {
+    this.loading = true;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const csvData: string = reader.result as string;
+      this.csvLoaderService.loadResultsCSVFromString(csvData).subscribe(
         (data) => {
           this.loading = false;
           this.uploadedData = data;
-          this.onDataUploaded.emit(this.uploadedData);
+          this.onDataUploaded.emit({
+            filename: file.name,
+            data: this.uploadedData,
+          });
           console.log('CSV data:', this.uploadedData);
         },
         (error) => {
@@ -52,9 +101,9 @@ export class FileUploadComponent {
     reader.readAsText(file);
   }
 
-  loadExcel(file: File): void {
+  loadResultsExcel(file: File): void {
     this.loading = true;
-    this.excelLoaderService.loadExcelData(file).subscribe(
+    this.excelLoaderService.loadResultsExcel(file).subscribe(
       (data) => {
         this.uploadedData = data;
         this.onDataUploaded.emit(this.uploadedData);

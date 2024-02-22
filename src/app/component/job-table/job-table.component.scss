@@ -1,0 +1,46 @@
+table {
+  width: 100%;
+}
+
+tr.detail-row {
+  height: 0;
+}
+
+tr.job-row:not(.expanded-row):hover {
+  background: whitesmoke;
+}
+
+tr.job-row:not(.expanded-row):active {
+  background: #efefef;
+}
+
+.job-row td {
+  border-bottom-width: 0;
+}
+
+.job-detail {
+  overflow: hidden;
+  display: flex;
+}
+
+.step-detail-table {
+  margin-left: 20px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+
+  th {
+    color: dimgray;
+  }
+}
+
+.mat-expansion-panel {
+  .mat-expansion-panel-header {
+    width: fit-content;
+  }
+
+  .mat-content {
+    flex: none;
+  }
+}
+
+

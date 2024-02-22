@@ -1,13 +1,14 @@
 import { ChangeDetectorRef, Component, OnInit, Pipe, PipeTransform } from '@angular/core';
 import { CsvLoaderService } from './service/csv-loader.service';
+import { PythonService } from './service/python.service';
+import { MatSnackBar } from '@angular/material';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit {
-  public volcanoData: any;
-  public showVolcano = false;
+  private _pythonService: PythonService;
 
   private replaceKeys(data: any, toReplace: string[], replaceWith: string): any {
     toReplace.forEach((key) => {
@@ -18,7 +19,7 @@ export class AppComponent implements OnInit {
     });
   }
 
-  onDataUploaded(data: any) {
+  onResultsUploaded({data, filename}: {data: any, filename: string}) {
 
     // if there is a key "genes" or lowercase "geneid" or "gene_id" or "gene", replace them with "geneID"
     this.replaceKeys(data, ['genes', 'geneid', 'gene_id', 'gene'], 'geneID');
@@ -44,22 +45,19 @@ export class AppComponent implements OnInit {
       return;
     }
 
-    this.volcanoData = data;
-    this.showVolcano = false;
-    this.cd.detectChanges();
-    this.showVolcano = true;
-    this.cd.detectChanges();
+    this._pythonService.createDummyJob(data, filename);
   }
 
   ngOnInit() {
-    this.csv.loadCsvData('assets/data/example.csv').subscribe((data) => {
+    // open
 
+    this.csv.loadResultsCSVFromFile('assets/data/example.csv').subscribe(data => {
+      this._pythonService.createDummyJob(data, 'Example');
+    })
 
-      this.volcanoData = data;
-      this.showVolcano = true;
-    });
   }
 
-  constructor(private csv: CsvLoaderService, private cd: ChangeDetectorRef) {
+  constructor(private csv: CsvLoaderService, private cd: ChangeDetectorRef, private _snackbar: MatSnackBar) {
+    this._pythonService = new PythonService(_snackbar, csv);
   }
 }

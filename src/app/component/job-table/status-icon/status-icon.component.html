@@ -1,0 +1,34 @@
+<mat-icon
+  matTooltip="Success"
+  [style.font-size]="size + 'px'"
+  style="color: green"
+  *ngIf="status === 'success'"
+  >check_circle
+</mat-icon>
+
+<mat-icon
+  matTooltip="Error"
+  [style.font-size]="size"
+  style="color: red"
+  *ngIf="status === 'error'"
+  >error</mat-icon
+>
+<mat-icon
+  matTooltip="Queued"
+  [style.font-size]="size"
+  style="color: yellow"
+  *ngIf="status === 'queued'"
+  >access_time</mat-icon
+>
+<mat-icon
+  matTooltip="Cancelled"
+  [style.font-size]="size"
+  style="color: red"
+  *ngIf="status === 'cancelled'"
+  >cancel</mat-icon
+>
+<mat-spinner
+  matTooltip="Running"
+  [diameter]="size"
+  *ngIf="status === 'running'"
+></mat-spinner>

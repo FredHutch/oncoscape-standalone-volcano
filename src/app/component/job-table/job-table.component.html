@@ -1,0 +1,222 @@
+<table
+  mat-table
+  [dataSource]="jobs"
+  multiTemplateDataRows
+  class="mat-elevation-z4"
+>
+  <!-- Name Column -->
+  <ng-container matColumnDef="name">
+    <th mat-header-cell *matHeaderCellDef>Name</th>
+    <td mat-cell *matCellDef="let element">
+      {{ element.name }}
+    </td>
+  </ng-container>
+
+  <!-- Creation Time Column -->
+  <ng-container matColumnDef="creationTime">
+    <th mat-header-cell *matHeaderCellDef>Start Time</th>
+    <td mat-cell *matCellDef="let element">
+      {{ element.creationTime | date : "medium" }}
+    </td>
+  </ng-container>
+
+  <!-- Status Column -->
+  <ng-container matColumnDef="status">
+    <th mat-header-cell *matHeaderCellDef>Status</th>
+    <td mat-cell *matCellDef="let element">
+      <app-status-icon [status]="element.status"></app-status-icon>
+    </td>
+  </ng-container>
+
+  <!-- Cancel or Delete Column -->
+  <ng-container matColumnDef="cancelOrDelete">
+    <th mat-header-cell *matHeaderCellDef></th>
+    <td mat-cell *matCellDef="let element">
+
+      <!-- cancel -->
+      <button
+        mat-icon-button
+        aria-label="cancel job"
+        matTooltip="Cancel"
+        *ngIf="canCancel(element)"
+        [style.display]="canCancel(element) ? 'inline' : 'none'"
+        (click)="
+          $event.stopPropagation();
+          onJobCancelOpenDialog(
+            element.id
+          )
+        "
+      >
+        <mat-icon style="color: red">cancel_presentation</mat-icon>
+      </button>
+
+      <!-- delete -->
+      <button
+        mat-icon-button
+        matTooltip="Delete"
+        *ngIf="canDelete(element)"
+        aria-label="delete job"
+        [style.display]="canDelete(element) ? 'inline' : 'none'"
+        (click)="
+          $event.stopPropagation();
+          onJobDeleteOpenDialog(
+            element.id
+          )
+        "
+      >
+        <mat-icon style="color: red">delete_outline</mat-icon>
+      </button>
+    </td>
+  </ng-container>
+
+  <!-- Expand Column -->
+  <ng-container matColumnDef="expand">
+    <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
+    <td mat-cell *matCellDef="let element">
+      <button
+        matTooltip="Job Details"
+        mat-icon-button
+        aria-label="expand row"
+        (click)="toggleExpandedRow(element); $event.stopPropagation()"
+      >
+        <ng-container
+          *ngIf="elementsAreEqual(expandedElement, element); else collapsedIcon"
+        >
+          <mat-icon>keyboard_arrow_up</mat-icon>
+        </ng-container>
+        <ng-template #collapsedIcon>
+          <mat-icon>keyboard_arrow_down</mat-icon>
+        </ng-template>
+      </button>
+    </td>
+  </ng-container>
+
+  <!-- Expanded Content Column - The detail row is made up of this one column that spans across all columns -->
+  <ng-container matColumnDef="expandedDetail">
+    <td
+      mat-cell
+      *matCellDef="let element"
+      [attr.colspan]="columnsToDisplayWithExpand.length"
+    >
+      <div
+        class="job-detail"
+        [@detailExpand]="
+          elementsAreEqual(expandedElement, element) ? 'expanded' : 'collapsed'
+        "
+      >
+        <table class="step-detail-table">
+          <tr>
+            <th>Step</th>
+            <th>Start Time</th>
+            <th>Status</th>
+          </tr>
+
+          <ng-container *ngFor="let step of element.steps; index as i">
+
+            <!-- Step information -->
+            <tr>
+              <td>{{ step.name }}</td>
+              <td>{{ step.creationTime | date : "medium" }}</td>
+              <td>
+                <app-status-icon
+                  [status]="step.status"
+                  size="20"
+                ></app-status-icon>
+              </td>
+            </tr>
+
+            <!-- Step logs (collapsible) -->
+            <tr *ngIf="step.logs.length > 0">
+              <td colspan="3">
+                <mat-expansion-panel>
+                  <mat-expansion-panel-header>
+                    <mat-panel-title> Logs </mat-panel-title>
+                  </mat-expansion-panel-header>
+                  <div
+                    *ngFor="let log of step.logs"
+                    [style.color]="getLogColor(log.level)"
+                  >
+                    {{ log.msg }}
+                  </div>
+                </mat-expansion-panel>
+              </td>
+            </tr>
+
+            <!-- Result for the step (if any) -->
+            <!-- If we only render results when the row is clicked (regardless of display: none, flex, block), then the initial page loading time will be faster -->
+            <tr
+              *ngIf="
+                elementsAreEqual(expandedElement, element) &&
+                step.result &&
+                step.result.data !== null
+              "
+            >
+              <td colspan="3">
+                <div
+                  style="
+                    /* margin-left: 20px; */
+
+                    max-width: 100%;
+                    overflow: auto;
+                  "
+                >
+                  <!-- <p style="margin: 0; margin-bottom: 5px">Result:</p> -->
+
+                  <!-- For differential expression jobs show the volcano plot -->
+                  <app-visualization-volcano
+                    *ngIf="
+                      element.type === 'differentialExpression' &&
+                      step.result.data
+                    "
+                    [data]="step.result.data"
+                    [id]="step.id"
+                  ></app-visualization-volcano>
+
+                  <!-- Result is a table -->
+                  <table *ngIf="step.result.type === 'table'">
+                    <!-- headers are the keys -->
+                    <tr>
+                      <th *ngFor="let item of step.result.data | keyvalue">
+                        {{ item.key }}
+                      </th>
+                    </tr>
+                    <!-- the values are {index: value} -->
+                    <tr *ngFor="let item of step.result.data | keyvalue">
+                      <td *ngFor="let value of item.value | keyvalue">
+                        {{ value.value }}
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Result is text -->
+                  <div *ngIf="step.result.type === 'text'">
+                    <pre>{{ step.result.data }}</pre>
+                  </div>
+
+                  <!-- Result is html -->
+                  <div *ngIf="step.result.type === 'html'">
+                    <div [innerHTML]="step.result.data"></div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+        </table>
+      </div>
+    </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="columnsToDisplayWithExpand"></tr>
+  <tr
+    mat-row
+    *matRowDef="let element; columns: columnsToDisplayWithExpand"
+    class="job-row"
+    [class.expanded-row]="elementsAreEqual(element, expandedElement)"
+    (click)="toggleExpandedRow(element)"
+  ></tr>
+  <tr
+    mat-row
+    *matRowDef="let row; columns: ['expandedDetail']"
+    class="detail-row"
+  ></tr>
+</table>

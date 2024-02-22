@@ -23,6 +23,15 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { FileUploadComponent } from './component/file-upload/file-upload.component';
 import {MatExpansionModule} from '@angular/material/expansion';
 import {MatDividerModule} from '@angular/material/divider';
+import { MatDialogModule } from '@angular/material';
+import { PythonService } from './service/python.service';
+import { WorkerService } from './service/worker/worker.service';
+import { JobTableComponent } from './component/job-table/job-table.component';
+import { DeleteJobDialogComponent } from './component/job-table/delete-job-dialog/delete-job-dialog.component';
+import { CancelJobDialogComponent } from './component/job-table/cancel-job-dialog/cancel-job-dialog.component';
+import { StatusIconComponent } from './component/job-table/status-icon/status-icon.component';
+import { DeaInputComponent } from './component/dea-input/dea-input.component';
+import {TextFieldModule} from '@angular/cdk/text-field';
 
 @NgModule({
   declarations: [
@@ -30,7 +39,12 @@ import {MatDividerModule} from '@angular/material/divider';
     ScientificPipe,
     VolcanoComponent,
     VolcanoGeneTableComponent,
-    FileUploadComponent
+    FileUploadComponent,
+    JobTableComponent,
+    DeleteJobDialogComponent,
+    CancelJobDialogComponent,
+    StatusIconComponent,
+    DeaInputComponent
   ],
   imports: [
     BrowserModule,
@@ -50,12 +64,18 @@ import {MatDividerModule} from '@angular/material/divider';
     MatProgressSpinnerModule,
     MatExpansionModule,
     MatDividerModule,
-    FormsModule
+    FormsModule,
+    MatDialogModule,
+    TextFieldModule
   ],
   providers: [
     CsvLoaderService,
     HttpClient,
+    PythonService,
+    WorkerService
   ],
   bootstrap: [AppComponent],
+  entryComponents: [DeleteJobDialogComponent, CancelJobDialogComponent]
+
 })
 export class AppModule { }

@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 export class ExcelLoaderService {
   constructor() {}
 
-  loadExcelData(file: File): Observable<any> {
+  loadResultsExcel(file: File): Observable<any> {
     return new Observable((observer) => {
       const reader = new FileReader();
 

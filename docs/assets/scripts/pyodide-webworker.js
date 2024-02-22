@@ -20,10 +20,23 @@ async function installPackages({ deps, method = "pyodide" }) {
 }
 
 /**
+ * Run python code in a web worker. Two variables will be made available to the python code in the global scope:
+ * - js_payload: the payload object passed to this function
+ * - js_print: a function that can be used to print messages to the console. It takes one required argument, the message to be printed. It can also take an optional second argument, which is the severity of the message. The severity can be one of "log", "info", "warn", "error".
  *
- * @param {string} filePath Path to python file to be run.
- * @param {Object} payload Payload to be injected into python code. Each key should have a corresponding {{key}} in the python code.
- * @returns {Object} JSON object of the python code output. If error, returns {error: error}.
+ * To ensure `pyodide.runPythonAsync` returns the last value of the Python script, the file should end with the following lines:
+ *
+ * ```py
+ *  sys.stdout = io.StringIO()
+ *  json.dumps(res)
+ * ```
+ *
+ * Where res is a `WorkerResponse` (see `worker.service.types.ts`) object.
+ *
+ * @param {string} filePath Path to python file.
+ * @param {Object} payload Payload to be injected into python code. Will be available as 'js_payload' in python code.
+ *
+ * @returns {WorkerResponse} The result of the python code.
  */
 async function runPython(filePath, payload) {
   if (!pyodide) {
@@ -38,24 +51,56 @@ async function runPython(filePath, payload) {
       pythonCode = await fetch(filePath).then((response) => response.text());
     } catch (error) {
       console.error(`[PYODIDE WORKER] Error loading file: ${filePath}`, error);
-      return { error: error };
+      return { status: "error", data: error, type: "error" };
     }
 
     // inject payload into python code
     pyodide.globals.set("js_payload", payload)
-    const log = (pythonFilename, msg) => {
-      this.postMessage({ cmd: "log", data: msg });
-      console.log(`[${pythonFilename}] ${msg}`)
+
+    // inject print function into python code
+    const print = (msg, level='info') => {
+
+      // ignore messages that are just newlines
+      if (msg === '\n') return;
+
+      this.postMessage({
+        status: 'log',
+        data: {msg, level},
+        type: null
+      }
+      );
+      switch (level) {
+        case 'log':
+          console.log(`[${filePath}] ${msg}`)
+          break;
+        case 'info':
+          console.info(`[${filePath}] ${msg}`)
+          break;
+        case 'warn':
+          console.warn(`[${filePath}] ${msg}`)
+          break;
+        case 'error':
+          console.error(`[${filePath}] ${msg}`)
+          break;
+        default:
+          console.log(`[${filePath}] ${msg}`)
+      }
     };
-    pyodide.globals.set("js_log", log);
+    pyodide.globals.set("js_print", print);
 
     console.log("[PYODIDE WORKER] Running Python code.");
-    const res = await pyodide.runPythonAsync(pythonCode);
-    console.log("[PYODIDE WORKER] Python code done.");
-    return JSON.parse(res);
+
+    // We can directly return the result of the python code, as it is a JSON string that comforms to a WorkerResponse, as defined in worker.service.ts
+    const response = JSON.parse(await pyodide.runPythonAsync(pythonCode));
+    if (response.status === "error") {
+      console.error("[PYODIDE WORKER] Python code returned error.", response);
+      return response;
+    }
+    console.log("[PYODIDE WORKER] Python code successfully completed.");
+    return response;
   } catch (error) {
     console.error("[PYODIDE WORKER] Error running Python code.", error);
-    return { error: error };
+    return { status: "error", data: error, type: "error"};
   }
 }
 
@@ -67,25 +112,23 @@ var onmessage = async function (params) {
     params.data
   );
 
+  const { cmd, data } = params.data;
+
   //switch statement to check given command, more functions may be added later
-  switch (params.data["cmd"]) {
+  switch (cmd) {
     case "install":
-      await installPackages(params.data["data"]);
-      self.postMessage({ cmd: "done" });
+      await installPackages(data);
+      self.postMessage({ status: "success", data: null, type: null });
       break;
     case "run":
-      const res = await runPython(params.data["fp"], params.data["payload"]);
-      if (res.error) {
-        self.postMessage({ cmd: "error", data: res.error });
-        break;
-      }
-      self.postMessage({ cmd: "done", data: res });
+      const res = await runPython(data["fp"], data["data"]);
+      self.postMessage(res);
       break;
     default:
-      console.error(`[PYODIDE WORKER] Unknown command: ${params.data["cmd"]}]`);
+      console.error(`[PYODIDE WORKER] Unknown command: ${cmd}]`);
       self.postMessage({
-        cmd: "error",
-        data: `Unknown command: ${params.data["cmd"]}`,
+        status: "error",
+        data: `Unknown command: ${cmd}`,
       });
   }
 };
