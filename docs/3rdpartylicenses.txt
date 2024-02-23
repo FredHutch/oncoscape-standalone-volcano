@@ -91,6 +91,8 @@ THE SOFTWARE.
 
 @angular/material/checkbox
 
+@angular/material/core
+
 @angular/material/dialog
 
 @angular/material/divider
@@ -102,6 +104,8 @@ THE SOFTWARE.
 @angular/material/icon
 
 @angular/material/progress-spinner
+
+@angular/material/select
 
 @angular/material/snack-bar
 

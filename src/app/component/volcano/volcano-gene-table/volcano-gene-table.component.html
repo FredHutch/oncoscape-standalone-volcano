@@ -8,12 +8,34 @@
   style="margin-bottom: 10px"
 >
   <mat-expansion-panel-header>
-    <mat-panel-title style="text-transform: none"
-      >Selected Genes
-      <span id="num-genes-selected"
-        >&nbsp;({{ selectedPoints.length }} Genes)</span
-      ></mat-panel-title
-    >
+    <mat-panel-title style="text-transform: none;">
+      Selected Genes&nbsp;({{ selectedPoints.length }} Genes)
+
+    </mat-panel-title>
+    <mat-panel-description>
+      <button
+        mat-icon-button
+        [matTooltip]="'Copy ' + selectedPoints.length + ' genes to clipboard'"
+        aria-label="Copy gene list to clipboard"
+        class="stat-descr-btn"
+        (click)="copyToClipboard($event)"
+      >
+        <mat-icon>file_copy</mat-icon>Copy genes to clipboard
+      </button>
+      <button
+        mat-icon-button
+        aria-label="Open in Enrichr"
+        class="stat-descr-btn"
+        (click)="openInEnrichr($event)"
+      >
+        <mat-icon>link</mat-icon>Open in Enrichr
+      </button>
+      <div *ngIf="processingEnrichrRequest" id="enrichr-processing">Processing...</div>
+
+
+    </mat-panel-description>
+
+
   </mat-expansion-panel-header>
   <form [formGroup]="filterForm" style="font-size: 12px" id="filter-form">
     <mat-form-field appearance="outline">
@@ -59,15 +81,6 @@
         Upregulated</mat-button-toggle
       >
     </mat-button-toggle-group>
-
-    <button
-      mat-icon-button
-      matTooltip="Copy gene list to clipboard"
-      aria-label="Copy gene list to clipboard"
-      (click)="copyToClipboard()"
-    >
-      <mat-icon>file_copy</mat-icon>
-    </button>
   </form>
 </mat-expansion-panel>
 

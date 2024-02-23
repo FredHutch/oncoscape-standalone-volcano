@@ -4,6 +4,7 @@ import { SelectionModel } from '@angular/cdk/collections';
 import {FormControl, FormGroup, Validators} from '@angular/forms';
 import { EventEmitter } from '@angular/core';
 import { Point, VolcanoComponent } from "../volcano.component"
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-volcano-gene-table',
@@ -87,7 +88,7 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
 
   calculateAvailableTableHeight() {
     // Perform your height calculation logic here
-    const newHeight = 'calc(110% - ' + this.getControlsHeight() + ' - ' + this.getStatsPanelHeight() + ')';
+    const newHeight = 'calc(120% - ' + this.getControlsHeight() + ' - ' + this.getStatsPanelHeight() + ')';
 
     return newHeight;
   }
@@ -205,10 +206,31 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
     this.dataSource.filter = filterValue.trim();
   }
 
-  copyToClipboard() {
-    const clipboardText = this.dataSource.filteredData.map(p => p.gene).join('\n');
+  public processingEnrichrRequest: boolean = false;
+  openInEnrichr(event: MouseEvent) {
+    event.stopPropagation();
+    const genes = this.dataSource.data.map(p => p.gene);
+    const geneList = genes.join('\n');
+    // Create FormData
+    const formData = new FormData();
+
+    formData.append('list', geneList);
+    formData.append('description', 'Volcano Plot Genes');
+
+    // make the request
+    this.processingEnrichrRequest = true;
+    this.http.post('https://maayanlab.cloud/Enrichr/addList', formData).subscribe((res) => {
+      this.processingEnrichrRequest = false;
+      const listId = res['shortId'];
+      window.open(`https://maayanlab.cloud/Enrichr/enrich?dataset=${listId}`, '_blank');
+    })
+  }
+
+  copyToClipboard(event: MouseEvent) {
+    event.stopPropagation();
+    const clipboardText = this.dataSource.data.map(p => p.gene).join('\n');
     navigator.clipboard.writeText(clipboardText).then(() => {
-      this._snackbar.open('Copied selected genes to clipboard', '', {
+      this._snackbar.open(`Copied ${this.dataSource.data.length} genes to clipboard!`, '', {
         duration: 2000,
         horizontalPosition: "right",
         verticalPosition: "top"
@@ -234,5 +256,5 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
     return true;
   }
 
-  constructor(public cd: ChangeDetectorRef, private _snackbar: MatSnackBar) {}
+  constructor(public cd: ChangeDetectorRef, private _snackbar: MatSnackBar, private http: HttpClient) {}
 }

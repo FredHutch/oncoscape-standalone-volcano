@@ -1,9 +1,43 @@
-<div class="volcano-container">
+<div class="volcano-container" [ngClass]="{ 'full-screen': isFullScreen }">
   <div>
+    <div id="top-bar">
+      <button
+        mat-icon-button
+        matTooltip="Toggle Fullscreen"
+        (click)="toggleFullScreen()"
+        id="toggle-fullscreen-button"
+      >
+        <mat-icon *ngIf="isFullScreen">fullscreen</mat-icon>
+        <mat-icon *ngIf="!isFullScreen">fullscreen_exit</mat-icon>
+      </button>
+      <!-- save button -->
+
+      <!-- mat select dropdown of save type (svg, png, pdf) -->
+      <mat-form-field id="download-type-select">
+        <mat-label>Select download type</mat-label>
+        <mat-select
+          [(value)]="downloadPlotType"
+        >
+          <mat-option value="svg">SVG</mat-option>
+          <mat-option value="png">PNG</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button
+        id="download-button"
+        mat-flat-button
+        color="primary"
+        (click)="onDownloadImageClick()"
+      >
+        <a id="download-link">Download Plot</a>
+      </button>
+    </div>
+
     <svg [id]="'volcano-' + id"></svg>
   </div>
 
   <div id="side-bar">
+
+    <!-- Select By Statistical Thresholds -->
     <mat-expansion-panel
       [hideToggle]="false"
       [expanded]="true"
@@ -18,49 +52,54 @@
         >
       </mat-expansion-panel-header>
       <div id="select-by-stats">
-        <mat-form-field style="width: 100px">
-          <mat-label>-log<sub>10</sub>(p-adjusted)</mat-label>
-          <input
-            matInput
-            type="number"
-            id="nlogpadj"
-            name="nlogpadj"
-            step="0.05"
-            [(ngModel)]="selectByStatsForm.nlogpadj"
-          />
-        </mat-form-field>
-        <mat-form-field style="width: 100px">
-          <mat-label>Log2 Fold Change</mat-label>
-          <input
-            matInput
-            type="number"
-            id="log2FoldChange"
-            name="log2FoldChange"
-            step="0.05"
-            [(ngModel)]="selectByStatsForm.log2FoldChange"
-          />
-        </mat-form-field>
-        <button mat-flat-button color="primary" (click)="selectByStats()">
-          Select
-        </button>
-        <mat-form-field>
-          <mat-label>Downregulated gene color</mat-label>
-          <input
-            matInput
-            type="color"
-            [value]="selectByStatsForm.downregulatedColor"
-            (change)="updateRegulationColor($event.target.value, 'down')"
-          />
-        </mat-form-field>
-        <mat-form-field>
-          <mat-label>Upregulated gene color</mat-label>
-          <input
-            matInput
-            type="color"
-            [value]="selectByStatsForm.upregulatedColor"
-            (change)="updateRegulationColor($event.target.value, 'up')"
-          />
-        </mat-form-field>
+        <div id="stats-input">
+          <mat-form-field style="width: 100px">
+            <mat-label>-log<sub>10</sub>(p-adjusted)</mat-label>
+            <input
+              matInput
+              type="number"
+              id="nlogpadj"
+              name="nlogpadj"
+              step="0.05"
+              [(ngModel)]="selectByStatsForm.nlogpadj"
+            />
+          </mat-form-field>
+          <mat-form-field style="width: 100px">
+            <mat-label>Log2 Fold Change</mat-label>
+            <input
+              matInput
+              type="number"
+              id="log2FoldChange"
+              name="log2FoldChange"
+              step="0.05"
+              [(ngModel)]="selectByStatsForm.log2FoldChange"
+            />
+          </mat-form-field>
+          <button mat-flat-button color="primary" (click)="selectByStats()">
+            Select
+          </button>
+        </div>
+
+        <div id="reglation-colors">
+          <mat-form-field>
+            <mat-label>Downregulated gene color</mat-label>
+            <input
+              matInput
+              type="color"
+              [value]="selectByStatsForm.downregulatedColor"
+              (change)="updateRegulationColor($event.target.value, 'down')"
+            />
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Upregulated gene color</mat-label>
+            <input
+              matInput
+              type="color"
+              [value]="selectByStatsForm.upregulatedColor"
+              (change)="updateRegulationColor($event.target.value, 'up')"
+            />
+          </mat-form-field>
+        </div>
       </div>
     </mat-expansion-panel>
 

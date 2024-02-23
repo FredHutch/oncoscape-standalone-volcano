@@ -32,6 +32,7 @@ import { CancelJobDialogComponent } from './component/job-table/cancel-job-dialo
 import { StatusIconComponent } from './component/job-table/status-icon/status-icon.component';
 import { DeaInputComponent } from './component/dea-input/dea-input.component';
 import {TextFieldModule} from '@angular/cdk/text-field';
+import {MatSelectModule} from '@angular/material/select'
 
 @NgModule({
   declarations: [
@@ -66,7 +67,8 @@ import {TextFieldModule} from '@angular/cdk/text-field';
     MatDividerModule,
     FormsModule,
     MatDialogModule,
-    TextFieldModule
+    TextFieldModule,
+    MatSelectModule
   ],
   providers: [
     CsvLoaderService,

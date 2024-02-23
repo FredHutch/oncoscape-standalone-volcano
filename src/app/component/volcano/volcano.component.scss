@@ -1,9 +1,21 @@
-
-
 .volcano-container {
   display: flex;
   margin: 0;
   height: 80vh;
+  overflow: hidden;
+}
+
+$full-screen-padding: 5px;
+$full-screen-z-index: 999;
+.full-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: calc(100% - #{$full-screen-padding} * 2);
+  height: calc(100% - #{$full-screen-padding} * 2);
+  z-index: $full-screen-z-index;
+  background-color: white;
+  padding: $full-screen-padding;
 }
 
 .mat-expansion-panel-header-title {
@@ -27,6 +39,41 @@ h4 {
   margin-bottom: 4px;
 }
 
+button {
+  line-height: normal;
+  padding: 5px;
+}
+
+$top-bar-font-size: 10px;
+#top-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  ::ng-deep mat-select {
+    font-size: $top-bar-font-size;
+
+    mat-label {
+      font-size: $top-bar-font-size;
+    }
+  }
+
+  button {
+    font-size: $top-bar-font-size;
+  }
+  #download-link {
+    color: white;
+  }
+  #download-link:visited {
+    color: white;
+  }
+
+  #download-type-select {
+    font-size: 12px;
+  }
+}
+
+$side-bar-font-size: 10px;
 #side-bar {
   margin: 0;
   width: 100%;
@@ -37,21 +84,27 @@ h4 {
 
   #select-by-stats {
     display: flex;
-    gap: 20px;
+    align-items: center;
+    justify-content: space-between;
 
-    ::ng-deep .mat-form-field-wrapper{
+    div {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    ::ng-deep .mat-form-field-wrapper {
       margin-bottom: -1.25em;
     }
 
     button {
-      padding: 0;
-      height: fit-content;
+      font-size: $side-bar-font-size;
     }
   }
 
   #num-genes-selected {
     margin-top: 10px;
-    color: lightgray
+    color: lightgray;
   }
 
   app-volcano-gene-table {
@@ -62,5 +115,7 @@ h4 {
 
 #no-genes {
   height: 90%;
-  color: lightslategray
+  color: lightslategray;
 }
+
+

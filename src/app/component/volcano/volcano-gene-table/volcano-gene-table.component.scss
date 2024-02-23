@@ -38,6 +38,34 @@ p {
   padding: 0;
 }
 
+::ng-deep .stat-descr-btn {
+
+  width: auto;
+  height: auto;
+  line-height: normal;
+  margin-top: -5px;
+  font-size: 12px;
+
+  mat-icon{
+    font-size: 12px;
+  }
+}
+
+#enrichr-processing {
+  margin-left: 10px;
+  font-size: 12px;
+}
+
+// bold on hover
+::ng-deep .stat-descr-btn:hover {
+  font-weight: bold;
+}
+
+// all except first instance
+::ng-deep .stat-descr-btn:not(:first-child) {
+  margin-left: 20px;
+}
+
 .mat-cell {
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }

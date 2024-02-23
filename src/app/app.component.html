@@ -1,6 +1,6 @@
 <div class="container">
   <div style="margin-bottom: 10px">
-    <h2 style="margin-top: 10px">
+    <h2 style="margin: 0; margin-bottom: 10px">
       Volcano Plot for Differential Expression Analysis
     </h2>
     <p>
@@ -10,57 +10,45 @@
       <a href="https://oncoscape.sttrcancer.org/" target="_blank">Oncoscape</a>.
     </p>
   </div>
-  <mat-expansion-panel
-    [hideToggle]="false"
-    [expanded]="true"
-    style="margin-bottom: 10px"
-  >
-    <mat-expansion-panel-header>
-      <mat-panel-title style="text-transform: none"
-        >Run your own DEA / Explore existing results</mat-panel-title
-      >
-    </mat-expansion-panel-header>
 
-    <div style="display: flex;">
-      <!-- Run DEA -->
-      <div style="border-right: 1px solid grey; padding-right: 20px; margin-right: 20px;">
-        <h2 style="margin:0; margin-bottom: 10px">
-          Run your own Differential Expression Analysis (DEA)
-        </h2>
-        <app-dea-input></app-dea-input>
-      </div>
+  <div
+  id="inputs"
+  style="display: flex; margin-bottom: 10px; justify-content: space-between; margin-top: 20px; margin-bottom: 20px;">
+    <!-- Explore Existing Results -->
+    <div>
+      <h3 style="margin:0; margin-bottom: 10px">
+        Explore existing results
+      </h3>
+      <div class="upload-container">
 
-
-      <!-- Explore Existing Results -->
-      <div>
-        <h2 style="margin:0; margin-bottom: 10px">
-          Explore existing results
-        </h2>
-        <div class="upload-container">
-
-          <div style="font-size: small; margin-bottom: 5px">
-            <p><b>Supported file formats:</b> .csv, .xlsx</p>
-            <p><b>Columns:</b> geneID/gene/genes, log2FoldChange/logFC, padj</p>
-            <p>
-              <b>Example:</b>
-              <a href="assets/data/example.csv" target="_blank">example.csv</a>
-            </p>
-            <p>
-              <b>Empty cells:</b> For missing values such as p-values for genes
-              that have a base mean of 0, leave the cell empty.
-            </p>
-          </div>
-          <app-file-upload
-            type="results"
-            (onDataUploaded)="onResultsUploaded($event)"
-          ></app-file-upload>
+        <div style="font-size: small; margin-bottom: 5px">
+          <p><b>Supported file formats:</b> .csv, .xlsx</p>
+          <p><b>Columns:</b> geneID/gene/genes, log2FoldChange/logFC, padj</p>
+          <p>
+            <b>Example:</b>
+            <a href="assets/data/example.csv" target="_blank">example.csv</a>
+          </p>
+          <p>
+            <b>Empty cells:</b> For missing values such as p-values for genes
+            that have a base mean of 0, leave the cell empty.
+          </p>
         </div>
+        <app-file-upload
+          type="results"
+          (onDataUploaded)="onResultsUploaded($event)"
+        ></app-file-upload>
       </div>
-
     </div>
 
-    <mat-divider style="margin-top: 10px"></mat-divider>
-  </mat-expansion-panel>
+    <!-- Run DEA -->
+    <div >
+      <h3 style="margin:0; margin-bottom: 10px">
+        Run your own Differential Expression Analysis <span style="font-weight: normal;"><i><sup>*beta</sup></i></span>
+      </h3>
+      <app-dea-input></app-dea-input>
+    </div>
+
+  </div>
 
   <app-job-table [jobType]="'differentialExpression'"></app-job-table>
 

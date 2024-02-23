@@ -61,6 +61,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   private selectedPoints: Point[] = [];
   public emittedPoints: Point[] = [];
 
+  public downloadPlotType: 'svg' | 'png' | 'pdf' = 'svg';
+
   public selectByStatsForm: {
     nlogpadj: number;
     log2FoldChange: number;
@@ -94,7 +96,13 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   private domain: { x: [number, number]; y: [number, number] };
   private hovered: Point;
 
+  public isFullScreen = false;
+
   // #region Helper Functions
+
+  toggleFullScreen() {
+    this.isFullScreen = !this.isFullScreen;
+  }
 
   getGeneRegulation(point: Point): 'up' | 'down' | 'none' {
     if (point.x > this.selectByStatsForm.log2FoldChange && point.y > this.selectByStatsForm.nlogpadj) {
@@ -139,6 +147,118 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       this.stylePointOnClick(d3.event, point);
     });
     this.emitSelectionUpdate();
+  }
+
+  onDownloadImageClick() {
+    switch (this.downloadPlotType) {
+      case 'svg':
+        this.downloadAsSVG();
+        break;
+      case 'png':
+        this.downloadAsPNG();
+        break;
+      default:
+        console.error('Invalid download type')
+        break;
+    }
+  }
+
+  downloadAsPNG() {
+    // get SVG element
+    var svg = document.getElementById(this.svgId);
+
+    // get SVG source
+    var serializer = new XMLSerializer();
+    var source = serializer.serializeToString(svg);
+
+    // add namespaces
+    if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+    }
+
+    // add XML declaration
+    source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+
+    // create a Blob from the SVG source
+    var blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+
+    // create an image element
+    var img = new Image();
+
+    // create a data URL from the Blob
+    var url = URL.createObjectURL(blob);
+
+    // set the image source to the SVG data URL
+    img.src = url;
+
+    // create a canvas
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+
+
+    // set canvas dimensions to match the SVG
+    // @ts-ignore
+    canvas.width = svg.width.baseVal.value;
+    // @ts-ignore
+    canvas.height = svg.height.baseVal.value;
+
+    // set background to white
+    context.fillStyle = 'white';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // wait for the image to load before drawing on the canvas
+    img.onload = function () {
+        // draw the image onto the canvas
+        context.drawImage(img, 0, 0);
+
+        // convert canvas content to data URL in PNG format
+        var pngUrl = canvas.toDataURL('image/png');
+
+        // set the PNG data URL as the href attribute of the download link
+        var saveLink = document.getElementById('download-link') as HTMLAnchorElement;
+        if (saveLink) {
+            saveLink.href = pngUrl;
+            saveLink.download = `volcano-plot-${new Date().toISOString()}.png`;
+        }
+    };
+}
+
+  downloadAsSVG() {
+    //get svg element.
+    var svg = document.getElementById(this.svgId)
+
+    //get svg source.
+    var serializer = new XMLSerializer();
+    var source = serializer.serializeToString(svg);
+
+    // get svg source.
+    var serializer = new XMLSerializer();
+    var source = serializer.serializeToString(svg);
+
+    // add name spaces.
+    if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+    }
+
+    // add xml declaration
+    source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+
+    // convert svg source to URI data scheme.
+    var url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
+
+    // set url value to the download link's href attribute.
+    var dLink = document.getElementById("download-link") as HTMLAnchorElement;
+    if (dLink) {
+        dLink.href = url;
+        dLink.download = `volcano-plot-${new Date().toISOString()}.svg`;
+    }
+
   }
 
   /**
