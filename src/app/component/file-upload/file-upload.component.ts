@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Input, Ou
 import { CsvLoaderService } from 'app/service/csv-loader.service';
 import { ExcelLoaderService } from 'app/service/excel-loader.service';
 
+type FileUploadType = 'rawCounts' | 'results';
+
 @Component({
   selector: 'app-file-upload',
   templateUrl: './file-upload.component.html',
@@ -11,11 +13,18 @@ import { ExcelLoaderService } from 'app/service/excel-loader.service';
 export class FileUploadComponent {
   @ViewChild('fileInput', {static: false}) fileInput: ElementRef<HTMLInputElement>;
 
-  @Input() type: 'rawCounts' | 'results';
+  private _type: FileUploadType;
+  get type(): FileUploadType {
+    return this._type;
+  }
+  @Input() set type(value: FileUploadType) {
+    this._type = value;
+  }
 
 
   uploadedData: any;
   loading: boolean;
+  acceptedFileTypes: string;
 
 
   @Output() onDataUploaded = new EventEmitter<{filename: string, data: any, sids?: any}>();
@@ -29,7 +38,7 @@ export class FileUploadComponent {
         if (extension === 'csv') {
           this.loadRawCountsCSV(file);
         } else if (extension === 'xlsx') {
-          alert('Excel not supported for raw counts yet')
+          this.loadRawCountsExcel(file)
         } else {
           console.error('Invalid file type');
         }
@@ -76,6 +85,26 @@ export class FileUploadComponent {
     };
     reader.readAsText(file);
   }
+
+  loadRawCountsExcel(file: File): void {
+    this.loading = true;
+    this.excelLoaderService.loadRawCountsExcel(file).subscribe(
+        (data) => {
+            this.loading = false;
+            this.uploadedData = data;
+            this.onDataUploaded.emit({
+                filename: file.name,
+                data: this.uploadedData,
+            });
+            console.log('Excel data:', this.uploadedData);
+        },
+        (error) => {
+            this.loading = false;
+            console.error('Error parsing Excel:', error);
+        }
+    );
+}
+
 
   loadResultsCSV(file: File): void {
     this.loading = true;

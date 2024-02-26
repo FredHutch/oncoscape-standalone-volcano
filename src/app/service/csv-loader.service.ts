@@ -79,8 +79,6 @@ loadResultsCSVFromFile(filePath: string): Observable<any> {
   );
 }
 
-
-
   // Add this method to the CsvLoaderService
 loadResultsCSVFromString(csvData: string): Observable<any> {
   return of(csvData).pipe(
