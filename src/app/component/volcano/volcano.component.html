@@ -15,9 +15,7 @@
       <!-- mat select dropdown of save type (svg, png, pdf) -->
       <mat-form-field id="download-type-select">
         <mat-label>Select download type</mat-label>
-        <mat-select
-          [(value)]="downloadPlotType"
-        >
+        <mat-select [(value)]="downloadPlotType">
           <mat-option value="svg">SVG</mat-option>
           <mat-option value="png">PNG</mat-option>
         </mat-select>
@@ -30,13 +28,36 @@
       >
         <a id="download-link">Download Plot</a>
       </button>
+
+      <div id="regulation-colors">
+        <mat-form-field appearance="none">
+          <input
+            matInput
+            type="color"
+
+            [value]="selectByStatsForm.downregulatedColor"
+            (change)="updateRegulationColor($event.target.value, 'down')"
+          />
+          <span class="label">Downregulated gene color</span>
+        </mat-form-field>
+        <br/>
+        <mat-form-field appearance="none">
+          <input
+            matInput
+            type="color"
+            [value]="selectByStatsForm.upregulatedColor"
+            (change)="updateRegulationColor($event.target.value, 'up')"
+            style="display: inline-block"
+          />
+          <span class="label">Upregulated gene color</span>
+        </mat-form-field>
+      </div>
     </div>
 
     <svg [id]="'volcano-' + id"></svg>
   </div>
 
   <div id="side-bar">
-
     <!-- Select By Statistical Thresholds -->
     <mat-expansion-panel
       [hideToggle]="false"
@@ -44,7 +65,6 @@
       (opened)="selectByStatsFormCollapsed = false"
       (closed)="selectByStatsFormCollapsed = true"
       id="select-by-stats-exp-panel"
-      style="margin-bottom: 10px"
     >
       <mat-expansion-panel-header>
         <mat-panel-title style="text-transform: none"
@@ -52,54 +72,68 @@
         >
       </mat-expansion-panel-header>
       <div id="select-by-stats">
-        <div id="stats-input">
-          <mat-form-field style="width: 100px">
-            <mat-label>-log<sub>10</sub>(p-adjusted)</mat-label>
-            <input
-              matInput
-              type="number"
-              id="nlogpadj"
-              name="nlogpadj"
-              step="0.05"
-              [(ngModel)]="selectByStatsForm.nlogpadj"
-            />
-          </mat-form-field>
-          <mat-form-field style="width: 100px">
-            <mat-label>Log2 Fold Change</mat-label>
-            <input
-              matInput
-              type="number"
-              id="log2FoldChange"
-              name="log2FoldChange"
-              step="0.05"
-              [(ngModel)]="selectByStatsForm.log2FoldChange"
-            />
-          </mat-form-field>
-          <button mat-flat-button color="primary" (click)="selectByStats()">
-            Select
-          </button>
-        </div>
+            <div id="p-adj-input-container">
+              <p id="title">P-Adjusted</p>
+              <mat-form-field style="width: 100px;">
+                <mat-label>-log<sub>10</sub>(p-adjusted)</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  id="nlogpadj"
+                  name="nlogpadj"
+                  step="0.05"
+                  [value]="selectByStatsForm.nlogpadj"
+                  (change)="updateSelectByStatsForm($event)"
+                />
+              </mat-form-field>
 
-        <div id="reglation-colors">
-          <mat-form-field>
-            <mat-label>Downregulated gene color</mat-label>
-            <input
-              matInput
-              type="color"
-              [value]="selectByStatsForm.downregulatedColor"
-              (change)="updateRegulationColor($event.target.value, 'down')"
-            />
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Upregulated gene color</mat-label>
-            <input
-              matInput
-              type="color"
-              [value]="selectByStatsForm.upregulatedColor"
-              (change)="updateRegulationColor($event.target.value, 'up')"
-            />
-          </mat-form-field>
-        </div>
+              <span class="slash"></span>
+
+              <mat-form-field style="width: 100px;">
+                <mat-label>p-adjusted</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  id="padj"
+                  name="padj"
+                  step="0.001"
+                  [value]="selectByStatsForm.padj"
+                  (change)="updateSelectByStatsForm($event)"
+                />
+              </mat-form-field>
+            </div>
+
+
+            <div id="fc-input-container">
+              <p id="title">Fold Change</p>
+              <mat-form-field style="width: 100px;">
+                <mat-label>Log2 Fold Change</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  id="log2FoldChange"
+                  name="log2FoldChange"
+                  step="0.05"
+                  [value]="selectByStatsForm.log2FoldChange"
+                  (change)="updateSelectByStatsForm($event)"
+                />
+              </mat-form-field>
+
+              <span class="slash"></span>
+
+              <mat-form-field style="width: 100px;">
+                <mat-label>Fold Change</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  id="foldChange"
+                  name="fc"
+                  step="0.05"
+                  [value]="selectByStatsForm.fc"
+                  (change)="updateSelectByStatsForm($event)"
+                />
+              </mat-form-field>
+            </div>
       </div>
     </mat-expansion-panel>
 
@@ -121,4 +155,5 @@
       <p>- Drag while holding alt to deselect a region</p>
     </div>
   </div> -->
+  </div>
 </div>

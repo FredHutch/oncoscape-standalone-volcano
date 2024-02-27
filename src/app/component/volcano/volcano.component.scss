@@ -1,3 +1,101 @@
+
+// TOP BAR, which includes
+// - full screen toggle
+// - Plot download
+// - Viz controls
+$top-bar-font-size: 10px;
+#top-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  ::ng-deep mat-select {
+    font-size: $top-bar-font-size;
+
+    mat-label {
+      font-size: $top-bar-font-size;
+    }
+  }
+
+  button {
+    font-size: $top-bar-font-size;
+  }
+  #download-link {
+    color: white;
+  }
+  #download-link:visited {
+    color: white;
+  }
+
+  #download-type-select {
+    font-size: 12px;
+  }
+
+  #regulation-colors {
+    ::ng-deep .mat-form-field-infix {
+      display: flex;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      border: none;
+    }
+
+    input {
+      width: 22px;
+    }
+
+    .label {
+      font-size: 10px;
+    }
+  }
+}
+
+// SIDE BAR, which includes:
+// - Select by Statistical Thresholds
+// - Table Controls
+// - Table
+$side-bar-font-size: 10px;
+#side-bar {
+  margin: 0;
+  width: 100%;
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  #select-by-stats {
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+    padding-bottom: 5px;
+    padding-top: 5px;
+
+    #title {
+      margin-bottom: 5px;
+    }
+
+    ::ng-deep .mat-form-field-wrapper {
+      margin-bottom: -1.25em;
+    }
+
+    button {
+      font-size: $side-bar-font-size;
+    }
+  }
+
+  #num-genes-selected {
+    margin-top: 10px;
+    color: lightgray;
+  }
+
+  app-volcano-gene-table {
+    flex: 1;
+    max-height: 60vh;
+  }
+}
+
+// MISC
+
 .volcano-container {
   display: flex;
   margin: 0;
@@ -44,78 +142,17 @@ button {
   padding: 5px;
 }
 
-$top-bar-font-size: 10px;
-#top-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  ::ng-deep mat-select {
-    font-size: $top-bar-font-size;
-
-    mat-label {
-      font-size: $top-bar-font-size;
-    }
-  }
-
-  button {
-    font-size: $top-bar-font-size;
-  }
-  #download-link {
-    color: white;
-  }
-  #download-link:visited {
-    color: white;
-  }
-
-  #download-type-select {
-    font-size: 12px;
-  }
-}
-
-$side-bar-font-size: 10px;
-#side-bar {
-  margin: 0;
-  width: 100%;
-  overflow-y: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-
-  #select-by-stats {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    div {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    ::ng-deep .mat-form-field-wrapper {
-      margin-bottom: -1.25em;
-    }
-
-    button {
-      font-size: $side-bar-font-size;
-    }
-  }
-
-  #num-genes-selected {
-    margin-top: 10px;
-    color: lightgray;
-  }
-
-  app-volcano-gene-table {
-    flex: 1;
-    max-height: 60vh;
-  }
-}
-
 #no-genes {
   height: 90%;
   color: lightslategray;
 }
 
 
+.slash:before {
+  content: '/';
+  font-size: 30px;
+  margin-left: 2px;
+  margin-right: 5px;
+  color: lightgrey;
+  font-weight: lighter;
+}

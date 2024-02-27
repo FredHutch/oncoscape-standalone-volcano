@@ -66,11 +66,17 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   public selectByStatsForm: {
     nlogpadj: number;
     log2FoldChange: number;
+
+    // these are just for the form. We always use the log values for processing
+    padj: number;
+    fc: number;
     downregulatedColor: string;
     upregulatedColor: string;
   } = {
     nlogpadj: 1.301,
     log2FoldChange: 0.58,
+    padj: 0.05,
+    fc: 1.5,
     downregulatedColor: "#CF492F",
     upregulatedColor: "#2FCF3F"
   };
@@ -99,6 +105,36 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   public isFullScreen = false;
 
   // #region Helper Functions
+
+  updateSelectByStatsForm(event: Event) {
+
+    const precision = 3;
+    // @ts-ignore
+    const field = event.target.name;
+    // @ts-ignore
+    const value = event.target.value;
+
+    this.selectByStatsForm[field] = value;
+    // update the associated log/ non-log field
+    switch (field) {
+      case 'nlogpadj':
+        this.selectByStatsForm.padj = Number(Math.pow(10, -value).toPrecision(precision))
+        break;
+      case 'log2FoldChange':
+        this.selectByStatsForm.fc = Number(Math.pow(2, value).toPrecision(precision))
+        break;
+      case 'padj':
+        this.selectByStatsForm.nlogpadj = Number(-Math.log10(value).toPrecision(precision))
+        break;
+      case 'fc':
+        this.selectByStatsForm.log2FoldChange = Number(Math.log2(value).toPrecision(precision))
+        break;
+      default:
+        console.error(`Unknown stats form field: ${field}`)
+    }
+
+    this.selectByStats();
+  }
 
   toggleFullScreen() {
     this.isFullScreen = !this.isFullScreen;

@@ -9,12 +9,9 @@
 >
   <mat-expansion-panel-header>
     <mat-panel-title style="text-transform: none;">
-      Controls
+      Table Controls
     </mat-panel-title>
     <mat-panel-description>
-      <div *ngIf="processingEnrichrRequest" id="enrichr-processing">Processing...</div>
-
-
     </mat-panel-description>
 
 
@@ -40,6 +37,10 @@
             (click)="openInEnrichr($event)"
           >
             <mat-icon>link</mat-icon>Open {{dataSource.filteredData.length}} genes in Enrichr
+            <ng-container *ngIf="processingEnrichrRequest">
+              <br/>
+              <div  id="enrichr-processing">Processing...</div>
+            </ng-container>
           </button>
       </div>
 
