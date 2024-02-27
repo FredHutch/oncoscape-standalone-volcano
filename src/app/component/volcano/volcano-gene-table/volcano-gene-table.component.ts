@@ -1,10 +1,33 @@
 import { AfterViewInit, Component, OnInit, ViewChild, Pipe, PipeTransform, Input, Output, ChangeDetectorRef, Host } from '@angular/core';
-import { MatCheckbox, MatCheckboxChange, MatSnackBar, MatSort, MatTable, MatTableDataSource } from '@angular/material';
+import { MatCheckbox, MatCheckboxChange, MatPaginator, MatSnackBar, MatSort, MatTable, MatTableDataSource } from '@angular/material';
 import { SelectionModel } from '@angular/cdk/collections';
 import {FormControl, FormGroup, Validators} from '@angular/forms';
 import { EventEmitter } from '@angular/core';
 import { Point, VolcanoComponent } from "../volcano.component"
 import { HttpClient } from '@angular/common/http';
+
+let sortBy = (keys, data) => {
+  return data.sort((i, j) => {
+      for (let keyObj of keys) {
+          const { key, asc, func } = keyObj;
+          const order = asc ? 1 : -1;
+
+          if (func) {
+              const result = func(i[key], j[key]);
+              if (result !== 0) {
+                  return result * order;
+              }
+          } else {
+              const diff = i[key] - j[key];
+              if (diff !== 0) {
+                  return diff * order;
+              }
+          }
+      }
+
+      return 0;
+  });
+};
 
 @Component({
   selector: 'app-volcano-gene-table',
@@ -13,16 +36,46 @@ import { HttpClient } from '@angular/common/http';
 })
 export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
 
+  controlsOpen: boolean = true;
+
   @Input() getGeneRegulation: (point: Point) => 'up' | 'down' | 'none';
   @Input() upregulatedColor: string = 'green';
   @Input() downregulatedColor: string = 'red';
   @Input() selectByStatsFormCollapsed: boolean = false;
-
-  controlsOpen: boolean = true;
-
   private _selectedPoints: Point[] = [];
-  @Input() set selectedPoints(points: Point[]) {
-    this._selectedPoints = points;
+  @Input() set selectedPoints(selectedPoints: Point[]) {
+
+    if (!this.filterForm) {
+      this.filterFormInit();
+    }
+
+    // when the selection clears, we want to show all points, including ones not in selection
+    if (selectedPoints.length == 0 && this.filterForm) {
+      this.filterForm.setValue({
+        ...this.filterForm.value,
+        'onlySelection': false
+      })
+    }
+    this._selectedPoints = selectedPoints
+
+    if (this.dataSource) {
+      this.applyFilter()
+    }
+
+  }
+
+  private _points: Point[] = [];
+  @Input() set points(points: Point[]) {
+
+    // sort incoming points by descending abs(logFC)
+    this._points = sortBy([{
+      key: 'x',
+      asc: false,
+      func: (a: number, b: number) => {
+        return Math.abs(a) - Math.abs(b)
+      }
+    }
+  ], points)
 
     // detect changes so the sort ViewChild is available
     this.cd.detectChanges();
@@ -34,20 +87,21 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
       this.table.renderRows();
     }
   }
-  get selectedPoints(): Point[] {
-    return this._selectedPoints;
+  get points(): Point[] {
+    return this._points;
   }
   @Output() selectionChanged: EventEmitter<Point[]> = new EventEmitter();
 
   public filterForm: FormGroup;
   public geneName: string = '';
   public regulation: string = 'all';
+  public onlySelection: boolean = false;
 
   // MatTable data source
   dataSource: MatTableDataSource<Point>;
 
   // Displayed columns in the MatTable
-  displayedColumns: string[] = ['select', 'gene', 'y', 'x' ];
+  displayedColumns: string[] = ['select', 'gene', 'y', 'padj', 'x', 'fc'];
 
   selection: SelectionModel<Point>;
 
@@ -62,6 +116,9 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
    */
   private renderedData: Point[] = [];
 
+  reverseLog(base, val) {
+    return Math.pow(base, val)
+  }
 
   formatNumber(num: number): string {
     // scientific notation, with 3 decimal places
@@ -70,6 +127,7 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
 
   // Reference to MatSort for sorting
   @ViewChild(MatSort, {static: false}) sort: MatSort;
+  @ViewChild(MatPaginator, {static: false}) paginator: MatPaginator;
   @ViewChild(MatTable, {static: false}) table: MatTable<Point>;
 
   ngOnInit(): void {
@@ -93,6 +151,13 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
     return newHeight;
   }
 
+  getFontWeight(point: Point) {
+    if (this._selectedPoints.includes(point)) {
+      return 'normal'
+    }
+    return 'normal'
+  }
+
   private getControlsHeight(): string {
     return String(document.getElementById('controls').clientHeight) + 'px';
   }
@@ -113,8 +178,9 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   }
 
   private initDataSource() {
-    this.dataSource = new MatTableDataSource(this._selectedPoints);
+    this.dataSource = new MatTableDataSource(this._points);
     this.dataSource.sort = this.sort;
+    this.dataSource.paginator = this.paginator;
     this.dataSource.filterPredicate = this.getFilterPredicate();
     this.dataSource.sortingDataAccessor = this.sortingDataAccessor;
     this.dataSource.connect().subscribe((data) => {
@@ -163,7 +229,8 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   filterFormInit() {
     this.filterForm = new FormGroup({
       geneName: new FormControl(''),
-      regulation: new FormControl('all')
+      regulation: new FormControl('all'),
+      onlySelection: new FormControl(false)
     });
   }
 
@@ -173,20 +240,24 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
       const filterArray = filters.split('$');
       const geneName = filterArray[0];
       const regulation = filterArray[1];
+      const onlySelection = filterArray[2] === "true"
 
       const matchFilter = [];
 
       // Fetch data from row
       const columnGene = row.gene;
       const columnRegulation = this.getGeneRegulation(row);
+      const columnSelected = onlySelection ? this._selectedPoints.includes(row) : true
 
       // verify fetching data by our searching values
       const customFilterGeneName = columnGene.toLowerCase().includes(geneName.toLowerCase());
       const customFilterRegulation = columnRegulation === regulation || regulation === 'all';
+      const customSelected = columnSelected;
 
       // push boolean values into array
       matchFilter.push(customFilterGeneName);
       matchFilter.push(customFilterRegulation);
+      matchFilter.push(customSelected);
 
       // return true if all values in array are true
       // else return false
@@ -197,19 +268,21 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   applyFilter() {
     const geneName = this.filterForm.get('geneName').value;
     const regulation = this.filterForm.get("regulation").value;
+    const onlySelection = this.filterForm.get("onlySelection").value;
 
     this.geneName = geneName === null ? '' : geneName;
     this.regulation = regulation === null ? 'all' : regulation;
+    this.onlySelection = onlySelection;
 
     // create string of our searching values and split if by '$'
-    const filterValue = geneName + '$' + regulation;
+    const filterValue = geneName + '$' + regulation + '$' + onlySelection
     this.dataSource.filter = filterValue.trim();
   }
 
   public processingEnrichrRequest: boolean = false;
   openInEnrichr(event: MouseEvent) {
     event.stopPropagation();
-    const genes = this.dataSource.data.map(p => p.gene);
+    const genes = this.dataSource.filteredData.map(p => p.gene);
     const geneList = genes.join('\n');
     // Create FormData
     const formData = new FormData();
@@ -228,9 +301,9 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
 
   copyToClipboard(event: MouseEvent) {
     event.stopPropagation();
-    const clipboardText = this.dataSource.data.map(p => p.gene).join('\n');
+    const clipboardText = this.dataSource.filteredData.map(p => p.gene).join('\n');
     navigator.clipboard.writeText(clipboardText).then(() => {
-      this._snackbar.open(`Copied ${this.dataSource.data.length} genes to clipboard!`, '', {
+      this._snackbar.open(`Copied ${this.dataSource.filteredData.length} genes to clipboard!`, '', {
         duration: 2000,
         horizontalPosition: "right",
         verticalPosition: "top"

@@ -103,6 +103,8 @@ THE SOFTWARE.
 
 @angular/material/icon
 
+@angular/material/paginator
+
 @angular/material/progress-spinner
 
 @angular/material/select

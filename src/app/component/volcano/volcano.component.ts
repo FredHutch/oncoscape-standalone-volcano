@@ -55,7 +55,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   private svgId: string = "";
   private isDragging = false;
   private artificallyHoldingShift = false;
-  private points: Point[] = [];
+  public points: Point[] = [];
 
   // this intermittently gets updated. Look to emittedPoints for the final selection
   private selectedPoints: Point[] = [];

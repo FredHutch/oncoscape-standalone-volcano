@@ -3,9 +3,24 @@ table {
 }
 
 #filter-form {
-  // set margin-left for all children except the first
-  & > *:not(:first-child) {
-    margin-left: 10px;
+  display: flex;
+  justify-content: space-between;
+
+  #regulation {
+    line-height: 20px;
+  }
+
+  #selection {
+    text-align: left;
+    #box {
+      border-left: 5px solid #50d5ff;
+      background: #b8e5f7;
+      padding: 5px;
+
+      button {
+        margin-top: 3px;
+      }
+    }
   }
 }
 
@@ -59,11 +74,6 @@ p {
 // bold on hover
 ::ng-deep .stat-descr-btn:hover {
   font-weight: bold;
-}
-
-// all except first instance
-::ng-deep .stat-descr-btn:not(:first-child) {
-  margin-left: 20px;
 }
 
 .mat-cell {

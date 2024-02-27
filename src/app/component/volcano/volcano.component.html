@@ -108,10 +108,11 @@
       [downregulatedColor]="selectByStatsForm.downregulatedColor"
       [getGeneRegulation]="getGeneRegulation.bind(this)"
       [selectByStatsFormCollapsed]="selectByStatsFormCollapsed"
+      [points]="points"
       [selectedPoints]="emittedPoints"
       (selectionChanged)="labelPoints($event)"
     ></app-volcano-gene-table>
-    <div *ngIf="emittedPoints.length === 0" id="no-genes">
+    <!-- <div *ngIf="emittedPoints.length === 0" id="no-genes">
       <h4>Interactivity Tips</h4>
       <p>- Click on a point to select a gene</p>
       <p>- Hold down the shift key to select multiple points</p>
@@ -119,5 +120,5 @@
       <p>- Drag while holding shift to add a region to the selection</p>
       <p>- Drag while holding alt to deselect a region</p>
     </div>
-  </div>
+  </div> -->
 </div>
