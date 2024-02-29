@@ -10,16 +10,13 @@ import {
 // import { OncoData } from "app/oncoData";
 import * as d3 from "d3";
 
-// override d3 to have types for d3.event
-declare global {
-  namespace d3 {
-    export let event: MouseEvent;
-  }
-}
-
 import { VolcanoGeneTableComponent } from "./volcano-gene-table/volcano-gene-table.component";
 
 export type Point = { x: number; y: number; gene: string };
+enum VolcanoInteractivityMode {
+  SELECT = "select",
+  PAN_ZOOM = "panZoom",
+}
 
 @Component({
   selector: "app-visualization-volcano",
@@ -32,36 +29,67 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   static readonly OPACITY_HOVER = 0.5;
   static readonly OPACITY_SELECTED = 1;
   static readonly AXIS_LABEL_PADDING = 20;
-  static readonly TITLE_PADDING = 20;
+  static readonly TITLE_PADDING = 0;
   static readonly MARGIN = { top: 20, right: 20, bottom: 30, left: 30 };
-  static WIDTH = Number(window.getComputedStyle(document.body).width.replace('px', '')) / 2
-  static HEIGHT = Number(window.getComputedStyle(document.body).height.replace('px', '')) / 1.5
+  static WIDTH =
+    Number(window.getComputedStyle(document.body).width.replace("px", "")) / 2;
+  static HEIGHT =
+    Number(window.getComputedStyle(document.body).height.replace("px", "")) /
+    1.5;
   static readonly COLOR_UNSELECTED = "#454444";
   static readonly COLOR_SELECTED = "black";
   static readonly POINT_RADIUS = 3;
   static readonly LABEL_OFFSET = {
     x: 4,
-    y: -4
+    y: -4,
     // x: 20,
     // y: -15,
-  }
+  };
 
   @Input() data: Object;
   @Input() genesToSelectByDefault: string[] = [];
   @Input() id: string;
 
-  @ViewChild(VolcanoGeneTableComponent, {static: false}) geneTable: VolcanoGeneTableComponent;
+  @ViewChild(VolcanoGeneTableComponent, { static: false })
+  geneTable: VolcanoGeneTableComponent;
 
   private svgId: string = "";
+  private plot: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
+  private zoom: d3.ZoomBehavior<Element, unknown>;
   private isDragging = false;
   private artificallyHoldingShift = false;
+  private xAxis: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
+  private yAxis: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
+  private mode: VolcanoInteractivityMode = VolcanoInteractivityMode.SELECT;
   public points: Point[] = [];
+  public dataBoundingBox: {
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+  } = {
+    xMin: 0,
+    xMax: 0,
+    yMin: 0,
+    yMax: 0,
+  };
+  public axisRanges: {
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+  } = {
+    xMin: 0,
+    xMax: 0,
+    yMin: 0,
+    yMax: 0,
+  };
 
   // this intermittently gets updated. Look to emittedPoints for the final selection
   private selectedPoints: Point[] = [];
   public emittedPoints: Point[] = [];
 
-  public downloadPlotType: 'svg' | 'png' | 'pdf' = 'svg';
+  public downloadPlotType: "svg" | "png" | "pdf" = "svg";
 
   public selectByStatsForm: {
     nlogpadj: number;
@@ -78,7 +106,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     padj: 0.05,
     fc: 1.5,
     downregulatedColor: "#CF492F",
-    upregulatedColor: "#2FCF3F"
+    upregulatedColor: "#2FCF3F",
   };
   public selectByStatsFormCollapsed: boolean = false;
 
@@ -107,7 +135,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   // #region Helper Functions
 
   updateSelectByStatsForm(event: Event) {
-
     const precision = 3;
     // @ts-ignore
     const field = event.target.name;
@@ -117,20 +144,28 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.selectByStatsForm[field] = value;
     // update the associated log/ non-log field
     switch (field) {
-      case 'nlogpadj':
-        this.selectByStatsForm.padj = Number(Math.pow(10, -value).toPrecision(precision))
+      case "nlogpadj":
+        this.selectByStatsForm.padj = Number(
+          Math.pow(10, -value).toPrecision(precision)
+        );
         break;
-      case 'log2FoldChange':
-        this.selectByStatsForm.fc = Number(Math.pow(2, value).toPrecision(precision))
+      case "log2FoldChange":
+        this.selectByStatsForm.fc = Number(
+          Math.pow(2, value).toPrecision(precision)
+        );
         break;
-      case 'padj':
-        this.selectByStatsForm.nlogpadj = Number(-Math.log10(value).toPrecision(precision))
+      case "padj":
+        this.selectByStatsForm.nlogpadj = Number(
+          -Math.log10(value).toPrecision(precision)
+        );
         break;
-      case 'fc':
-        this.selectByStatsForm.log2FoldChange = Number(Math.log2(value).toPrecision(precision))
+      case "fc":
+        this.selectByStatsForm.log2FoldChange = Number(
+          Math.log2(value).toPrecision(precision)
+        );
         break;
       default:
-        console.error(`Unknown stats form field: ${field}`)
+        console.error(`Unknown stats form field: ${field}`);
     }
 
     this.selectByStats();
@@ -140,61 +175,66 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.isFullScreen = !this.isFullScreen;
   }
 
-  getGeneRegulation(point: Point): 'up' | 'down' | 'none' {
-    if (point.x > this.selectByStatsForm.log2FoldChange && point.y > this.selectByStatsForm.nlogpadj) {
-      return 'up';
+  getGeneRegulation(point: Point): "up" | "down" | "none" {
+    if (
+      point.x > this.selectByStatsForm.log2FoldChange &&
+      point.y > this.selectByStatsForm.nlogpadj
+    ) {
+      return "up";
     }
 
-    if (point.x < -this.selectByStatsForm.log2FoldChange && point.y > this.selectByStatsForm.nlogpadj) {
-      return 'down';
+    if (
+      point.x < -this.selectByStatsForm.log2FoldChange &&
+      point.y > this.selectByStatsForm.nlogpadj
+    ) {
+      return "down";
     }
 
-    return 'none';
+    return "none";
   }
 
   getSelectedColor(point: Point): string {
     switch (this.getGeneRegulation(point)) {
-      case 'up':
+      case "up":
         return this.selectByStatsForm.upregulatedColor;
-      case 'down':
+      case "down":
         return this.selectByStatsForm.downregulatedColor;
       default:
         return VolcanoComponent.COLOR_SELECTED;
     }
   }
 
-  updateRegulationColor(color: string, regulation: 'up' | 'down') {
-    console.log(color)
-    if (regulation === 'up') {
+  updateRegulationColor(color: string, regulation: "up" | "down") {
+    console.log(color);
+    if (regulation === "up") {
       this.selectByStatsForm.upregulatedColor = color;
       // select all points that are upregulated and currently selected
       d3.selectAll(".point.upregulated.selected").attr("fill", color);
-
     } else {
       this.selectByStatsForm.downregulatedColor = color;
       d3.selectAll(".point.downregulated.selected").attr("fill", color);
     }
   }
 
-  selectAll() {
+  selectAll(event) {
     this.clearSelection();
     this.points.forEach((point) => {
       this.selectedPoints.push(point);
-      this.stylePointOnClick(d3.event, point);
+      this.stylePointOnClick(event, point);
     });
     this.emitSelectionUpdate();
   }
 
   onDownloadImageClick() {
     switch (this.downloadPlotType) {
-      case 'svg':
+      case "svg":
         this.downloadAsSVG();
         break;
-      case 'png':
+      case "png":
         this.downloadAsPNG();
         break;
       default:
-        console.error('Invalid download type')
+        console.error("Invalid download type");
         break;
     }
   }
@@ -209,17 +249,23 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
     // add namespaces
     if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
-        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      source = source.replace(
+        /^<svg/,
+        '<svg xmlns="http://www.w3.org/2000/svg"'
+      );
     }
     if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
-        source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+      source = source.replace(
+        /^<svg/,
+        '<svg xmlns:xlink="http://www.w3.org/1999/xlink"'
+      );
     }
 
     // add XML declaration
     source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
 
     // create a Blob from the SVG source
-    var blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+    var blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
 
     // create an image element
     var img = new Image();
@@ -231,9 +277,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     img.src = url;
 
     // create a canvas
-    var canvas = document.createElement('canvas');
-    var context = canvas.getContext('2d');
-
+    var canvas = document.createElement("canvas");
+    var context = canvas.getContext("2d");
 
     // set canvas dimensions to match the SVG
     // @ts-ignore
@@ -242,29 +287,31 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     canvas.height = svg.height.baseVal.value;
 
     // set background to white
-    context.fillStyle = 'white';
+    context.fillStyle = "white";
     context.fillRect(0, 0, canvas.width, canvas.height);
 
     // wait for the image to load before drawing on the canvas
     img.onload = function () {
-        // draw the image onto the canvas
-        context.drawImage(img, 0, 0);
+      // draw the image onto the canvas
+      context.drawImage(img, 0, 0);
 
-        // convert canvas content to data URL in PNG format
-        var pngUrl = canvas.toDataURL('image/png');
+      // convert canvas content to data URL in PNG format
+      var pngUrl = canvas.toDataURL("image/png");
 
-        // set the PNG data URL as the href attribute of the download link
-        var saveLink = document.getElementById('download-link') as HTMLAnchorElement;
-        if (saveLink) {
-            saveLink.href = pngUrl;
-            saveLink.download = `volcano-plot-${new Date().toISOString()}.png`;
-        }
+      // set the PNG data URL as the href attribute of the download link
+      var saveLink = document.getElementById(
+        "download-link"
+      ) as HTMLAnchorElement;
+      if (saveLink) {
+        saveLink.href = pngUrl;
+        saveLink.download = `volcano-plot-${new Date().toISOString()}.png`;
+      }
     };
-}
+  }
 
   downloadAsSVG() {
     //get svg element.
-    var svg = document.getElementById(this.svgId)
+    var svg = document.getElementById(this.svgId);
 
     //get svg source.
     var serializer = new XMLSerializer();
@@ -276,10 +323,16 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
     // add name spaces.
     if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
-        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      source = source.replace(
+        /^<svg/,
+        '<svg xmlns="http://www.w3.org/2000/svg"'
+      );
     }
     if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
-        source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+      source = source.replace(
+        /^<svg/,
+        '<svg xmlns:xlink="http://www.w3.org/1999/xlink"'
+      );
     }
 
     // add xml declaration
@@ -291,10 +344,9 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     // set url value to the download link's href attribute.
     var dLink = document.getElementById("download-link") as HTMLAnchorElement;
     if (dLink) {
-        dLink.href = url;
-        dLink.download = `volcano-plot-${new Date().toISOString()}.svg`;
+      dLink.href = url;
+      dLink.download = `volcano-plot-${new Date().toISOString()}.svg`;
     }
-
   }
 
   /**
@@ -346,13 +398,19 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   }
 
   // Called by things like Oncoscape legend clicks
-  selectGenesByName(genes: string[], options: {
-    label?: boolean;
-    fill?: string;
-  } = {label: false}): void {
-
-    const pointsToClick = this.points.filter((p) => genes.includes(p.gene))
-    this.stylePointsOnClick(d3.event, pointsToClick, {tooltip: false, fill: options.fill});
+  selectGenesByName(
+    genes: string[],
+    options: {
+      label?: boolean;
+      fill?: string;
+    } = { label: false }
+  ): void {
+    const pointsToClick = this.points.filter((p) => genes.includes(p.gene));
+    const event = new MouseEvent("selectGenesByName");
+    this.stylePointsOnClick(event, pointsToClick, {
+      tooltip: false,
+      fill: options.fill,
+    });
     this.selectedPoints.push(...pointsToClick);
 
     if (options.label) {
@@ -362,10 +420,9 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
   // This will eventually be replaced with an Oncoscape call instead of the current html page updates
   emitSelectionUpdate(): void {
-
     // emit gets called when we programatically select a bunch of points, but we want to wait until the selection completes to emit
     if (this.artificallyHoldingShift) {
-      return
+      return;
     }
 
     const sortedSelectedPoints = [...this.selectedPoints].sort((a, b) => {
@@ -374,10 +431,10 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
     // we don't want selections to hang around in the table when all points are deselected in the volcano plot
     if (sortedSelectedPoints.length === 0) {
-      this.geneTable.selection.clear()
+      this.geneTable.selection.clear();
     }
 
-    this.emittedPoints = sortedSelectedPoints
+    this.emittedPoints = sortedSelectedPoints;
     this.cd.detectChanges();
   }
 
@@ -405,24 +462,19 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
    * Select up and down regulated genes by -log10(padj) and log2FoldChange thresholds
    */
   selectByStats() {
-
     // find all points that are above the -log10(padj) line and greater than the absolute value of log2FoldChange
     const upregulatedPoints = this.points.filter(
-      (point) => this.getGeneRegulation(point) === 'up'
+      (point) => this.getGeneRegulation(point) === "up"
     );
 
     const downregulatedPoints = this.points.filter(
-      (point) => this.getGeneRegulation(point) === 'down'
+      (point) => this.getGeneRegulation(point) === "down"
     );
     this.clearSelection();
 
-    this.selectGenesByName(
-      downregulatedPoints.map((p) => p.gene)
-    );
+    this.selectGenesByName(downregulatedPoints.map((p) => p.gene));
 
-    this.selectGenesByName(
-      upregulatedPoints.map((p) => p.gene)
-    );
+    this.selectGenesByName(upregulatedPoints.map((p) => p.gene));
 
     // draw dashed lines to show the thresholds
     this.drawThresholdLines();
@@ -430,33 +482,69 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.emitSelectionUpdate();
   }
 
-  private drawThresholdLines() {
-    d3.select(`#${this.svgId}`).selectAll(".threshold-line").remove();
+  private drawThresholdLines(xScale: d3.ScaleLinear<any, any, any> = this.xScale, yScale: d3.ScaleLinear<any, any, any> = this.yScale) {
+    const svg = d3.select(`#${this.svgId}`);
 
+    svg.selectAll(".threshold-line").remove();
 
-    // draw the log2FoldChange threshold lines
-    const lowerLog2FoldChange = -Math.abs(this.selectByStatsForm.log2FoldChange);
+    // Calculate the new positions based on the zoom transform
+    const lowerLog2FoldChange = -Math.abs(
+      this.selectByStatsForm.log2FoldChange
+    );
     const upperLog2FoldChange = Math.abs(this.selectByStatsForm.log2FoldChange);
+
     [lowerLog2FoldChange, upperLog2FoldChange].forEach((x) => {
-      d3.select(`#${this.svgId}`)
+      svg
         .append("line")
         .attr("class", "threshold-line")
-        .attr("x1", this.xScale(x) + VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING)
-        .attr("y1", this.yScale(0) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
-        .attr("x2", this.xScale(x) + VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING)
-        .attr("y2", VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
+        .attr(
+          "x1",
+          xScale(x) +
+            VolcanoComponent.MARGIN.left +
+            VolcanoComponent.AXIS_LABEL_PADDING
+        )
+        .attr("y1", VolcanoComponent.HEIGHT)
+        .attr(
+          "x2",
+          xScale(x) +
+            VolcanoComponent.MARGIN.left +
+            VolcanoComponent.AXIS_LABEL_PADDING
+        )
+        .attr("y2", 0)
         .attr("stroke", "black")
         .attr("stroke-dasharray", "5,5");
     });
 
-    // draw the -log10(padj) threshold line
-    d3.select(`#${this.svgId}`)
+    // Calculate the y position based on the current zoom transform
+    const yThresholdY = yScale(this.selectByStatsForm.nlogpadj);
+
+    // Draw the -log10(padj) threshold line
+    svg
       .append("line")
       .attr("class", "threshold-line")
-      .attr("x1", this.xScale(this.domain.x[0]) + VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING)
-      .attr("y1", this.yScale(this.selectByStatsForm.nlogpadj) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
-      .attr("x2", this.xScale(this.domain.x[1]) + VolcanoComponent.MARGIN.left)
-      .attr("y2", this.yScale(this.selectByStatsForm.nlogpadj) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
+      .attr(
+        "x1",
+          VolcanoComponent.MARGIN.left +
+          VolcanoComponent.AXIS_LABEL_PADDING
+      )
+      .attr(
+        "y1",
+        yThresholdY +
+          VolcanoComponent.MARGIN.top +
+          VolcanoComponent.TITLE_PADDING
+      )
+      .attr(
+        "x2",
+          VolcanoComponent.WIDTH +
+          VolcanoComponent.MARGIN.left +
+          VolcanoComponent.AXIS_LABEL_PADDING
+      )
+      .attr(
+        "y2",
+        yThresholdY +
+          VolcanoComponent.MARGIN.top +
+          VolcanoComponent.TITLE_PADDING
+      )
       .attr("stroke", "black")
       .attr("stroke-dasharray", "5,5");
   }
@@ -507,18 +595,17 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     };
   }
 
-  private drawTooltipText() {
-
+  private drawTooltipText(event) {
     const startCoords = this.eventCoords.draw;
-    const endCoords = this.getEventCoords(d3.event).draw;
+    const endCoords = this.getEventCoords(event).draw;
 
     const startDomain = this.eventCoords.domain;
-    const endDomain = this.getEventCoords(d3.event).domain;
+    const endDomain = this.getEventCoords(event).domain;
 
     d3.select(`#${this.svgId}`).selectAll(".drag-rectangle-text").remove();
 
-    const shiftKeyPressed = d3.event.shiftKey || this.artificallyHoldingShift;
-    const altKeyPressed = d3.event.altKey;
+    const shiftKeyPressed = event.shiftKey || this.artificallyHoldingShift;
+    const altKeyPressed = event.altKey;
 
     let color = "lightblue";
     let tooltipText = "Select subset of genes";
@@ -532,7 +619,11 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
     // if start and end coords are different, add them to the text
     if (startCoords.x !== endCoords.x || startCoords.y !== endCoords.y) {
-      tooltipText += ` from (${startDomain.x.toPrecision(3)}, ${startDomain.y.toPrecision(3)}) to (${endDomain.x.toPrecision(3)}, ${endDomain.y.toPrecision(3)})`
+      tooltipText += ` from (${startDomain.x.toPrecision(
+        3
+      )}, ${startDomain.y.toPrecision(3)}) to (${endDomain.x.toPrecision(
+        3
+      )}, ${endDomain.y.toPrecision(3)})`;
     }
 
     // add hint text at the starting point of the rectangle
@@ -543,7 +634,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .attr("y", this.eventCoords.draw.y - 3)
       .attr("fill", color)
       .attr("font-size", "12px")
-      .text(tooltipText)
+      .text(tooltipText);
   }
 
   // #endregion
@@ -552,12 +643,12 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
   onMouseDown(event) {
     // return on right click
-    if (d3.event.button == 2) {
+    if (event.button == 2) {
       return;
     }
 
-    const shiftKeyPressed = d3.event.shiftKey || this.artificallyHoldingShift;
-    const altKeyPressed = d3.event.altKey;
+    const shiftKeyPressed = event.shiftKey || this.artificallyHoldingShift;
+    const altKeyPressed = event.altKey;
 
     if (shiftKeyPressed && altKeyPressed) {
       // if both shift and alt are pressed, do nothing
@@ -576,17 +667,17 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     }
 
     this.isDragging = true;
-    this.eventCoords = this.getEventCoords(d3.event);
+    this.eventCoords = this.getEventCoords(event);
 
     // remove any existing rectangle
     d3.select(`#${this.svgId}`).selectAll(".drag-rectangle").remove();
 
-    this.drawTooltipText();
+    this.drawTooltipText(event);
   }
 
-  onMouseMove() {
-    const shiftKeyPressed = d3.event.shiftKey || this.artificallyHoldingShift;
-    const altKeyPressed = d3.event.altKey;
+  onMouseMove(event) {
+    const shiftKeyPressed = event.shiftKey || this.artificallyHoldingShift;
+    const altKeyPressed = event.altKey;
 
     // if both shift and alt are pressed, do nothing
     if (shiftKeyPressed && altKeyPressed) {
@@ -596,15 +687,17 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     if (this.isDragging) {
       // remove any existing rectangle
       d3.select(`#${this.svgId}`).selectAll(".drag-rectangle").remove();
-      d3.select(`#${this.svgId}`).selectAll(".drag-rectangle-coordinates").remove();
+      d3.select(`#${this.svgId}`)
+        .selectAll(".drag-rectangle-coordinates")
+        .remove();
 
       let color = altKeyPressed ? "#d16666" : "lightblue";
 
       // get start and current coordinates
       const startDomain = this.eventCoords.domain;
-      const currentDomain = this.getEventCoords(d3.event).domain;
+      const currentDomain = this.getEventCoords(event).domain;
       const startDraw = this.eventCoords.draw;
-      const currentDraw = this.getEventCoords(d3.event).draw;
+      const currentDraw = this.getEventCoords(event).draw;
 
       // draw the rectangle
       d3.select(`#${this.svgId}`)
@@ -623,7 +716,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
         .attr("fill", color)
         .attr("opacity", 0.2);
 
-      this.drawTooltipText();
+      this.drawTooltipText(event);
 
       // if current is beyond the domain, set it to the domain boundary
       if (currentDomain.x > this.domain.x[1]) {
@@ -726,7 +819,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       });
 
       // bulk style the points
-      this.stylePointsOnClick(d3.event, toClick, {tooltip: false});
+      this.stylePointsOnClick(event, toClick, { tooltip: false });
     }
   }
 
@@ -753,7 +846,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   }
 
   onPointMouseOver(event: MouseEvent, point: Point) {
-
     // don't call the same hover event twice
     if (this.hovered == point) {
       return;
@@ -764,8 +856,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   }
 
   onPointClick(event, point) {
-    const shiftPressed = d3.event.shiftKey || this.artificallyHoldingShift;
-    const altKeyPressed = d3.event.altKey;
+    const shiftPressed = event.shiftKey || this.artificallyHoldingShift;
+    const altKeyPressed = event.altKey;
 
     const alreadySelected = this.selectedPoints.includes(point);
     const somethingIsSelected = this.selectedPoints.length > 0;
@@ -832,56 +924,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.emitSelectionUpdate();
   }
   onPointMouseOut(event, point) {
-
-    // this.hovered = null;
-
-    // if (this.mostRecentSelectedPoint === point) {
-    //   this.mostRecentSelectedPoint = null;
-
-    //   // early exit for the most recent selected point, leaving the tooltip behind
-    //   return;
-    // }
-
-    // // remove the tooltip
-    // d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
-
-    // // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
-    // this.activeGeneTooltips.splice(
-    //   this.activeGeneTooltips.indexOf(point.gene),
-    //   1
-    // );
-
-    // if (this.selectedPoints.includes(point)) {
-    //   return;
-    // }
-
-    // const isSelected = d3
-    //   .select(`.point[name="${point.gene}"]`)
-    //   .classed("selected");
-
-    //   // determine opacity and fill based on whether the point is selected
-    // const opacity = isSelected
-    //   ? VolcanoComponent.OPACITY_SELECTED
-    //   : VolcanoComponent.OPACITY;
-
-    // let fill = ""
-    // if (isSelected) {
-    //   // if the point is selected, keep the fill color the same
-    //   fill = d3.select(`.point[name="${point.gene}"]`).attr("fill");
-    // } else {
-    //   fill = VolcanoComponent.COLOR_UNSELECTED;
-    // }
-
-    // d3.select(`.point[name="${point.gene}"]`)
-    //   .attr(
-    //     "fill",
-    //     fill
-    //   )
-    //   .attr(
-    //     "opacity",
-    //     opacity
-    //   );
-
     // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
     this.activeGeneTooltips.splice(
       this.activeGeneTooltips.indexOf(point.gene),
@@ -889,7 +931,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     );
 
     setTimeout(() => {
-
       // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
       if (this.activeGeneTooltips.includes(point.gene)) {
         return;
@@ -935,7 +976,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   }
 
   labelPoints(points: Point[]) {
-
     // clear out any existing labels
     d3.selectAll(`.volcano-label`).remove();
     d3.selectAll(`.volcano-label-line`).remove();
@@ -943,8 +983,14 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     points.forEach((point) => {
       const point_ = this.points.find((p) => p.gene === point.gene);
       if (point_) {
-        const x = this.xScale(point_.x) + VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING;
-        const y = this.yScale(point_.y) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING;
+        const x =
+          this.xScale(point_.x) +
+          VolcanoComponent.MARGIN.left +
+          VolcanoComponent.AXIS_LABEL_PADDING;
+        const y =
+          this.yScale(point_.y) +
+          VolcanoComponent.MARGIN.top +
+          VolcanoComponent.TITLE_PADDING;
 
         // // add a rectangle behind the text
         // d3.select(`#${this.svgId}`).append("rect")
@@ -955,13 +1001,13 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
         //   .attr("height", 10)
         //   .attr("fill", "white");
 
-
-        d3.select(`#${this.svgId}`).append("text")
+        d3.select(`#${this.svgId}`)
+          .append("text")
           .attr("class", "volcano-label")
           .attr("x", x + VolcanoComponent.LABEL_OFFSET.x)
           .attr("y", y + VolcanoComponent.LABEL_OFFSET.y)
-          .attr('font-size', '10px')
-          .attr('font-weight', 'bold')
+          .attr("font-size", "10px")
+          .attr("font-weight", "bold")
           .text(point_.gene);
 
         // draw a line from the center left of the text to the point
@@ -977,12 +1023,16 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     });
   }
 
-  stylePointOnHover(event: MouseEvent, point: Point, options: {
-    tooltip?: boolean;
-    fill?: string;
-  } = {
-    tooltip: true,
-  }) {
+  stylePointOnHover(
+    event: MouseEvent,
+    point: Point,
+    options: {
+      tooltip?: boolean;
+      fill?: string;
+    } = {
+      tooltip: true,
+    }
+  ) {
     if (this.isDragging) {
       return;
     }
@@ -996,7 +1046,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       ? VolcanoComponent.OPACITY_SELECTED
       : VolcanoComponent.OPACITY_HOVER;
 
-    let fill = ""
+    let fill = "";
     if (options.fill) {
       fill = options.fill;
     } else {
@@ -1011,25 +1061,27 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     // style the point based on whether it is selected
     d3.select(`.point[name="${point.gene}"]`)
       .attr("fill", fill)
-      .attr(
-        "opacity",
-        opacity
-      );
+      .attr("opacity", opacity);
 
-    const tooltipAlreadyExists = d3.select(`.tooltip[name=${point.gene}]`).size() > 0;
+    const tooltipAlreadyExists =
+      d3.select(`.tooltip[name=${point.gene}]`).size() > 0;
 
     if (!tooltipAlreadyExists && options.tooltip) {
       this.drawTooltip(event, point);
     }
   }
 
-  stylePointsOnClick(event: MouseEvent, points: Point[], options?: {
-    tooltip?: boolean;
-    fill?: string;
-  }) {
+  stylePointsOnClick(
+    event: MouseEvent,
+    points: Point[],
+    options?: {
+      tooltip?: boolean;
+      fill?: string;
+    }
+  ) {
     const DEFAULT_OPTIONS = {
       tooltip: true,
-      fill: undefined
+      fill: undefined,
     };
     options = { ...DEFAULT_OPTIONS, ...options };
 
@@ -1042,18 +1094,23 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     const unselectedPoints = selection.filter(":not(.selected)");
 
     selectedPoints
-      .attr("fill", options.fill ? options.fill : VolcanoComponent.COLOR_UNSELECTED)
+      .attr(
+        "fill",
+        options.fill ? options.fill : VolcanoComponent.COLOR_UNSELECTED
+      )
       .attr("opacity", VolcanoComponent.OPACITY)
       .classed("selected", false)
       .classed("upregulated", false)
       .classed("downregulated", false);
 
     unselectedPoints
-      .attr("fill", d => options.fill ? options.fill : this.getSelectedColor(d))
+      .attr("fill", (d) =>
+        options.fill ? options.fill : this.getSelectedColor(d)
+      )
       .attr("opacity", VolcanoComponent.OPACITY_SELECTED)
       .classed("selected", true)
-      .classed("upregulated", d => this.getGeneRegulation(d) === 'up')
-      .classed("downregulated", d => this.getGeneRegulation(d) === 'down');
+      .classed("upregulated", (d) => this.getGeneRegulation(d) === "up")
+      .classed("downregulated", (d) => this.getGeneRegulation(d) === "down");
 
     if (options.tooltip) {
       points.forEach((p) => this.drawTooltip(event, p));
@@ -1061,15 +1118,10 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   }
 
   stylePointOnClick(event: MouseEvent, point: Point, tooltip = true) {
-    this.stylePointsOnClick(event, [point], {tooltip});
+    this.stylePointsOnClick(event, [point], { tooltip });
   }
 
-  private drawTooltip(
-    event: MouseEvent,
-    point: Point,
-    opacity = 1
-  ) {
-
+  private drawTooltip(event: MouseEvent, point: Point, opacity = 1) {
     // Remove the tooltip for this point if it already exists
     d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
     this.activeGeneTooltips.splice(
@@ -1081,7 +1133,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       min: "--",
       max: "--",
       mean: "--",
-    }
+    };
 
     // OncoData.instance.currentCommonSidePanel.getCnaDataForGene(
     //   point.gene
@@ -1130,8 +1182,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .style("position", "absolute")
       // the differential-expression-panel has a z-index of 100 since it is an overlay
       .style("z-index", "101")
-      .style("left", (event.pageX + 20) + "px")
-      .style("top", (event.pageY - 20) + "px")
+      .style("left", event.pageX + 20 + "px")
+      .style("top", event.pageY - 20 + "px")
       .html(html)
       .on("mouseover", () => this.onTooltipMouseOver(event, point))
       .on("mouseout", () => this.onTooltipMouseOut(event, point));
@@ -1139,7 +1191,126 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.activeGeneTooltips.push(point.gene);
   }
 
+  updateAxisRange(event: Event, minOrMax: "min" | "max") {
+    // @ts-ignore
+    const axis = event.target.name;
+    // @ts-ignore
+    const value = event.target.value;
+
+    // xMin, xMax, yMin, yMax - axis followed by uppercase minOrMax
+    const axisRangesAttr =
+      axis + minOrMax.charAt(0).toUpperCase() + minOrMax.slice(1);
+    this.axisRanges[axisRangesAttr] = value;
+
+    if (axis == "x") {
+      // adjust negative to positive value range for x axis (LogFC)
+      this.xScale.domain([
+        minOrMax === "min" ? value : this.xScale.domain()[0],
+        minOrMax === "max" ? value : this.xScale.domain()[1],
+      ]);
+      this.xAxis.transition().duration(1000).call(d3.axisBottom(this.xScale));
+    } else if (axis == "y") {
+      this.yScale.domain([
+        minOrMax === "min" ? value : this.yScale.domain()[0],
+        minOrMax === "max" ? value : this.yScale.domain()[1],
+      ]);
+      this.yAxis.transition().duration(1000).call(d3.axisLeft(this.yScale));
+    } else {
+      throw Error(`Unknown axis ${axis}`);
+    }
+
+    // Filter out data points beyond the updated axis limits
+    const filteredData = this.points.filter((d) => {
+      const xWithinLimits =
+        d.x >= this.xScale.domain()[0] && d.x <= this.xScale.domain()[1];
+      const yWithinLimits =
+        d.y >= this.yScale.domain()[0] && d.y <= this.yScale.domain()[1];
+      return xWithinLimits && yWithinLimits;
+    });
+
+    // Update the circles within the new limits
+    this.plot
+      .selectAll("circle")
+      .data(filteredData, (d: Point) => d.gene) // Use a key function to bind data
+      .transition()
+      .duration(1000)
+      .attr("cx", (d) => this.xScale(d.x))
+      .attr("cy", (d) => this.yScale(d.y))
+      .attr("opacity", (d) =>
+        this.selectedPoints.includes(d)
+          ? VolcanoComponent.OPACITY_SELECTED
+          : VolcanoComponent.OPACITY
+      ); // Ensure opacity is set to fully visible
+
+    // Update the opacity of circles outside the new limits to hide them
+    this.plot
+      .selectAll("circle")
+      .data(this.points, (d: Point) => d.gene) // Rebind the data
+      .filter((d) => !filteredData.includes(d)) // Select circles that are not in filteredData
+      .transition()
+      .duration(1000)
+      .attr("opacity", 0); // Set opacity to hide them
+  }
+
+  setMode(mode: VolcanoInteractivityMode) {
+
+    const svg = d3.select(`#${this.svgId}`)
+    this.mode = mode;
+
+    const modeToggles = {
+      [VolcanoInteractivityMode.PAN_ZOOM]: {
+        'enable': () => {
+          svg.call(this.zoom)
+        },
+        'disable': () => {
+          svg.on(".zoom", null);
+        }
+      },
+      [VolcanoInteractivityMode.SELECT]: {
+        'enable': () => {
+          d3.select(`#${this.svgId}`)
+          .on("mousedown", this.onMouseDown.bind(this))
+          .on("mousemove", this.onMouseMove.bind(this))
+          .on("mouseup", this.onMouseUp.bind(this));
+        },
+        'disable': () => {
+          d3.select(`#${this.svgId}`)
+          .on("mousedown", null)
+          .on("mousemove", null)
+          .on("mouseup", null);
+        }
+      }
+    }
+
+    Object.keys(modeToggles).forEach(mode => {
+      if (mode === this.mode) {
+        modeToggles[mode].enable()
+      } else {
+        modeToggles[mode].disable()
+      }
+    })
+  }
+
   // #endregion
+
+  drawData(xScale: d3.ScaleLinear<any, any, any> = this.xScale, yScale: d3.ScaleLinear<any, any, any> = this.yScale) {
+    this.plot
+      .selectAll("circle")
+      .data(this.points)
+      .enter()
+      .append("circle")
+      .attr("class", "point")
+      .attr("name", (d) => d.gene)
+      .attr("cx", (d) => xScale(d.x) + VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING)
+      .attr("cy", (d) => yScale(d.y) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
+      .attr("r", VolcanoComponent.POINT_RADIUS)
+      .attr("fill", VolcanoComponent.COLOR_UNSELECTED)
+      .attr("stroke", "none")
+      .attr("opacity", VolcanoComponent.OPACITY)
+      .on("mouseover", (e, d) => this.onPointMouseOver(e, d))
+      .on("mouseout", (e, d) => this.onPointMouseOut(e, d))
+      .on("click", (e, d) => this.onPointClick(e, d));
+  }
 
   ngAfterViewInit(): void {
     this.svgId = `volcano-${this.id}`;
@@ -1148,27 +1319,37 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       this.genesToSelectByDefault
     );
     this.points = processedData;
+    this.dataBoundingBox = {
+      xMin: Number(Math.min(...this.points.map((p) => p.x)).toFixed(3)),
+      xMax: Number(Math.max(...this.points.map((p) => p.x)).toFixed(3)),
+      yMin: Number(Math.min(...this.points.map((p) => p.y)).toFixed(3)),
+      yMax: Number(Math.max(...this.points.map((p) => p.y)).toFixed(3)),
+    };
+    this.axisRanges = { ...this.dataBoundingBox };
 
     // clear out the container
     d3.select(`#${this.svgId}`).selectAll("*").remove();
 
+    const width =
+      VolcanoComponent.WIDTH +
+      VolcanoComponent.MARGIN.left +
+      VolcanoComponent.MARGIN.right +
+      VolcanoComponent.AXIS_LABEL_PADDING;
+
+    const height =
+      VolcanoComponent.HEIGHT +
+      VolcanoComponent.MARGIN.top +
+      VolcanoComponent.MARGIN.bottom +
+      VolcanoComponent.TITLE_PADDING +
+      VolcanoComponent.AXIS_LABEL_PADDING;
+
     const svg = d3
       .select(`#${this.svgId}`)
-      .attr(
-        "width",
-        VolcanoComponent.WIDTH +
-          VolcanoComponent.MARGIN.left +
-          VolcanoComponent.MARGIN.right +
-          VolcanoComponent.AXIS_LABEL_PADDING
-      )
-      .attr(
-        "height",
-        VolcanoComponent.HEIGHT +
-          VolcanoComponent.MARGIN.top +
-          VolcanoComponent.MARGIN.bottom +
-          VolcanoComponent.TITLE_PADDING +
-          VolcanoComponent.AXIS_LABEL_PADDING
-      )
+      .attr("width", width)
+      .attr("height", height)
+      .attr("viewBox", [0, 0, width, height]);
+
+    this.plot = svg
       .append("g")
       .attr(
         "transform",
@@ -1189,25 +1370,15 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.yScale = d3
       .scaleLinear()
       .domain(this.domain.y)
-      .range([VolcanoComponent.HEIGHT, 0]);
+      .range([
+        VolcanoComponent.HEIGHT -
+          VolcanoComponent.MARGIN.top -
+          VolcanoComponent.TITLE_PADDING,
+        0,
+      ]);
 
     // for each point in the data draw a circle
-    svg
-      .selectAll("circle")
-      .data(this.points)
-      .enter()
-      .append("circle")
-      .attr("class", "point")
-      .attr("name", (d) => d.gene)
-      .attr("cx", (d) => this.xScale(d.x))
-      .attr("cy", (d) => this.yScale(d.y))
-      .attr("r", VolcanoComponent.POINT_RADIUS)
-      .attr("fill", VolcanoComponent.COLOR_UNSELECTED)
-      .attr("stroke", "none")
-      .attr("opacity", VolcanoComponent.OPACITY)
-      .on("mouseover", (d) => this.onPointMouseOver(d3.event, d))
-      .on("mouseout", (d) => this.onPointMouseOut(d3.event, d))
-      .on("click", (d) => this.onPointClick(d3.event, d));
+    this.drawData();
 
     // Add x-axis label
     svg
@@ -1216,8 +1387,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .attr("x", VolcanoComponent.WIDTH / 2)
       .attr("y", VolcanoComponent.HEIGHT + VolcanoComponent.MARGIN.bottom)
       .attr("text-anchor", "middle")
-      .text(`Log2 Fold Change`)
-
+      .text(`Log2 Fold Change`);
 
     // Add y-axis label
     svg
@@ -1225,79 +1395,101 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .attr("class", "y-axis-label")
       .attr("transform", "rotate(-90)")
       .attr("x", -VolcanoComponent.HEIGHT / 2)
-      .attr("y", -VolcanoComponent.MARGIN.left)
+      .attr("y", VolcanoComponent.AXIS_LABEL_PADDING)
       .attr("text-anchor", "middle")
-      .text("-log10(p-adjusted)")
-
-    // Add x-axis spine
-    svg
-      .append("line")
-      .attr("class", "x-axis-spine")
-      .attr("x1", 0)
-      .attr("y1", VolcanoComponent.HEIGHT)
-      .attr("x2", VolcanoComponent.WIDTH)
-      .attr("y2", VolcanoComponent.HEIGHT)
-      .attr("stroke", "black")
-      .attr("stroke-width", 1);
-
-    // Add y-axis spine
-    svg
-      .append("line")
-      .attr("class", "y-axis-spine")
-      .attr("x1", 0)
-      .attr("y1", 0)
-      .attr("x2", 0)
-      .attr("y2", VolcanoComponent.HEIGHT)
-      .attr("stroke", "black")
-      .attr("stroke-width", 1);
+      .text("-log10(p-adjusted)");
 
     // Add a title
-    svg
-      .append("text")
-      .attr("class", "title")
-      .attr("x", VolcanoComponent.WIDTH / 2)
-      .attr("y", -VolcanoComponent.MARGIN.top)
-      .attr("text-anchor", "middle")
-      .text("Differential Expression Volcano Plot")
-      .style("font-size", "20px")
-      .style("font-weight", "bold")
+    // svg
+    //   .append("text")
+    //   .attr("class", "title")
+    //   .attr("x", VolcanoComponent.WIDTH / 2)
+    //   .attr("y", -VolcanoComponent.MARGIN.top)
+    //   .attr("text-anchor", "middle")
+    //   .text("Differential Expression Volcano Plot")
+    //   .style("font-size", "20px")
+    //   .style("font-weight", "bold")
 
     // Add x-axis ticks
-    const xAxis = d3.axisBottom(this.xScale);
-    svg
+    this.xAxis = svg
       .append("g")
       .attr("class", "x-axis")
-      .attr("transform", `translate(0, ${VolcanoComponent.HEIGHT})`)
-      .call(xAxis as any);
+      .attr(
+        "transform",
+        `translate(${
+          VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING
+        }, ${VolcanoComponent.HEIGHT})`
+      )
+      .call(d3.axisBottom(this.xScale));
 
     // Add y-axis ticks
-    const yAxis = d3.axisLeft(this.yScale);
-    svg
+    this.yAxis = svg
       .append("g")
       .attr("class", "y-axis")
-      .call(yAxis as any);
+      .attr(
+        "transform",
+        `translate(${
+          VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING
+        }, ${VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING})`
+      )
+      .call(d3.axisLeft(this.yScale));
 
-    // Add event listeners to the whole chart for selection
-    d3.select(`#${this.svgId}`)
-      .on("mousedown", this.onMouseDown.bind(this))
-      .on("mousemove", this.onMouseMove.bind(this))
-      .on("mouseup", this.onMouseUp.bind(this));
+    // set up zoom
+    const self = this;
+    this.zoom = d3
+    .zoom()
+    .scaleExtent([1, 2.5])
+    .on("zoom", function (event) {
 
+      if (self.mode !== VolcanoInteractivityMode.PAN_ZOOM) {
+        return;
+      }
 
+      const zt = event.transform;
 
-    this.selectByStats()
+      // Update the x-axis and y-axis based on the zoom transformation
+      const new_xScale = zt.rescaleX(self.xScale);
+      const new_yScale = zt.rescaleY(self.yScale);
+
+      self.xAxis.call(d3.axisBottom(new_xScale));
+      self.yAxis.call(d3.axisLeft(new_yScale));
+
+      self.drawThresholdLines(new_xScale, new_yScale);
+      d3.selectAll("circle")
+      .attr("cx", (d: Point) => self.xScale(d.x) + (VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING) * (1/ zt.k))
+      .attr("cy", (d: Point) => self.yScale(d.y) + (VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING) * (1/ zt.k))
+
+      // Apply the zoom transformation to the plot container
+      // @ts-ignore
+      self.plot.attr("transform", zt);
+    })
+    svg.call(this.zoom)
+
+    // Programmatically trigger the zoom behavior with a specific transformation. This shifts the points into place due to the weird margins + padding bug with point positioning and zoom
+    // @ts-ignore
+    const defaultMode = this.mode;
+    this.setMode(VolcanoInteractivityMode.PAN_ZOOM);
+    // @ts-ignore
+    svg.call(this.zoom.transform, d3.zoomIdentity);
+    this.setMode(defaultMode);
+
+    this.selectByStats();
     this.emitSelectionUpdate();
   }
 
   ngOnInit(): void {
     // listen for window size changes
     window.addEventListener("resize", () => {
-      VolcanoComponent.WIDTH = Number(window.getComputedStyle(document.body).width.replace('px', '')) / 2
-      VolcanoComponent.HEIGHT = Number(window.getComputedStyle(document.body).height.replace('px', '')) / 1.5
-      this.ngAfterViewInit();
-  })
-}
-
+      VolcanoComponent.WIDTH =
+        Number(window.getComputedStyle(document.body).width.replace("px", "")) /
+        2;
+      VolcanoComponent.HEIGHT =
+        Number(
+          window.getComputedStyle(document.body).height.replace("px", "")
+        ) / 1.5;
+      // this.ngAfterViewInit();
+    });
+  }
 
   constructor(private cd: ChangeDetectorRef) {}
 }

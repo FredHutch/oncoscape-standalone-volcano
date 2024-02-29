@@ -1,46 +1,110 @@
 <div class="volcano-container" [ngClass]="{ 'full-screen': isFullScreen }">
   <div>
     <div id="top-bar">
-      <button
-        mat-icon-button
-        matTooltip="Toggle Fullscreen"
-        (click)="toggleFullScreen()"
-        id="toggle-fullscreen-button"
-      >
-        <mat-icon *ngIf="isFullScreen">fullscreen</mat-icon>
-        <mat-icon *ngIf="!isFullScreen">fullscreen_exit</mat-icon>
-      </button>
-      <!-- save button -->
+      <div id="top-bar-left">
+        <button
+          mat-icon-button
+          matTooltip="Toggle Fullscreen"
+          (click)="toggleFullScreen()"
+          id="toggle-fullscreen-button"
+        >
+          <mat-icon *ngIf="isFullScreen">fullscreen</mat-icon>
+          <mat-icon *ngIf="!isFullScreen">fullscreen_exit</mat-icon>
+        </button>
+        <!-- save button -->
 
-      <!-- mat select dropdown of save type (svg, png, pdf) -->
-      <mat-form-field id="download-type-select">
-        <mat-label>Select download type</mat-label>
-        <mat-select [(value)]="downloadPlotType">
-          <mat-option value="svg">SVG</mat-option>
-          <mat-option value="png">PNG</mat-option>
-        </mat-select>
-      </mat-form-field>
-      <button
-        id="download-button"
-        mat-flat-button
-        color="primary"
-        (click)="onDownloadImageClick()"
-      >
-        <a id="download-link">Download Plot</a>
-      </button>
+        <div id="download-plot-form-container">
+          <!-- mat select dropdown of save type (svg, png, pdf) -->
+          <mat-form-field id="download-type-select">
+            <mat-label>Select download type</mat-label>
+            <mat-select [(value)]="downloadPlotType">
+              <mat-option value="svg">SVG</mat-option>
+              <mat-option value="png">PNG</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button
+            id="download-button"
+            mat-flat-button
+            color="primary"
+            (click)="onDownloadImageClick()"
+          >
+            <a id="download-link">Download Plot</a>
+          </button>
+        </div>
+      </div>
+
+      <div id="axis-ranges">
+
+        <mat-form-field style="width: 100px">
+          <mat-label>X Min</mat-label>
+          <input
+          matInput
+          id="x-axis-range-min"
+          type="number"
+          step="0.50"
+          name="x"
+          [min]="dataBoundingBox.xMin"
+          [max]="dataBoundingBox.xMax"
+          [value]="axisRanges.xMin"
+          (change)="updateAxisRange($event, 'min')"
+        />
+
+        </mat-form-field>
+
+        <mat-form-field style="width: 100px">
+        <mat-label>X Max</mat-label>
+        <input
+          matInput
+          id="x-axis-range-max"
+          type="number"
+          step="0.50"
+          name="x"
+          [min]="dataBoundingBox.xMin"
+          [max]="dataBoundingBox.xMax"
+          [value]="axisRanges.xMax"
+          (change)="updateAxisRange($event, 'max')"
+        />
+        </mat-form-field>
+
+        <mat-form-field style="width: 100px">
+          <mat-label>Y Axis Range</mat-label>
+          <input
+          matInput
+          id="y-axis-range"
+          type="number"
+          step="0.05"
+          name="y"
+          [min]="dataBoundingBox.yMin"
+          [max]="dataBoundingBox.yMax"
+          [value]="axisRanges.yMin"
+          (change)="updateAxisRange($event, 'min')"
+        />
+        <input
+          matInput
+          id="y-axis-range"
+          type="number"
+          step="0.05"
+          name="y"
+          [min]="dataBoundingBox.yMin"
+          [max]="dataBoundingBox.yMax"
+          [value]="axisRanges.yMax"
+          (change)="updateAxisRange($event, 'max')"
+        />
+        </mat-form-field>
+      </div>
+
 
       <div id="regulation-colors">
         <mat-form-field appearance="none">
           <input
             matInput
             type="color"
-
             [value]="selectByStatsForm.downregulatedColor"
             (change)="updateRegulationColor($event.target.value, 'down')"
           />
           <span class="label">Downregulated gene color</span>
         </mat-form-field>
-        <br/>
+        <br />
         <mat-form-field appearance="none">
           <input
             matInput
@@ -72,68 +136,71 @@
         >
       </mat-expansion-panel-header>
       <div id="select-by-stats">
-            <div id="p-adj-input-container">
-              <p id="title">P-Adjusted</p>
-              <mat-form-field style="width: 100px;">
-                <mat-label>-log<sub>10</sub>(p-adjusted)</mat-label>
-                <input
-                  matInput
-                  type="number"
-                  id="nlogpadj"
-                  name="nlogpadj"
-                  step="0.05"
-                  [value]="selectByStatsForm.nlogpadj"
-                  (change)="updateSelectByStatsForm($event)"
-                />
-              </mat-form-field>
+        <div id="p-adj-input-container">
+          <p id="title">P-Adjusted</p>
+          <mat-form-field style="width: 100px">
+            <mat-label>-log<sub>10</sub>(p-adjusted)</mat-label>
+            <input
+              matInput
+              type="number"
+              id="nlogpadj"
+              name="nlogpadj"
+              step="0.05"
+              [value]="selectByStatsForm.nlogpadj"
+              (change)="updateSelectByStatsForm($event)"
+            />
+          </mat-form-field>
 
-              <span class="slash"></span>
+          <span class="slash"></span>
 
-              <mat-form-field style="width: 100px;">
-                <mat-label>p-adjusted</mat-label>
-                <input
-                  matInput
-                  type="number"
-                  id="padj"
-                  name="padj"
-                  step="0.001"
-                  [value]="selectByStatsForm.padj"
-                  (change)="updateSelectByStatsForm($event)"
-                />
-              </mat-form-field>
-            </div>
+          <mat-form-field style="width: 100px">
+            <mat-label>p-adjusted</mat-label>
+            <input
+              matInput
+              type="number"
+              id="padj"
+              name="padj"
+              step="0.001"
+              [value]="selectByStatsForm.padj"
+              (change)="updateSelectByStatsForm($event)"
+            />
+          </mat-form-field>
+        </div>
 
+        <div id="fc-input-container">
+          <p id="title">Fold Change</p>
+          <mat-form-field style="width: 100px">
+            <mat-label>Log2 Fold Change</mat-label>
+            <input
+              matInput
+              type="number"
+              id="log2FoldChange"
+              name="log2FoldChange"
+              step="0.05"
+              [value]="selectByStatsForm.log2FoldChange"
+              (change)="updateSelectByStatsForm($event)"
+            />
+          </mat-form-field>
 
-            <div id="fc-input-container">
-              <p id="title">Fold Change</p>
-              <mat-form-field style="width: 100px;">
-                <mat-label>Log2 Fold Change</mat-label>
-                <input
-                  matInput
-                  type="number"
-                  id="log2FoldChange"
-                  name="log2FoldChange"
-                  step="0.05"
-                  [value]="selectByStatsForm.log2FoldChange"
-                  (change)="updateSelectByStatsForm($event)"
-                />
-              </mat-form-field>
+          <span class="slash"></span>
 
-              <span class="slash"></span>
+          <mat-form-field style="width: 100px">
+            <mat-label>Fold Change</mat-label>
+            <input
+              matInput
+              type="number"
+              id="foldChange"
+              name="fc"
+              step="0.05"
+              [value]="selectByStatsForm.fc"
+              (change)="updateSelectByStatsForm($event)"
+            />
+          </mat-form-field>
+        </div>
+        <div>
+          <button mat-flat-button color="primary" (click)="selectByStats()">Reselect</button>
+        </div>
 
-              <mat-form-field style="width: 100px;">
-                <mat-label>Fold Change</mat-label>
-                <input
-                  matInput
-                  type="number"
-                  id="foldChange"
-                  name="fc"
-                  step="0.05"
-                  [value]="selectByStatsForm.fc"
-                  (change)="updateSelectByStatsForm($event)"
-                />
-              </mat-form-field>
-            </div>
       </div>
     </mat-expansion-panel>
 

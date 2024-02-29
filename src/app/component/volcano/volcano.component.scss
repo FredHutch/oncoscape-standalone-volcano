@@ -6,17 +6,29 @@
 $top-bar-font-size: 10px;
 #top-bar {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 10px;
 
-  ::ng-deep mat-select {
-    font-size: $top-bar-font-size;
+  #top-bar-left {
+    display: flex;
+    gap: 10px;
+  }
 
-    mat-label {
+  #download-type-select {
+    font-size: 12px;
+    width: 100px;
+
+    ::ng-deep mat-select {
       font-size: $top-bar-font-size;
+
+      mat-label {
+        font-size: $top-bar-font-size;
+      }
     }
   }
 
+  // for download button
   button {
     font-size: $top-bar-font-size;
   }
@@ -27,9 +39,6 @@ $top-bar-font-size: 10px;
     color: white;
   }
 
-  #download-type-select {
-    font-size: 12px;
-  }
 
   #regulation-colors {
     ::ng-deep .mat-form-field-infix {
@@ -66,6 +75,7 @@ $side-bar-font-size: 10px;
   #select-by-stats {
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 50px;
     padding-bottom: 5px;
     padding-top: 5px;

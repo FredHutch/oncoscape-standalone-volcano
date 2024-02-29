@@ -34,6 +34,7 @@ import { DeaInputComponent } from './component/dea-input/dea-input.component';
 import {TextFieldModule} from '@angular/cdk/text-field';
 import {MatSelectModule} from '@angular/material/select';
 import {MatPaginatorModule} from '@angular/material/paginator';
+import { MatSliderModule } from '@angular/material';
 
 @NgModule({
   declarations: [
@@ -70,7 +71,8 @@ import {MatPaginatorModule} from '@angular/material/paginator';
     MatDialogModule,
     TextFieldModule,
     MatSelectModule,
-    MatPaginatorModule
+    MatPaginatorModule,
+    MatSliderModule
   ],
   providers: [
     CsvLoaderService,
