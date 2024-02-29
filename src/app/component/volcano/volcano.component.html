@@ -33,66 +33,6 @@
         </div>
       </div>
 
-      <div id="axis-ranges">
-
-        <mat-form-field style="width: 100px">
-          <mat-label>X Min</mat-label>
-          <input
-          matInput
-          id="x-axis-range-min"
-          type="number"
-          step="0.50"
-          name="x"
-          [min]="dataBoundingBox.xMin"
-          [max]="dataBoundingBox.xMax"
-          [value]="axisRanges.xMin"
-          (change)="updateAxisRange($event, 'min')"
-        />
-
-        </mat-form-field>
-
-        <mat-form-field style="width: 100px">
-        <mat-label>X Max</mat-label>
-        <input
-          matInput
-          id="x-axis-range-max"
-          type="number"
-          step="0.50"
-          name="x"
-          [min]="dataBoundingBox.xMin"
-          [max]="dataBoundingBox.xMax"
-          [value]="axisRanges.xMax"
-          (change)="updateAxisRange($event, 'max')"
-        />
-        </mat-form-field>
-
-        <mat-form-field style="width: 100px">
-          <mat-label>Y Axis Range</mat-label>
-          <input
-          matInput
-          id="y-axis-range"
-          type="number"
-          step="0.05"
-          name="y"
-          [min]="dataBoundingBox.yMin"
-          [max]="dataBoundingBox.yMax"
-          [value]="axisRanges.yMin"
-          (change)="updateAxisRange($event, 'min')"
-        />
-        <input
-          matInput
-          id="y-axis-range"
-          type="number"
-          step="0.05"
-          name="y"
-          [min]="dataBoundingBox.yMin"
-          [max]="dataBoundingBox.yMax"
-          [value]="axisRanges.yMax"
-          (change)="updateAxisRange($event, 'max')"
-        />
-        </mat-form-field>
-      </div>
-
 
       <div id="regulation-colors">
         <mat-form-field appearance="none">
