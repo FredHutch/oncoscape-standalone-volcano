@@ -33,29 +33,62 @@
         </div>
       </div>
 
+      <div id="top-bar-right">
+        <div id="mode">
+          <p>Mode</p>
+            <mat-button-toggle-group  aria-label="Mode"  style="height: 30px" [value]="mode">
+              <mat-button-toggle value="select" (click)="setMode('select')">
+                <mat-icon style="font-size: small" matTooltip="Select"
+                  >touch_app</mat-icon
+                >
+              </mat-button-toggle>
 
-      <div id="regulation-colors">
-        <mat-form-field appearance="none">
-          <input
-            matInput
-            type="color"
-            [value]="selectByStatsForm.downregulatedColor"
-            (change)="updateRegulationColor($event.target.value, 'down')"
-          />
-          <span class="label">Downregulated gene color</span>
-        </mat-form-field>
-        <br />
-        <mat-form-field appearance="none">
-          <input
-            matInput
-            type="color"
-            [value]="selectByStatsForm.upregulatedColor"
-            (change)="updateRegulationColor($event.target.value, 'up')"
-            style="display: inline-block"
-          />
-          <span class="label">Upregulated gene color</span>
-        </mat-form-field>
+              <mat-button-toggle value="panZoom" (click)="setMode('panZoom')">
+                <mat-icon style="font-size: small" matTooltip="Pan/Zoom"
+                  >open_with</mat-icon
+                >
+              </mat-button-toggle>
+            </mat-button-toggle-group>
+
+            <mat-button-toggle-group  aria-label="Mode"  style="height: 30px; margin-left: 10px" class="t-flip-flop">
+              <mat-button-toggle (click)="resetView()">
+                <mat-icon style="font-size: small" matTooltip="Reset View"
+                  >home</mat-icon
+                >
+              </mat-button-toggle>
+            </mat-button-toggle-group>
+        </div>
+
+        <div id="regulation-colors">
+          <mat-form-field appearance="none">
+            <input
+              matInput
+              type="color"
+              [value]="selectByStatsForm.downregulatedColor"
+              (change)="updateRegulationColor($event.target.value, 'down')"
+            />
+            <span class="label">Downregulated gene color</span>
+          </mat-form-field>
+          <br />
+          <mat-form-field appearance="none">
+            <input
+              matInput
+              type="color"
+              [value]="selectByStatsForm.upregulatedColor"
+              (change)="updateRegulationColor($event.target.value, 'up')"
+              style="display: inline-block"
+            />
+            <span class="label">Upregulated gene color</span>
+          </mat-form-field>
+        </div>
       </div>
+
+
+
+
+
+
+
     </div>
 
     <svg [id]="'volcano-' + id"></svg>
@@ -138,9 +171,10 @@
           </mat-form-field>
         </div>
         <div>
-          <button mat-flat-button color="primary" (click)="selectByStats()">Reselect</button>
+          <button mat-flat-button color="primary" (click)="selectByStats()">
+            Reselect
+          </button>
         </div>
-
       </div>
     </mat-expansion-panel>
 

@@ -60,7 +60,9 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   private artificallyHoldingShift = false;
   private xAxis: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
   private yAxis: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
-  private mode: VolcanoInteractivityMode = VolcanoInteractivityMode.SELECT;
+
+  // Change the default mode here
+  public mode: VolcanoInteractivityMode = VolcanoInteractivityMode.SELECT;
   public points: Point[] = [];
   public dataBoundingBox: {
     xMin: number;
@@ -127,6 +129,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   };
   private xScale: d3.ScaleLinear<number, number>;
   private yScale: d3.ScaleLinear<number, number>;
+  private zoomXScale: d3.ScaleLinear<number, number>;
+  private zoomYScale: d3.ScaleLinear<number, number>;
   private domain: { x: [number, number]; y: [number, number] };
   private hovered: Point;
 
@@ -205,7 +209,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   }
 
   updateRegulationColor(color: string, regulation: "up" | "down") {
-    console.log(color);
     if (regulation === "up") {
       this.selectByStatsForm.upregulatedColor = color;
       // select all points that are upregulated and currently selected
@@ -445,7 +448,10 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     // reset the points to unselected style
     d3.selectAll(".point")
       .attr("fill", VolcanoComponent.COLOR_UNSELECTED)
-      .attr("opacity", VolcanoComponent.OPACITY)
+      .attr("opacity", function (d, i, nodes) {
+        const outOfView = d3.select(this).classed("out-of-view")
+        return outOfView ? 0 : VolcanoComponent.OPACITY;
+      })
       .classed("selected", false);
 
     // remove all tooltips
@@ -472,9 +478,9 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     );
     this.clearSelection();
 
-    this.selectGenesByName(downregulatedPoints.map((p) => p.gene));
-
-    this.selectGenesByName(upregulatedPoints.map((p) => p.gene));
+    this.selectGenesByName(
+      [...downregulatedPoints, ...upregulatedPoints].map((p) => p.gene)
+    );
 
     // draw dashed lines to show the thresholds
     this.drawThresholdLines();
@@ -482,7 +488,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.emitSelectionUpdate();
   }
 
-  private drawThresholdLines(xScale: d3.ScaleLinear<any, any, any> = this.xScale, yScale: d3.ScaleLinear<any, any, any> = this.yScale) {
+  private drawThresholdLines() {
     const svg = d3.select(`#${this.svgId}`);
 
     svg.selectAll(".threshold-line").remove();
@@ -493,30 +499,40 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     );
     const upperLog2FoldChange = Math.abs(this.selectByStatsForm.log2FoldChange);
 
-    [lowerLog2FoldChange, upperLog2FoldChange].forEach((x) => {
+    const inRange = (value: number, range: number[]): boolean => {
+      console.log(value, range, value >= range[0] && value <= range[1])
+      return value >= range[0] && value <= range[1]
+    }
+
+    [lowerLog2FoldChange, upperLog2FoldChange].forEach((x, i) => {
+
+      // hide of the lines are beyond the limits of the graph x-axis
+
+
       svg
         .append("line")
         .attr("class", "threshold-line")
         .attr(
           "x1",
-          xScale(x) +
+          this.zoomXScale(x) +
             VolcanoComponent.MARGIN.left +
             VolcanoComponent.AXIS_LABEL_PADDING
         )
         .attr("y1", VolcanoComponent.HEIGHT)
         .attr(
           "x2",
-          xScale(x) +
+          this.zoomXScale(x) +
             VolcanoComponent.MARGIN.left +
             VolcanoComponent.AXIS_LABEL_PADDING
         )
         .attr("y2", 0)
         .attr("stroke", "black")
-        .attr("stroke-dasharray", "5,5");
+        .attr("stroke-dasharray", "5,5")
+        .attr("opacity", Number(inRange(x, this.zoomXScale.domain())))
     });
 
     // Calculate the y position based on the current zoom transform
-    const yThresholdY = yScale(this.selectByStatsForm.nlogpadj);
+    const yThresholdY = this.zoomYScale(this.selectByStatsForm.nlogpadj);
 
     // Draw the -log10(padj) threshold line
     svg
@@ -524,8 +540,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .attr("class", "threshold-line")
       .attr(
         "x1",
-          VolcanoComponent.MARGIN.left +
-          VolcanoComponent.AXIS_LABEL_PADDING
+        VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING
       )
       .attr(
         "y1",
@@ -535,7 +550,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       )
       .attr(
         "x2",
-          VolcanoComponent.WIDTH +
+        VolcanoComponent.WIDTH +
           VolcanoComponent.MARGIN.left +
           VolcanoComponent.AXIS_LABEL_PADDING
       )
@@ -546,7 +561,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
           VolcanoComponent.TITLE_PADDING
       )
       .attr("stroke", "black")
-      .attr("stroke-dasharray", "5,5");
+      .attr("stroke-dasharray", "5,5")
+      .attr("opacity", Number(inRange(this.selectByStatsForm.nlogpadj, this.zoomYScale.domain())))
   }
 
   /**
@@ -579,13 +595,13 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
         y: event.clientY - svgRect.top,
       },
       domain: {
-        x: this.xScale.invert(
+        x: this.zoomXScale.invert(
           event.clientX -
             svgRect.left -
             VolcanoComponent.MARGIN.left -
             VolcanoComponent.AXIS_LABEL_PADDING
         ),
-        y: this.yScale.invert(
+        y: this.zoomYScale.invert(
           event.clientY -
             svgRect.top -
             VolcanoComponent.MARGIN.top -
@@ -757,7 +773,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       };
 
       this.points.forEach((point) => {
-        const inRect = this.pointInRect(point, rectCoords);
+        const inRect = this.pointInRect(point, rectCoords) && !d3.select(`circle[name=${point.gene}]`).classed("out-of-view")
         const wasAlreadySelected = this.selectedPoints.includes(point);
         const newToThisDrag = this.pointsNewToThisDrag.includes(point);
         const deletedThisDrag = this.pointsDeletedThisDrag.includes(point);
@@ -978,17 +994,16 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   labelPoints(points: Point[]) {
     // clear out any existing labels
     d3.selectAll(`.volcano-label`).remove();
-    d3.selectAll(`.volcano-label-line`).remove();
 
     points.forEach((point) => {
       const point_ = this.points.find((p) => p.gene === point.gene);
       if (point_) {
         const x =
-          this.xScale(point_.x) +
+          this.zoomXScale(point_.x) +
           VolcanoComponent.MARGIN.left +
           VolcanoComponent.AXIS_LABEL_PADDING;
         const y =
-          this.yScale(point_.y) +
+          this.zoomYScale(point_.y) +
           VolcanoComponent.MARGIN.top +
           VolcanoComponent.TITLE_PADDING;
 
@@ -1001,8 +1016,9 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
         //   .attr("height", 10)
         //   .attr("fill", "white");
 
-        d3.select(`#${this.svgId}`)
+        this.plot
           .append("text")
+          .attr("name", point.gene)
           .attr("class", "volcano-label")
           .attr("x", x + VolcanoComponent.LABEL_OFFSET.x)
           .attr("y", y + VolcanoComponent.LABEL_OFFSET.y)
@@ -1181,7 +1197,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .attr("name", point.gene)
       .style("position", "absolute")
       // the differential-expression-panel has a z-index of 100 since it is an overlay
-      .style("z-index", "101")
+      .style("z-index", "1000")
       .style("left", event.pageX + 20 + "px")
       .style("top", event.pageY - 20 + "px")
       .html(html)
@@ -1240,60 +1256,58 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
         this.selectedPoints.includes(d)
           ? VolcanoComponent.OPACITY_SELECTED
           : VolcanoComponent.OPACITY
-      ); // Ensure opacity is set to fully visible
+      );
 
-    // Update the opacity of circles outside the new limits to hide them
+    // hide circles outside of axis limits
     this.plot
       .selectAll("circle")
       .data(this.points, (d: Point) => d.gene) // Rebind the data
       .filter((d) => !filteredData.includes(d)) // Select circles that are not in filteredData
-      .transition()
-      .duration(1000)
       .attr("opacity", 0); // Set opacity to hide them
   }
 
-  setMode(mode: VolcanoInteractivityMode) {
-
-    const svg = d3.select(`#${this.svgId}`)
-    this.mode = mode;
+  setMode(mode: string | VolcanoInteractivityMode) {
+    const svg = d3.select(`#${this.svgId}`);
+    this.mode = mode as VolcanoInteractivityMode;
 
     const modeToggles = {
       [VolcanoInteractivityMode.PAN_ZOOM]: {
-        'enable': () => {
-          svg.call(this.zoom)
+        enable: () => {
+          svg.call(this.zoom);
         },
-        'disable': () => {
+        disable: () => {
           svg.on(".zoom", null);
-        }
+        },
       },
       [VolcanoInteractivityMode.SELECT]: {
-        'enable': () => {
+        enable: () => {
           d3.select(`#${this.svgId}`)
-          .on("mousedown", this.onMouseDown.bind(this))
-          .on("mousemove", this.onMouseMove.bind(this))
-          .on("mouseup", this.onMouseUp.bind(this));
+            .on("mousedown", this.onMouseDown.bind(this))
+            .on("mousemove", this.onMouseMove.bind(this))
+            .on("mouseup", this.onMouseUp.bind(this));
         },
-        'disable': () => {
+        disable: () => {
           d3.select(`#${this.svgId}`)
-          .on("mousedown", null)
-          .on("mousemove", null)
-          .on("mouseup", null);
-        }
-      }
-    }
+            .on("mousedown", null)
+            .on("mousemove", null)
+            .on("mouseup", null);
+        },
+      },
+    };
 
-    Object.keys(modeToggles).forEach(mode => {
+    Object.keys(modeToggles).forEach((mode) => {
       if (mode === this.mode) {
-        modeToggles[mode].enable()
+        modeToggles[mode].enable();
       } else {
-        modeToggles[mode].disable()
+        modeToggles[mode].disable();
       }
-    })
+    });
   }
 
-  // #endregion
-
-  drawData(xScale: d3.ScaleLinear<any, any, any> = this.xScale, yScale: d3.ScaleLinear<any, any, any> = this.yScale) {
+  drawData(
+    xScale: d3.ScaleLinear<any, any, any> = this.xScale,
+    yScale: d3.ScaleLinear<any, any, any> = this.yScale
+  ) {
     this.plot
       .selectAll("circle")
       .data(this.points)
@@ -1301,8 +1315,20 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .append("circle")
       .attr("class", "point")
       .attr("name", (d) => d.gene)
-      .attr("cx", (d) => xScale(d.x) + VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING)
-      .attr("cy", (d) => yScale(d.y) + VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING)
+      .attr(
+        "cx",
+        (d) =>
+          xScale(d.x) +
+          VolcanoComponent.MARGIN.left +
+          VolcanoComponent.AXIS_LABEL_PADDING
+      )
+      .attr(
+        "cy",
+        (d) =>
+          yScale(d.y) +
+          VolcanoComponent.MARGIN.top +
+          VolcanoComponent.TITLE_PADDING
+      )
       .attr("r", VolcanoComponent.POINT_RADIUS)
       .attr("fill", VolcanoComponent.COLOR_UNSELECTED)
       .attr("stroke", "none")
@@ -1311,6 +1337,115 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .on("mouseout", (e, d) => this.onPointMouseOut(e, d))
       .on("click", (e, d) => this.onPointClick(e, d));
   }
+
+  resetView() {
+    const svg = d3.select(`#${this.svgId}`);
+
+    // @ts-ignore
+    const defaultMode = this.mode;
+    this.setMode(VolcanoInteractivityMode.PAN_ZOOM);
+    // @ts-ignore
+    svg.call(this.zoom.transform, d3.zoomIdentity);
+    this.setMode(defaultMode);
+  }
+
+  private handleZoom(event: d3.D3ZoomEvent<any, Point>) {
+    if (this.mode !== VolcanoInteractivityMode.PAN_ZOOM) {
+      return;
+    }
+
+    const zt = event.transform;
+
+    // Update the x-axis and y-axis based on the zoom transformation
+    this.zoomXScale = zt.rescaleX(this.xScale);
+    this.zoomYScale = zt.rescaleY(this.yScale);
+    this.xAxis.call(d3.axisBottom(this.zoomXScale));
+    this.yAxis.call(d3.axisLeft(this.zoomYScale));
+
+    this.drawThresholdLines();
+
+    //#region Update Point and Label positions, event listeners, and stylings
+
+    const inAxisLimits = (d: Point) => {
+      const xWithinLimits =
+        d.x >= this.zoomXScale.domain()[0] &&
+        d.x <= this.zoomXScale.domain()[1];
+      const yWithinLimits =
+        d.y >= this.zoomYScale.domain()[0] &&
+        d.y <= this.zoomYScale.domain()[1];
+      return xWithinLimits && yWithinLimits;
+    };
+
+    const pointsInAxisLimits = this.points.filter(inAxisLimits);
+    const pointsNotInAxisLimits = this.points.filter(
+      (d) => !pointsInAxisLimits.includes(d)
+    );
+
+    const labelInAxisLimits = (_, i: number, nodes: any): boolean => {
+      const node = nodes[i];
+      const gene: string = node.attributes.name.value;
+      return pointsInAxisLimits.find((p) => p.gene == gene) !== undefined;
+    };
+
+    // enable points in axis limits
+    const xOffset =
+      (VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING) *
+      (1 / zt.k);
+    const yOffset =
+      (VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING) *
+      (1 / zt.k);
+    this.plot
+      .selectAll("circle")
+      .data(pointsInAxisLimits, (d: Point) => d.gene)
+      // reposition
+      .attr("cx", (d: Point) => this.xScale(d.x) + xOffset)
+      .attr("cy", (d: Point) => this.yScale(d.y) + yOffset)
+      .attr("r", VolcanoComponent.POINT_RADIUS * (1/zt.k))
+
+      // add event listeners back
+      .on("mouseover", (e, d) => this.onPointMouseOver(e, d))
+      .on("mouseout", (e, d) => this.onPointMouseOut(e, d))
+      .on("click", (e, d) => this.onPointClick(e, d))
+
+      // make points visible again
+      .attr("opacity", (d) =>
+        this.selectedPoints.includes(d)
+          ? VolcanoComponent.OPACITY_SELECTED
+          : VolcanoComponent.OPACITY
+      )
+      .classed("out-of-view", false)
+
+    // show labels in axis limits
+    this.plot
+      .selectAll(".volcano-label")
+      .filter(labelInAxisLimits)
+      .attr("display", "inherit");
+
+    // hide points outside axis limits
+    this.plot
+      .selectAll("circle")
+      .data(pointsNotInAxisLimits, (d: Point) => d.gene)
+      .attr("opacity", 0) // Set opacity to hide them
+      // disable event listeners
+      .on("mouseover", null)
+      .on("mouseout", null)
+      .on("click", null)
+      .classed("out-of-view", true)
+
+    // hide labels outside axis limits
+    this.plot
+      .selectAll(".volcano-label")
+      .filter((_, i, nodes) => !labelInAxisLimits(_, i, nodes))
+      .attr("display", "none");
+
+    //#endregion
+
+    // Apply the zoom transformation to the plot container
+    // @ts-ignore
+    this.plot.attr("transform", zt);
+  }
+
+  // #endregion
 
   ngAfterViewInit(): void {
     this.svgId = `volcano-${this.id}`;
@@ -1366,6 +1501,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .scaleLinear()
       .domain(this.domain.x)
       .range([0, VolcanoComponent.WIDTH]);
+    this.zoomXScale = this.xScale;
 
     this.yScale = d3
       .scaleLinear()
@@ -1376,6 +1512,14 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
           VolcanoComponent.TITLE_PADDING,
         0,
       ]);
+    this.zoomYScale = this.yScale;
+
+    // set up zoom
+    this.zoom = d3
+      .zoom()
+      .scaleExtent([0.5, 5])
+      .on("zoom", this.handleZoom.bind(this));
+    svg.call(this.zoom);
 
     // for each point in the data draw a circle
     this.drawData();
@@ -1434,44 +1578,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       )
       .call(d3.axisLeft(this.yScale));
 
-    // set up zoom
-    const self = this;
-    this.zoom = d3
-    .zoom()
-    .scaleExtent([1, 2.5])
-    .on("zoom", function (event) {
-
-      if (self.mode !== VolcanoInteractivityMode.PAN_ZOOM) {
-        return;
-      }
-
-      const zt = event.transform;
-
-      // Update the x-axis and y-axis based on the zoom transformation
-      const new_xScale = zt.rescaleX(self.xScale);
-      const new_yScale = zt.rescaleY(self.yScale);
-
-      self.xAxis.call(d3.axisBottom(new_xScale));
-      self.yAxis.call(d3.axisLeft(new_yScale));
-
-      self.drawThresholdLines(new_xScale, new_yScale);
-      d3.selectAll("circle")
-      .attr("cx", (d: Point) => self.xScale(d.x) + (VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING) * (1/ zt.k))
-      .attr("cy", (d: Point) => self.yScale(d.y) + (VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING) * (1/ zt.k))
-
-      // Apply the zoom transformation to the plot container
-      // @ts-ignore
-      self.plot.attr("transform", zt);
-    })
-    svg.call(this.zoom)
-
-    // Programmatically trigger the zoom behavior with a specific transformation. This shifts the points into place due to the weird margins + padding bug with point positioning and zoom
-    // @ts-ignore
-    const defaultMode = this.mode;
-    this.setMode(VolcanoInteractivityMode.PAN_ZOOM);
-    // @ts-ignore
-    svg.call(this.zoom.transform, d3.zoomIdentity);
-    this.setMode(defaultMode);
+    // Some weird stuff happens with point placement if we don't trigger zoom first. To fix this, reset the view, which briefly goes into zoom/pan mode and sets the zoom and origin to 0
+    this.resetView();
 
     this.selectByStats();
     this.emitSelectionUpdate();
