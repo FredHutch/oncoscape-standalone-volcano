@@ -500,7 +500,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     const upperLog2FoldChange = Math.abs(this.selectByStatsForm.log2FoldChange);
 
     const inRange = (value: number, range: number[]): boolean => {
-      console.log(value, range, value >= range[0] && value <= range[1])
       return value >= range[0] && value <= range[1]
     }
 

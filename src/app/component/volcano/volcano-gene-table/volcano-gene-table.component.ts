@@ -185,12 +185,8 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
     this.dataSource.sortingDataAccessor = this.sortingDataAccessor;
     this.dataSource.connect().subscribe((data) => {
 
-      // By only watching for when the subscribed data is the same length as the filtered data,
-      // we get the current filtered and sorted data
-      if (data.length === this.dataSource.filteredData.length) {
-        this.shiftSelectionStartingIndex = -1;
-        this.renderedData = data;
-      }
+      this.shiftSelectionStartingIndex = -1;
+      this.renderedData = data
     })
   }
 

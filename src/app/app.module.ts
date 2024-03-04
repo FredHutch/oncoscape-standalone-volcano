@@ -26,6 +26,7 @@ import {MatDividerModule} from '@angular/material/divider';
 import { MatDialogModule } from '@angular/material';
 import { PythonService } from './service/python.service';
 import { WorkerService } from './service/worker/worker.service';
+import {EnrichmentAnalysisService} from "./service/enrichment-analysis/enrichment-analysis.service"
 import { JobTableComponent } from './component/job-table/job-table.component';
 import { DeleteJobDialogComponent } from './component/job-table/delete-job-dialog/delete-job-dialog.component';
 import { CancelJobDialogComponent } from './component/job-table/cancel-job-dialog/cancel-job-dialog.component';
@@ -78,7 +79,8 @@ import { MatSliderModule } from '@angular/material';
     CsvLoaderService,
     HttpClient,
     PythonService,
-    WorkerService
+    WorkerService,
+    EnrichmentAnalysisService
   ],
   bootstrap: [AppComponent],
   entryComponents: [DeleteJobDialogComponent, CancelJobDialogComponent]

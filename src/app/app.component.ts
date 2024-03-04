@@ -2,6 +2,7 @@ import { ChangeDetectorRef, Component, OnInit, Pipe, PipeTransform } from '@angu
 import { CsvLoaderService } from './service/csv-loader.service';
 import { PythonService } from './service/python.service';
 import { MatSnackBar } from '@angular/material';
+import { EnrichmentAnalysisService } from './service/enrichment-analysis/enrichment-analysis.service';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -57,7 +58,10 @@ export class AppComponent implements OnInit {
 
   }
 
-  constructor(private csv: CsvLoaderService, private cd: ChangeDetectorRef, private _snackbar: MatSnackBar) {
+  constructor(
+    private csv: CsvLoaderService,
+    private ea: EnrichmentAnalysisService,
+    _snackbar: MatSnackBar) {
     this._pythonService = new PythonService(_snackbar, csv);
   }
 }
