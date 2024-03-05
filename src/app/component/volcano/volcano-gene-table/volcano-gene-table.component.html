@@ -1,4 +1,6 @@
-<mat-expansion-panel
+
+<div>
+  <mat-expansion-panel
   *ngIf="points.length > 0"
   [hideToggle]="false"
   [expanded]="true"
@@ -9,7 +11,7 @@
 >
   <mat-expansion-panel-header>
     <mat-panel-title style="text-transform: none;">
-      Table Controls
+      Controls
     </mat-panel-title>
     <mat-panel-description>
     </mat-panel-description>
@@ -101,6 +103,8 @@
 
   </form>
 </mat-expansion-panel>
+</div>
+
 
 
 <!-- Import MatTableDataSource and MatSort from @angular/material -->
@@ -109,7 +113,7 @@
   *ngIf="points.length > 0"
   matSort
   id="selected-genes"
-  [style.height]="calculateAvailableTableHeight()"
+
 >
   <ng-container matColumnDef="select">
     <th mat-header-cell *matHeaderCellDef>
@@ -216,4 +220,4 @@
   ></mat-header-row>
   <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
 </mat-table>
-<mat-paginator [pageSizeOptions]="[25, 50, 100]" aria-label="Select page of users"></mat-paginator>
+<mat-paginator [pageSizeOptions]="[25, 50, 100]" aria-label="Select page of users" id="paginator"></mat-paginator>

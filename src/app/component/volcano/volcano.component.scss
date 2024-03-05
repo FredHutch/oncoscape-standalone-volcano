@@ -1,187 +1,205 @@
-
-// TOP BAR, which includes
-// - full screen toggle
-// - Plot download
-// - Viz controls
-$top-bar-font-size: 10px;
-#top-bar {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-
-  > div {
+::ng-deep app-visualization-volcano {
+  // TOP BAR, which includes
+  // - full screen toggle
+  // - Plot download
+  // - Viz controls
+  $top-bar-font-size: 10px;
+  #top-bar {
     display: flex;
+    justify-content: space-between;
     gap: 10px;
-  }
 
-  #download-type-select {
-    font-size: 12px;
-    width: 100px;
+    > div {
+      display: flex;
+      gap: 10px;
+    }
 
-    ::ng-deep mat-select {
-      font-size: $top-bar-font-size;
+    #download-type-select {
+      font-size: 12px;
+      width: 100px;
 
-      mat-label {
+      mat-select {
         font-size: $top-bar-font-size;
+
+        mat-label {
+          font-size: $top-bar-font-size;
+        }
+      }
+    }
+
+    button {
+      font-size: $top-bar-font-size;
+    }
+    #download-link {
+      color: white;
+    }
+    #download-link:visited {
+      color: white;
+    }
+
+    // We are rendering the reset button as a button toggle group
+    .t-flip-flop .mat-button-toggle-checked {
+      background-color: white;
+    }
+
+    #regulation-colors {
+      .mat-form-field-infix {
+        display: flex;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+        border: none;
+      }
+
+      input {
+        width: 22px;
+      }
+
+      .mat-form-field-wrapper {
+        margin-bottom: -1.25em;
+      }
+
+      .label {
+        font-size: 10px;
       }
     }
   }
 
-
-  button {
-    font-size: $top-bar-font-size;
-  }
-  #download-link {
-    color: white;
-  }
-  #download-link:visited {
-    color: white;
-  }
-
-  // We are rendering the reset button as a button toggle group
-  .t-flip-flop .mat-button-toggle-checked {
-    background-color: white;
-  }
-
-
-  #regulation-colors {
-    ::ng-deep .mat-form-field-infix {
-      display: flex;
-      align-items: center;
-      margin: 0;
-      padding: 0;
-      border: none;
-    }
-
-    input {
-      width: 22px;
-    }
-
-    .label {
-      font-size: 10px;
-    }
-  }
-}
-
-// SIDE BAR, which includes:
-// - Select by Statistical Thresholds
-// - Table Controls
-// - Table
-$side-bar-font-size: 10px;
-#side-bar {
-  margin: 0;
-  width: 100%;
-  overflow-y: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-
-  #select-by-stats {
+  // SIDE BAR, which includes:
+  // - Select by Statistical Thresholds
+  // - Table Controls
+  // - Table
+  $side-bar-font-size: 10px;
+  #side-bar {
+    margin: 0;
+    width: 100%;
+    overflow-y: hidden;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 50px;
-    padding-bottom: 5px;
-    padding-top: 5px;
+    flex-direction: column;
 
-    #title {
-      margin-bottom: 5px;
+    #select-by-stats {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 50px;
+      padding-bottom: 5px;
+      padding-top: 5px;
+
+      #title {
+        margin-bottom: 5px;
+      }
+
+      .mat-form-field-wrapper {
+        margin-bottom: -1.25em;
+      }
+
+      button {
+        font-size: $side-bar-font-size;
+      }
     }
 
-    ::ng-deep .mat-form-field-wrapper {
-      margin-bottom: -1.25em;
+    #num-genes-selected {
+      margin-top: 10px;
+      color: lightgray;
     }
 
-    button {
-      font-size: $side-bar-font-size;
+    mat-tab-group {
+      flex: 1;
+      // TODO: How can this be more dynamic?
+      max-height: 65vh;
+    }
+
+    .mat-tab-label {
+      height: 30px;
+    }
+
+    .mat-tab-body-content {
+      overflow-y: hidden;
+    }
+
+    app-volcano-gene-table {
+      display: flex;
+      flex-direction: column;
+      max-height: 100%;
     }
   }
 
-  #num-genes-selected {
-    margin-top: 10px;
-    color: lightgray;
+  // MISC
+
+  .volcano-container {
+    display: flex;
+    margin: 0;
+    height: 80vh;
+    overflow: hidden;
   }
 
-  app-volcano-gene-table {
-    flex: 1;
-    max-height: 60vh;
+  $full-screen-padding: 5px;
+  $full-screen-z-index: 999;
+  .full-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: calc(100% - #{$full-screen-padding} * 2);
+    height: calc(100% - #{$full-screen-padding} * 2);
+    z-index: $full-screen-z-index;
+    background-color: white;
+    padding: $full-screen-padding;
+  }
+
+  .mat-expansion-panel-header-title {
+    letter-spacing: normal;
+  }
+
+  #mode .mat-button-toggle-label-content {
+    padding: 0 !important;
+    margin-top: -5px;
+  }
+
+  #mode p {
+    font-size: 10px;
+    color: gray;
+    font-weight: lighter;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  /* disable highlighting */
+  svg {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  h4 {
+    margin: 0;
+    margin-bottom: 4px;
+  }
+
+
+
+  #no-genes {
+    height: 90%;
+    color: lightslategray;
+  }
+
+  .slash:before {
+    content: "/";
+    font-size: 30px;
+    margin-left: 2px;
+    margin-right: 5px;
+    color: lightgrey;
+    font-weight: lighter;
+  }
+
+  .volcano-tooltip {
+    z-index: 1000;
   }
 }
 
-// MISC
-
-.volcano-container {
-  display: flex;
-  margin: 0;
-  height: 80vh;
-  overflow: hidden;
-}
-
-$full-screen-padding: 5px;
-$full-screen-z-index: 999;
-.full-screen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: calc(100% - #{$full-screen-padding} * 2);
-  height: calc(100% - #{$full-screen-padding} * 2);
-  z-index: $full-screen-z-index;
-  background-color: white;
-  padding: $full-screen-padding;
-}
-
-.mat-expansion-panel-header-title {
-  letter-spacing: normal;
-}
-
-::ng-deep #mode .mat-button-toggle-label-content {
-  padding: 0 !important;
-  margin-top: -5px;
-}
-
-#mode p {
-  font-size: 10px;
-  color: gray;
-  font-weight: lighter;
-}
-
-p {
-  margin: 0;
-}
-
-/* disable highlighting */
-svg {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
-h4 {
-  margin: 0;
-  margin-bottom: 4px;
-}
-
-button {
+::ng-deep .skinny-button {
   line-height: normal;
   padding: 5px;
-}
-
-#no-genes {
-  height: 90%;
-  color: lightslategray;
-}
-
-
-.slash:before {
-  content: '/';
-  font-size: 30px;
-  margin-left: 2px;
-  margin-right: 5px;
-  color: lightgrey;
-  font-weight: lighter;
-}
-
-.volcano-tooltip {
-  z-index: 1000;
 }

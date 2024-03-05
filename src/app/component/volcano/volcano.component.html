@@ -24,6 +24,7 @@
           </mat-form-field>
           <button
             id="download-button"
+            class="skinny-button"
             mat-flat-button
             color="primary"
             (click)="onDownloadImageClick()"
@@ -83,12 +84,6 @@
         </div>
       </div>
 
-
-
-
-
-
-
     </div>
 
     <svg [id]="'volcano-' + id"></svg>
@@ -96,7 +91,8 @@
 
   <div id="side-bar">
     <!-- Select By Statistical Thresholds -->
-    <mat-expansion-panel
+    <div>
+      <mat-expansion-panel
       [hideToggle]="false"
       [expanded]="true"
       (opened)="selectByStatsFormCollapsed = false"
@@ -171,22 +167,37 @@
           </mat-form-field>
         </div>
         <div>
-          <button mat-flat-button color="primary" (click)="selectByStats()">
+          <button mat-flat-button class="skinny-button" color="primary" (click)="selectByStats()">
             Reselect
           </button>
         </div>
       </div>
     </mat-expansion-panel>
+    </div>
 
-    <app-volcano-gene-table
-      [upregulatedColor]="selectByStatsForm.upregulatedColor"
-      [downregulatedColor]="selectByStatsForm.downregulatedColor"
-      [getGeneRegulation]="getGeneRegulation.bind(this)"
-      [selectByStatsFormCollapsed]="selectByStatsFormCollapsed"
-      [points]="points"
-      [selectedPoints]="emittedPoints"
-      (selectionChanged)="labelPoints($event)"
-    ></app-volcano-gene-table>
+    <div style="flex: 1; display: flex; flex-direction: column;">
+      <mat-tab-group preserveContent style="display: flex; flex-direction: column;" id="side-bar-tabs" (selectedTabChange)="selectedTabChange($event)">
+
+        <mat-tab label="Table" style="height: 20px" id="table-tab">
+          <app-volcano-gene-table
+        [upregulatedColor]="selectByStatsForm.upregulatedColor"
+        [downregulatedColor]="selectByStatsForm.downregulatedColor"
+        [getGeneRegulation]="getGeneRegulation.bind(this)"
+        [selectByStatsFormCollapsed]="selectByStatsFormCollapsed"
+        [points]="points"
+        [selectedPoints]="emittedPoints"
+        (selectionChanged)="labelPoints($event)"
+      ></app-volcano-gene-table>
+        </mat-tab>
+        <mat-tab label="Enrichment Analysis" id="enrichment-dotplot-tab">
+          <app-enrichment-analysis [id]="id" [genes]="emittedGenes" [active]="activeTabName === 'Enrichment Analysis'"></app-enrichment-analysis>
+        </mat-tab>
+
+      </mat-tab-group>
+    </div>
+
+
+
     <!-- <div *ngIf="emittedPoints.length === 0" id="no-genes">
       <h4>Interactivity Tips</h4>
       <p>- Click on a point to select a gene</p>

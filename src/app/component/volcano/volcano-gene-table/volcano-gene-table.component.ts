@@ -3,8 +3,9 @@ import { MatCheckbox, MatCheckboxChange, MatPaginator, MatSnackBar, MatSort, Mat
 import { SelectionModel } from '@angular/cdk/collections';
 import {FormControl, FormGroup, Validators} from '@angular/forms';
 import { EventEmitter } from '@angular/core';
-import { Point, VolcanoComponent } from "../volcano.component"
 import { HttpClient } from '@angular/common/http';
+
+type Point = { x: number; y: number; gene: string }
 
 let sortBy = (keys, data) => {
   return data.sort((i, j) => {
@@ -144,26 +145,11 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
     this.initDataSource();
   }
 
-  calculateAvailableTableHeight() {
-    // Perform your height calculation logic here
-    const newHeight = 'calc(120% - ' + this.getControlsHeight() + ' - ' + this.getStatsPanelHeight() + ')';
-
-    return newHeight;
-  }
-
   getFontWeight(point: Point) {
     if (this._selectedPoints.includes(point)) {
       return 'normal'
     }
     return 'normal'
-  }
-
-  private getControlsHeight(): string {
-    return String(document.getElementById('controls').clientHeight) + 'px';
-  }
-
-  private getStatsPanelHeight(): string {
-    return document.getElementById('select-by-stats-exp-panel').clientHeight + 'px'
   }
 
   private sortingDataAccessor = (data: Point, sortHeaderId: string): string | number => {

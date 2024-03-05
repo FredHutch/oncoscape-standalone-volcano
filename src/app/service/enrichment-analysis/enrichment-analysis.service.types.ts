@@ -3,7 +3,7 @@ type PANTHER_Term = {
   label: string;
 };
 
-type PANTHER_ResultItem = {
+export type PANTHER_ResultItem = {
   number_in_list: number;
   fold_enrichment: number;
   fdr: number;

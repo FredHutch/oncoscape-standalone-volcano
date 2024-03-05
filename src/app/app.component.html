@@ -1,26 +1,30 @@
 <div class="container">
   <div style="margin-bottom: 10px">
     <h2 style="margin: 0; margin-bottom: 10px">
-      Volcano Plot for Differential Expression Analysis
+      Differential Expression Analysis
     </h2>
     <p>
-      This is a standalone, interactive Volcano Plot to explore the results of
-      Differential Expression Analysis. It is an in-progress feature that will
-      soon become available as part of
+      This is a standalone application to explore the results of Differential
+      Expression Analysis. It is an in-progress feature that will soon become
+      available as part of
       <a href="https://oncoscape.sttrcancer.org/" target="_blank">Oncoscape</a>.
     </p>
   </div>
 
   <div
-  id="inputs"
-  style="display: flex; margin-bottom: 10px; justify-content: space-between; margin-top: 20px; margin-bottom: 20px;">
+    id="inputs"
+    style="
+      display: flex;
+      margin-bottom: 10px;
+      justify-content: space-between;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    "
+  >
     <!-- Explore Existing Results -->
     <div>
-      <h3 style="margin:0; margin-bottom: 10px">
-        Explore existing results
-      </h3>
+      <h3 style="margin: 0; margin-bottom: 10px">Explore existing results</h3>
       <div class="upload-container">
-
         <div style="font-size: small; margin-bottom: 5px">
           <p><b>Supported file formats:</b> .csv, .xlsx</p>
           <p><b>Columns:</b> geneID/gene/genes, log2FoldChange/logFC, padj</p>
@@ -41,16 +45,35 @@
     </div>
 
     <!-- Run DEA -->
-    <div >
-      <h3 style="margin:0; margin-bottom: 10px">
-        Run your own Differential Expression Analysis <span style="font-weight: normal;"><i><sup>*beta</sup></i></span>
+    <div>
+      <h3 style="margin: 0; margin-bottom: 10px">
+        Run your own Differential Expression Analysis
+        <span style="font-weight: normal"
+          ><i><sup>*beta</sup></i></span
+        >
       </h3>
       <app-dea-input></app-dea-input>
     </div>
-
   </div>
 
   <app-job-table [jobType]="'differentialExpression'"></app-job-table>
+
+  <div id="footer">
+    <p>
+      <a
+        href="https://www.fredhutch.org/en/research/institutes-networks-ircs/seattle-translational-tumor-research.html"
+        target="_blank"
+        >Seattle Translational Tumor Research (STTR)</a
+      >
+      |
+      <a href="https://oncoscape.sttrcancer.org/" target="_blank">Oncoscape</a>
+    </p>
+    <p>
+      <a href="https://www.fredhutch.org/en.html" target="" _blank
+      >Fred Hutchinson Cancer Center</a
+    >
+    </p>
+  </div>
 
   <!-- <app-visualization-volcano
     *ngIf="volcanoData && showVolcano"

@@ -2,8 +2,9 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { MatSnackBar, MatSnackBarConfig } from "@angular/material";
 import { PANTHER_Results } from "./enrichment-analysis.service.types";
-import { Observable } from "rxjs";
-import { map } from "rxjs/operators";
+import { Observable, of } from "rxjs";
+import { map, startWith } from "rxjs/operators";
+import testData from "assets/data/PANTHERenrichmentAnalysisResults.json"
 
 enum PANTHER_ORGANISMS {
   HUMAN = 9606,
@@ -22,6 +23,8 @@ export class EnrichmentAnalysisService {
     duration: 3000
   };
 
+  public static analysisInProgress = false;
+
   getPANTHERResults(): PANTHER_Results {
     return this.mostRecentResults;
   }
@@ -31,7 +34,19 @@ export class EnrichmentAnalysisService {
    * @param genes list of genes
    * @returns {Observable<PANTHER_Results>} the results
    */
-  runPANTHERAnalysis(genes: string[]): Observable<PANTHER_Results> {
+  runPANTHERAnalysis(genes: string[], snackbar=true): Observable<PANTHER_Results> {
+
+    // dont let multiple analyses run at the same time, over any instances
+    // The PANTHER API documentation (https://pantherdb.org/services/details.jsp) says:
+    //  "It is recommended that response from previous web service request is received before sending a new request.
+    //  Failure to comply with this policy may result in the IP address being blocked from accessing PANTHER."
+    if (EnrichmentAnalysisService.analysisInProgress) {
+      return
+    }
+
+    // use this for testing
+    // return of(testData).pipe(startWith(testData))
+
     const ENDPOINT =
       'https://pantherdb.org/services/oai/pantherdb/enrich/overrep';
     const MAX_NUM_GENES = 5000;
@@ -44,14 +59,16 @@ export class EnrichmentAnalysisService {
     let msg = `Running Panther Analysis on ${genes.length} genes`;
     if (genes.length !== input_size) {
       msg += ` (sampled from ${input_size} genes)`;
-      this.snackbar.open(
-        `Enrichment analysis is being run on ${genes.length} genes, randomly sampled from your ${input_size} selected genes.`,
-        'Close',
-        {
-          ...this.snackbarConfig,
-          duration: 10000,
-        }
-      );
+      if (snackbar) {
+        this.snackbar.open(
+          msg,
+          'Close',
+          {
+            ...this.snackbarConfig,
+            duration: 10000,
+          }
+        );
+      }
     }
 
     const urlParams = {
@@ -63,12 +80,19 @@ export class EnrichmentAnalysisService {
     const full_url =
       ENDPOINT + '?' + new URLSearchParams(urlParams).toString();
 
+      EnrichmentAnalysisService.analysisInProgress = true;
     return this.http.post(full_url, {}).pipe(
-      map((response: PANTHER_Results) => {
-        console.log('Response:', response);
-        this.snackbar.open('Enrichment Analysis complete.', 'Close', this.snackbarConfig);
-        this.mostRecentResults = response;
-        return response;
+      map((response: {
+        results: PANTHER_Results
+      }) => {
+        if (snackbar) {
+          this.snackbar.open('Enrichment Analysis complete.', 'Close', this.snackbarConfig);
+        }
+        console.log('Enrichment Analysis complete.')
+        EnrichmentAnalysisService.analysisInProgress = false;
+
+        this.mostRecentResults = response.results;
+        return response.results;
       })
     );
   }

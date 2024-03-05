@@ -11,6 +11,7 @@ import {
 import * as d3 from "d3";
 
 import { VolcanoGeneTableComponent } from "./volcano-gene-table/volcano-gene-table.component";
+import { MatTabChangeEvent } from "@angular/material";
 
 export type Point = { x: number; y: number; gene: string };
 enum VolcanoInteractivityMode {
@@ -90,6 +91,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   // this intermittently gets updated. Look to emittedPoints for the final selection
   private selectedPoints: Point[] = [];
   public emittedPoints: Point[] = [];
+  public emittedGenes: string[] = []
 
   public downloadPlotType: "svg" | "png" | "pdf" = "svg";
 
@@ -135,6 +137,11 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   private hovered: Point;
 
   public isFullScreen = false;
+  public activeTabName: string = 'Table'
+
+  selectedTabChange(event: MatTabChangeEvent) {
+    this.activeTabName = event.tab.textLabel;
+  }
 
   // #region Helper Functions
 
@@ -438,6 +445,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     }
 
     this.emittedPoints = sortedSelectedPoints;
+    this.emittedGenes = sortedSelectedPoints.map(p => p.gene)
     this.cd.detectChanges();
   }
 

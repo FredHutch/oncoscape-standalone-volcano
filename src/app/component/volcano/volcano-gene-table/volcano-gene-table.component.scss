@@ -1,102 +1,106 @@
-table {
-  width: 100%;
-}
+::ng-deep app-volcano-gene-table {
 
-#filter-form {
-  display: flex;
-  justify-content: space-between;
-
-  #regulation {
-    line-height: 20px;
+  table {
+    width: 100%;
   }
 
-  #selection {
-    text-align: left;
-    #box {
-      border-left: 5px solid #50d5ff;
-      background: #b8e5f7;
-      padding: 5px;
+  #filter-form {
+    display: flex;
+    justify-content: space-between;
 
-      button {
-        margin-top: 3px;
+    #regulation {
+      line-height: 20px;
+    }
+
+    #selection {
+      text-align: left;
+      #box {
+        border-left: 5px solid #50d5ff;
+        background: #b8e5f7;
+        padding: 5px;
+
+        button {
+          margin-top: 3px;
+        }
       }
     }
   }
-}
 
-p {
-  margin: 0;
-}
+  p {
+    margin: 0;
+  }
 
-/* Adjust the "rank" column to only take up 15% of the table width */
-.mat-column-rank {
-  flex: 0 0 20%;
-}
+  /* Adjust the "rank" column to only take up 15% of the table width */
+  .mat-column-rank {
+    flex: 0 0 20%;
+  }
 
-.mat-column-select {
-  overflow: initial;
-  flex: 0 0 5%;
-}
+  .mat-column-select {
+    overflow: initial;
+    flex: 0 0 5%;
+  }
 
-.mat-expansion-panel-header-title {
-  letter-spacing: normal;
-}
+  .mat-expansion-panel-header-title {
+    letter-spacing: normal;
+  }
 
-::ng-deep .mat-expansion-panel-body {
-  border-bottom-width: 0px;
-  margin: 0 !important;
-  padding: 5px !important;
-}
+   .mat-expansion-panel-body {
+    border-bottom-width: 0px;
+    margin: 0 !important;
+    padding: 5px !important;
+  }
 
-::ng-deep .mat-form-field-wrapper {
-  margin: 0;
-  padding: 0;
-}
+  .mat-form-field-wrapper {
+    margin: 0;
+    padding: 0;
+  }
 
-::ng-deep .stat-descr-btn {
+  .stat-descr-btn {
 
-  width: auto;
-  height: auto;
-  line-height: normal;
-  margin-top: -5px;
-  font-size: 12px;
+    width: auto;
+    height: auto;
+    line-height: normal;
+    margin-top: -5px;
+    font-size: 12px;
 
-  mat-icon{
+    mat-icon{
+      font-size: 12px;
+    }
+  }
+
+  #enrichr-processing {
+    margin-left: 10px;
     font-size: 12px;
   }
-}
 
-#enrichr-processing {
-  margin-left: 10px;
-  font-size: 12px;
-}
+  // bold on hover
+ .stat-descr-btn:hover {
+    font-weight: bold;
+  }
 
-// bold on hover
-::ng-deep .stat-descr-btn:hover {
-  font-weight: bold;
-}
+  .mat-cell {
+    font-family: Roboto, "Helvetica Neue", sans-serif;
+  }
 
-.mat-cell {
-  font-family: Roboto, "Helvetica Neue", sans-serif;
-}
+  .mat-header-cell {
+    font-family: Roboto, "Helvetica Neue", sans-serif;
+  }
 
-.mat-header-cell {
-  font-family: Roboto, "Helvetica Neue", sans-serif;
-}
+  td.mat-cell {
+    border: none;
+    padding: 0 !important;
 
-td.mat-cell {
-  border: none;
-  padding: 0 !important;
+  }
 
-}
+  th.mat-header-cell {
+    border: none;
+    padding: 0 !important;
+    font-family: Roboto, "Helvetica Neue", sans-serif;
+  }
 
-th.mat-header-cell {
-  border: none;
-  padding: 0 !important;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
-}
+  #selected-genes {
+    overflow-y: auto;
+    max-height: inherit;
+  }
 
-#selected-genes {
-  overflow-y: auto;
-  max-height: inherit;
 }

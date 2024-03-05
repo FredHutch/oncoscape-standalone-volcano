@@ -36,6 +36,8 @@ import {TextFieldModule} from '@angular/cdk/text-field';
 import {MatSelectModule} from '@angular/material/select';
 import {MatPaginatorModule} from '@angular/material/paginator';
 import { MatSliderModule } from '@angular/material';
+import {MatTabsModule} from '@angular/material/tabs';
+import { EnrichmentAnalysisComponent } from './component/enrichment-analysis/enrichment-analysis.component';
 
 @NgModule({
   declarations: [
@@ -48,7 +50,8 @@ import { MatSliderModule } from '@angular/material';
     DeleteJobDialogComponent,
     CancelJobDialogComponent,
     StatusIconComponent,
-    DeaInputComponent
+    DeaInputComponent,
+    EnrichmentAnalysisComponent
   ],
   imports: [
     BrowserModule,
@@ -73,7 +76,8 @@ import { MatSliderModule } from '@angular/material';
     TextFieldModule,
     MatSelectModule,
     MatPaginatorModule,
-    MatSliderModule
+    MatSliderModule,
+    MatTabsModule
   ],
   providers: [
     CsvLoaderService,
