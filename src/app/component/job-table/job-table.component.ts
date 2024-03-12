@@ -29,6 +29,7 @@ import { DeleteJobDialogComponent } from "./delete-job-dialog/delete-job-dialog.
 import { Subject } from "rxjs";
 // import 'rxjs/add/operator/takeUntil';
 import { takeUntil } from "rxjs/operators"
+import { DEAService } from "app/service/dea/dea.service";
 
 type RowElement = Job & {
   workerId: number;
@@ -52,9 +53,12 @@ type RowElement = Job & {
   changeDetection: ChangeDetectionStrategy.Default,
 })
 export class JobTableComponent implements AfterViewInit, OnDestroy {
+
+  static DEA_METHOD: 'worker' | 'server' = 'server';
+
   // list of jobs, along with the workerId that is running them
   jobs: RowElement[] = [];
-  columnsToDisplay = ["name", "creationTime", "status", "cancelOrDelete"];
+  columnsToDisplay = ["name", "finishTime", "status", "cancelOrDelete"];
   columnsToDisplayWithExpand = [...this.columnsToDisplay, "expand"];
   expandedElement: RowElement | null;
 
@@ -249,7 +253,8 @@ export class JobTableComponent implements AfterViewInit, OnDestroy {
 
     let firstRender = true;
 
-    PythonService.instance.sessionJobsOfType$(this.jobType)
+    if (JobTableComponent.DEA_METHOD === 'worker') {
+      PythonService.instance.sessionJobsOfType$(this.jobType)
     .pipe(takeUntil(this.ngUnsubscribe))
     .subscribe((jobs) => {
       console.log(`Session jobs of type ${this.jobType} have updated`, jobs);
@@ -259,6 +264,17 @@ export class JobTableComponent implements AfterViewInit, OnDestroy {
         this.expandedElement = this.jobs[0];
       }
     });
+    } else if (JobTableComponent.DEA_METHOD ==='server') {
+      DEAService.instance.jobs$.subscribe((jobs) => {
+        console.log(`Server jobs have updated`, jobs);
+        this.updateJobs(jobs, 'session')
+        if (firstRender && this.expandedElement === undefined && this.jobs.length > 0) {
+          firstRender = false;
+          this.expandedElement = this.jobs[0];
+        }
+      })
+    }
+
 
 
   }

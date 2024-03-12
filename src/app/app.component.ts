@@ -3,6 +3,8 @@ import { CsvLoaderService } from './service/csv-loader.service';
 import { PythonService } from './service/python.service';
 import { MatSnackBar } from '@angular/material';
 import { EnrichmentAnalysisService } from './service/enrichment-analysis/enrichment-analysis.service';
+import { DEAService } from './service/dea/dea.service';
+import { HttpClient } from '@angular/common/http';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -10,6 +12,7 @@ import { EnrichmentAnalysisService } from './service/enrichment-analysis/enrichm
 })
 export class AppComponent implements OnInit {
   private _pythonService: PythonService;
+  private _deaService: DEAService;
 
   private replaceKeys(data: any, toReplace: string[], replaceWith: string): any {
     toReplace.forEach((key) => {
@@ -61,7 +64,9 @@ export class AppComponent implements OnInit {
   constructor(
     private csv: CsvLoaderService,
     private ea: EnrichmentAnalysisService,
+    private http: HttpClient,
     _snackbar: MatSnackBar) {
     this._pythonService = new PythonService(_snackbar, csv);
+    this._deaService = new DEAService(http)
   }
 }

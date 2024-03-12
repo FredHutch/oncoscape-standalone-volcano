@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { MatFormFieldControl } from '@angular/material';
+import { DEAService } from 'app/service/dea/dea.service';
 import { DiffExpPayloads, PythonService } from 'app/service/python.service';
 import mapData from "assets/data/map.json";
 
@@ -10,6 +11,8 @@ import mapData from "assets/data/map.json";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeaInputComponent {
+
+  static DEA_METHOD: 'server' | 'worker' = 'server'
 
   public rawCounts: any;
   public sids: string[] = [];
@@ -46,7 +49,8 @@ export class DeaInputComponent {
     }
 
     // build the payload like it is in Oncoscape
-    diffExpData.data = this.rawCounts;
+    // console.warn("REMOVE THIS> TAKING THE FIRST 1000 GENES FOR TESTING!!!!")
+    diffExpData.data = this.rawCounts//.slice(0, 1000);
     diffExpData.cohortA = {
       n: "Cohort A",
       pids: this._cohortA,
@@ -68,7 +72,8 @@ export class DeaInputComponent {
 
     console.log("diffexpdata", diffExpData)
 
-    const workerRes = PythonService.instance.newWorker()
+    if (DeaInputComponent.DEA_METHOD === 'worker') {
+      const workerRes = PythonService.instance.newWorker()
     if (workerRes.success) {
       PythonService.instance.runJob<DiffExpPayloads>(
         workerRes.workerId,
@@ -115,6 +120,10 @@ export class DeaInputComponent {
     } else {
       throw new Error(workerRes.error);
     }
+    } else if (DeaInputComponent.DEA_METHOD ==='server') {
+      DEAService.instance.runDiffExpJob(diffExpData)
+    }
+
   }
 
   constructor() { }

@@ -12,11 +12,11 @@
     </td>
   </ng-container>
 
-  <!-- Creation Time Column -->
-  <ng-container matColumnDef="creationTime">
-    <th mat-header-cell *matHeaderCellDef>Start Time</th>
+  <!-- finishTime Time Column -->
+  <ng-container matColumnDef="finishTime">
+    <th mat-header-cell *matHeaderCellDef>Completion Time</th>
     <td mat-cell *matCellDef="let element">
-      {{ element.creationTime | date : "medium" }}
+      {{ element.finishTime | date : "medium" }}
     </td>
   </ng-container>
 
@@ -107,7 +107,7 @@
         <table class="step-detail-table">
           <tr>
             <th>Step</th>
-            <th>Start Time</th>
+            <th>Completion Time</th>
             <th>Status</th>
           </tr>
 
@@ -116,7 +116,7 @@
             <!-- Step information -->
             <tr>
               <td>{{ step.name }}</td>
-              <td>{{ step.creationTime | date : "medium" }}</td>
+              <td>{{ step.finishTime | date : "medium" }}</td>
               <td>
                 <app-status-icon
                   [status]="step.status"
@@ -167,6 +167,7 @@
                   <app-visualization-volcano
                     *ngIf="
                       element.type === 'differentialExpression' &&
+                      step.result.type === 'volcanoData' &&
                       step.result.data
                     "
                     [data]="step.result.data"
