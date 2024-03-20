@@ -1,13 +1,54 @@
 <div [id]="'enrichment-dot-plot-' + id">
   <div id="enrichment-dot-plot-controls" *ngIf="genes.length > 0">
-
+    <mat-expansion-panel
+      [hideToggle]="false"
+      [expanded]="true"
+      (afterCollapse)="render()"
+      (afterExpand)="render()"
+    >
+      <mat-expansion-panel-header>
+        <mat-panel-title style="text-transform: none">Controls</mat-panel-title>
+        <mat-panel-description></mat-panel-description>
+      </mat-expansion-panel-header>
+      <mat-form-field id="select-ann-dataset">
+        <mat-label>Annotation dataset</mat-label>
+        <mat-select [(ngModel)]="currentAnnDatasetId">
+          <mat-option
+            [value]="dataset.id"
+            [matTooltip]="dataset.description"
+            *ngFor="let dataset of ea.availableAnnotationDatasets"
+            >{{ dataset.label }}</mat-option
+          >
+        </mat-select>
+      </mat-form-field>
+    </mat-expansion-panel>
   </div>
 </div>
-<div *ngIf="genes.length === 0" style="width: 100%; height: 40vh; display: flex; justify-content: center; align-items: center;">
-<p id="no-genes-hint"> Select genes on the volcano plot to view Enrichment Analysis</p>
+<div
+  *ngIf="genes.length === 0"
+  style="
+    width: 100%;
+    height: 40vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  "
+>
+  <p id="no-genes-hint">
+    Select genes on the volcano plot to view Enrichment Analysis
+  </p>
 </div>
 
-<div *ngIf="loading" style="width: 100%; height: 40vh; display: flex; justify-content: center; align-items: center;">
+<div
+  *ngIf="loading"
+  style="
+    width: 100%;
+    height: 40vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  "
+>
   <mat-spinner></mat-spinner>
-  <p style="margin-left: 10px;">Running Enrichment Analysis</p>
-  </div>
+  <p style="margin-left: 10px">Running Enrichment Analysis</p>
+</div>

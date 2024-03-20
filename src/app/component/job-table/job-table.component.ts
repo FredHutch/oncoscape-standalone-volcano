@@ -30,6 +30,7 @@ import { Subject } from "rxjs";
 // import 'rxjs/add/operator/takeUntil';
 import { takeUntil } from "rxjs/operators"
 import { DEAService } from "app/service/dea/dea.service";
+import { WorkerService } from "app/service/worker/worker.service";
 
 type RowElement = Job & {
   workerId: number;
@@ -53,8 +54,6 @@ type RowElement = Job & {
   changeDetection: ChangeDetectionStrategy.Default,
 })
 export class JobTableComponent implements AfterViewInit, OnDestroy {
-
-  static DEA_METHOD: 'worker' | 'server' = 'server';
 
   // list of jobs, along with the workerId that is running them
   jobs: RowElement[] = [];
@@ -253,30 +252,23 @@ export class JobTableComponent implements AfterViewInit, OnDestroy {
 
     let firstRender = true;
 
-    if (JobTableComponent.DEA_METHOD === 'worker') {
-      PythonService.instance.sessionJobsOfType$(this.jobType)
-    .pipe(takeUntil(this.ngUnsubscribe))
-    .subscribe((jobs) => {
-      console.log(`Session jobs of type ${this.jobType} have updated`, jobs);
+    PythonService.instance.sessionJobs$.subscribe((jobs) => {
+      console.log(`Session jobs have updated`, jobs);
       this.updateJobs(jobs, 'session')
       if (firstRender && this.expandedElement === undefined && this.jobs.length > 0) {
         firstRender = false;
         this.expandedElement = this.jobs[0];
       }
-    });
-    } else if (JobTableComponent.DEA_METHOD ==='server') {
-      DEAService.instance.jobs$.subscribe((jobs) => {
-        console.log(`Server jobs have updated`, jobs);
-        this.updateJobs(jobs, 'session')
-        if (firstRender && this.expandedElement === undefined && this.jobs.length > 0) {
-          firstRender = false;
-          this.expandedElement = this.jobs[0];
-        }
-      })
-    }
+    })
 
-
-
+    DEAService.instance.jobs$.subscribe((jobs) => {
+      console.log(`Session jobs have updated`, jobs);
+      this.updateJobs(jobs, 'session')
+      if (firstRender && this.expandedElement === undefined && this.jobs.length > 0) {
+        firstRender = false;
+        this.expandedElement = this.jobs[0];
+      }
+    })
   }
 
   constructor(private cd: ChangeDetectorRef, public dialog: MatDialog) {}

@@ -1,3 +1,9 @@
+export type PANTHERAnnotationDataset = {
+  description: string;
+  id: string;
+  label: string
+}
+
 type PANTHER_Term = {
   id: string;
   label: string;

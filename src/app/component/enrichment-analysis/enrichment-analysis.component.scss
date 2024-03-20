@@ -1,9 +1,26 @@
-:host {
-  display: block;
+::ng-deep app-enrichment-analysis {
+  :host {
+    display: block;
+  }
+
+  #no-genes-hint {
+    color: lightslategray;
+  }
+
+  .mat-expansion-panel-header-title {
+    letter-spacing: normal;
+    text-transform: none !important;
+  }
+
+  .mat-expansion-panel-body {
+    border-bottom-width: 0px;
+    margin: 0 !important;
+    padding: 5px !important;
+  }
 }
 
-#no-genes-hint {
-  color: lightslategray;
+.ea-tooltip {
+  font-size: 10px !important
 }
 
 

@@ -42,7 +42,7 @@ type JobWithWorkerId = Job & { workerId: number };
   providedIn: "root",
 })
 export class DEAService {
-  private baseUrl = "http://127.0.0.1:3300"; // Replace with your actual API base URL
+  private baseUrl = "http://127.0.0.1:5000";
 
   public static instance: DEAService;
 
@@ -148,6 +148,7 @@ export class DEAService {
     //     });
     //   }
     // );
+
     return jobId;
   }
 
@@ -296,92 +297,21 @@ export class DEAService {
   }
 
   private pipeline(payload: any): Observable<StepResponse> {
-
-    return this.http.post(`${this.baseUrl}/pipeline`, JSON.stringify(payload)).pipe(
+    return this.http.post(`${this.baseUrl}/pipeline`, JSON.stringify(payload), {
+      headers: { 'Content-Type': 'application/json'}
+    }).pipe(
       map((response: any) => {
-        console.log("RESPONSE DATA", response.data)
-        let final = {}
-        Object.keys(response.data[0]).forEach((col: string) => {
-          if (final[col] === undefined) {
-            final[col] = {}
-          }
-          response.data.forEach((row: any) => {
-            final[col][row["_row"]] = row[col]
-          })
-        })
-
-        console.log("FINAL DATA", final)
-
-        // transform response to what we want
-
-
         const res: StepResponse = {
           success: true,
           result: {
             type: StepResultType.VOLCANO_DATA,
-            data: final
+            data: JSON.parse(response.data)
           },
         };
         return res;
       }),
       catchError((error) => {
         console.log("ERROR", error)
-        return this.handleError(error);
-      })
-    );
-  }
-
-  private load(payload: LoadStepPayload): Observable<StepResponse> {
-    return this.http.post(`${this.baseUrl}/load`, payload).pipe(
-      map((response: any) => {
-        const res: StepResponse = {
-          success: true,
-          result: {
-            type: StepResultType.JSON,
-            data: response.data,
-          },
-        };
-        return res;
-      }),
-      catchError((error) => {
-        return this.handleError(error);
-      })
-    );
-  }
-
-  private preprocess(payload: PreprocessStepPayload): Observable<StepResponse> {
-    return this.http.post(`${this.baseUrl}/preprocess`, payload).pipe(
-      map((response: any) => {
-        const res: StepResponse = {
-          success: true,
-          result: {
-            type: StepResultType.JSON,
-            data: response.data,
-          },
-        };
-        return res;
-      }),
-      catchError((error) => {
-        return this.handleError(error);
-      })
-    );
-  }
-
-  private _deseq2(payload: Deseq2StepPayload): Observable<StepResponse> {
-    return this.http.post(`${this.baseUrl}/deseq2`, payload).pipe(
-      map((response: any) => {
-        const res: StepResponse = {
-          success: true,
-          result: {
-            type: StepResultType.VOLCANO_DATA,
-            // need to parse the final step, since it is not being passed back to the server,
-            // but rather being used as JSON in the Angular app
-            data: JSON.parse(response.data),
-          },
-        };
-        return res;
-      }),
-      catchError((error) => {
         return this.handleError(error);
       })
     );

@@ -12,12 +12,9 @@ import * as d3 from "d3";
 
 import { VolcanoGeneTableComponent } from "./volcano-gene-table/volcano-gene-table.component";
 import { MatTabChangeEvent } from "@angular/material";
-
-export type Point = { x: number; y: number; gene: string };
-enum VolcanoInteractivityMode {
-  SELECT = "select",
-  PAN_ZOOM = "panZoom",
-}
+import { IVolcanoVisualization, VolcanoPoint, VolcanoTab } from "./volcano.component.types";
+import { VolcanoInteractivityMode } from "./volcano.component.types";
+import { SelectByStatsForm } from "./volcano.component.types";
 
 @Component({
   selector: "app-visualization-volcano",
@@ -25,18 +22,18 @@ enum VolcanoInteractivityMode {
   styleUrls: ["./volcano.component.scss"],
   changeDetection: ChangeDetectionStrategy.Default,
 })
-export class VolcanoComponent implements AfterViewInit, OnInit {
+export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualization {
   static readonly OPACITY = 0.2;
   static readonly OPACITY_HOVER = 0.5;
   static readonly OPACITY_SELECTED = 1;
   static readonly AXIS_LABEL_PADDING = 20;
   static readonly TITLE_PADDING = 0;
   static readonly MARGIN = { top: 20, right: 20, bottom: 30, left: 30 };
-  static WIDTH =
-    Number(window.getComputedStyle(document.body).width.replace("px", "")) / 2;
-  static HEIGHT =
-    Number(window.getComputedStyle(document.body).height.replace("px", "")) /
-    1.5;
+  static readonly DATA_PADDING = { top: 5, right: 0.5, bottom: 0, left: 0.5 };
+  static WIDTH = document.documentElement.clientWidth / 2.2;
+
+  // Make height 75% of width
+  static HEIGHT = (document.documentElement.clientWidth / 2.2) * 0.75;
   static readonly COLOR_UNSELECTED = "#454444";
   static readonly COLOR_SELECTED = "black";
   static readonly POINT_RADIUS = 3;
@@ -48,11 +45,83 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   };
 
   @Input() data: Object;
+  private _plotOnly: boolean = false;
+  /** If true, controls and side bar will not be rendered. */
+  @Input() set plotOnly(value: boolean) {
+    this._plotOnly = value;
+  }
   @Input() genesToSelectByDefault: string[] = [];
   @Input() id: string;
+  @Input() tabs = [VolcanoTab.Table, VolcanoTab.EnrichmentAnalysis]
 
   @ViewChild(VolcanoGeneTableComponent, { static: false })
   geneTable: VolcanoGeneTableComponent;
+
+  get plotOnly(): boolean {
+    return this._plotOnly;
+  }
+
+  get mode(): VolcanoInteractivityMode {
+    return this._mode;
+  }
+
+  get points(): VolcanoPoint[] {
+    return this._points
+  }
+
+  // Used in adjusting axis ranges. Uncomment if we add this back in
+  // public dataBoundingBox: {
+  //   xMin: number;
+  //   xMax: number;
+  //   yMin: number;
+  //   yMax: number;
+  // } = {
+  //   xMin: 0,
+  //   xMax: 0,
+  //   yMin: 0,
+  //   yMax: 0,
+  // };
+  // public axisRanges: {
+  //   xMin: number;
+  //   xMax: number;
+  //   yMin: number;
+  //   yMax: number;
+  // } = {
+  //   xMin: 0,
+  //   xMax: 0,
+  //   yMin: 0,
+  //   yMax: 0,
+  // };
+
+
+  public emittedPoints: VolcanoPoint[] = [];
+  public emittedGenes: string[] = [];
+
+  public downloadPlotType: "svg" | "png" = "svg";
+
+  get selectByStatsForm(): SelectByStatsForm {
+    return this._selectByStatsForm;
+  }
+
+  get showSidebar(): boolean {
+    return this._showSidebar
+  }
+
+  get showSelectByStatsForm(): boolean {
+    return this._showSelectByStatsForm
+  }
+
+  get showPlotControls(): boolean {
+    return this._showPlotControls
+  }
+
+  public selectByStatsFormCollapsed: boolean = false;
+
+  public isFullScreen = false;
+  public activeTabName: string = "Table";
+
+  // Change the default mode here
+  private _mode: VolcanoInteractivityMode = VolcanoInteractivityMode.SELECT;
 
   private svgId: string = "";
   private plot: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
@@ -62,49 +131,24 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   private xAxis: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
   private yAxis: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
 
-  // Change the default mode here
-  public mode: VolcanoInteractivityMode = VolcanoInteractivityMode.SELECT;
-  public points: Point[] = [];
-  public dataBoundingBox: {
-    xMin: number;
-    xMax: number;
-    yMin: number;
-    yMax: number;
-  } = {
-    xMin: 0,
-    xMax: 0,
-    yMin: 0,
-    yMax: 0,
-  };
-  public axisRanges: {
-    xMin: number;
-    xMax: number;
-    yMin: number;
-    yMax: number;
-  } = {
-    xMin: 0,
-    xMax: 0,
-    yMin: 0,
-    yMax: 0,
-  };
+  // this is the most recent selected point, if any.
+  private mostRecentSelectedPoint: VolcanoPoint = null;
+
+  private _points: VolcanoPoint[] = [];
+
+  // Keep track of how points change during a drag, so we can reverse when the rectangle moves off of them
+  // These will reset on mouseup
+  private pointsNewToThisDrag = [];
+  private pointsDeletedThisDrag = [];
+
+  private _showPlotControls: boolean = true;
+  private _showSelectByStatsForm: boolean = true;
+  private _showSidebar: boolean = true;
 
   // this intermittently gets updated. Look to emittedPoints for the final selection
-  private selectedPoints: Point[] = [];
-  public emittedPoints: Point[] = [];
-  public emittedGenes: string[] = []
+  private selectedPoints: VolcanoPoint[] = [];
 
-  public downloadPlotType: "svg" | "png" | "pdf" = "svg";
-
-  public selectByStatsForm: {
-    nlogpadj: number;
-    log2FoldChange: number;
-
-    // these are just for the form. We always use the log values for processing
-    padj: number;
-    fc: number;
-    downregulatedColor: string;
-    upregulatedColor: string;
-  } = {
+  private _selectByStatsForm: SelectByStatsForm = {
     nlogpadj: 1.301,
     log2FoldChange: 0.58,
     padj: 0.05,
@@ -112,15 +156,6 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     downregulatedColor: "#CF492F",
     upregulatedColor: "#2FCF3F",
   };
-  public selectByStatsFormCollapsed: boolean = false;
-
-  // this is the most recent selected point, if any.
-  public mostRecentSelectedPoint: Point = null;
-
-  // Keep track of how points change during a drag, so we can reverse when the rectangle moves off of them
-  // These will reset on mouseup
-  private pointsNewToThisDrag = [];
-  private pointsDeletedThisDrag = [];
 
   // The names of the genes that has a visible tooltip
   private activeGeneTooltips: string[] = [];
@@ -134,16 +169,35 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
   private zoomXScale: d3.ScaleLinear<number, number>;
   private zoomYScale: d3.ScaleLinear<number, number>;
   private domain: { x: [number, number]; y: [number, number] };
-  private hovered: Point;
+  private hovered: VolcanoPoint;
 
-  public isFullScreen = false;
-  public activeTabName: string = 'Table'
+
+
+  // #region Public functions
 
   selectedTabChange(event: MatTabChangeEvent) {
     this.activeTabName = event.tab.textLabel;
   }
 
-  // #region Helper Functions
+  togglePlotControls(): void {
+    this._showPlotControls = !this._showPlotControls
+  }
+
+  toggleSelectByStatsForm(): void {
+    this._showSelectByStatsForm = !this._showSelectByStatsForm
+  }
+
+  toggleFullScreen() {
+    this.isFullScreen = !this.isFullScreen;
+  }
+
+  toggleSidebar() {
+    this._showSidebar = !this._showSidebar;
+  }
+
+  isTabEnabled(tab: VolcanoTab): boolean {
+    return this.tabs.findIndex(t => t === tab) !== -1
+  }
 
   updateSelectByStatsForm(event: Event) {
     const precision = 3;
@@ -152,26 +206,26 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     // @ts-ignore
     const value = event.target.value;
 
-    this.selectByStatsForm[field] = value;
+    this._selectByStatsForm[field] = value;
     // update the associated log/ non-log field
     switch (field) {
       case "nlogpadj":
-        this.selectByStatsForm.padj = Number(
+        this._selectByStatsForm.padj = Number(
           Math.pow(10, -value).toPrecision(precision)
         );
         break;
       case "log2FoldChange":
-        this.selectByStatsForm.fc = Number(
+        this._selectByStatsForm.fc = Number(
           Math.pow(2, value).toPrecision(precision)
         );
         break;
       case "padj":
-        this.selectByStatsForm.nlogpadj = Number(
+        this._selectByStatsForm.nlogpadj = Number(
           -Math.log10(value).toPrecision(precision)
         );
         break;
       case "fc":
-        this.selectByStatsForm.log2FoldChange = Number(
+        this._selectByStatsForm.log2FoldChange = Number(
           Math.log2(value).toPrecision(precision)
         );
         break;
@@ -182,21 +236,19 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.selectByStats();
   }
 
-  toggleFullScreen() {
-    this.isFullScreen = !this.isFullScreen;
-  }
 
-  getGeneRegulation(point: Point): "up" | "down" | "none" {
+
+  getGeneRegulation(point: VolcanoPoint): "up" | "down" | "none" {
     if (
-      point.x > this.selectByStatsForm.log2FoldChange &&
-      point.y > this.selectByStatsForm.nlogpadj
+      point.x > this._selectByStatsForm.log2FoldChange &&
+      point.y > this._selectByStatsForm.nlogpadj
     ) {
       return "up";
     }
 
     if (
-      point.x < -this.selectByStatsForm.log2FoldChange &&
-      point.y > this.selectByStatsForm.nlogpadj
+      point.x < -this._selectByStatsForm.log2FoldChange &&
+      point.y > this._selectByStatsForm.nlogpadj
     ) {
       return "down";
     }
@@ -204,39 +256,19 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     return "none";
   }
 
-  getSelectedColor(point: Point): string {
-    switch (this.getGeneRegulation(point)) {
-      case "up":
-        return this.selectByStatsForm.upregulatedColor;
-      case "down":
-        return this.selectByStatsForm.downregulatedColor;
-      default:
-        return VolcanoComponent.COLOR_SELECTED;
-    }
-  }
-
   updateRegulationColor(color: string, regulation: "up" | "down") {
     if (regulation === "up") {
-      this.selectByStatsForm.upregulatedColor = color;
+      this._selectByStatsForm.upregulatedColor = color;
       // select all points that are upregulated and currently selected
       d3.selectAll(".point.upregulated.selected").attr("fill", color);
     } else {
-      this.selectByStatsForm.downregulatedColor = color;
+      this._selectByStatsForm.downregulatedColor = color;
       d3.selectAll(".point.downregulated.selected").attr("fill", color);
     }
   }
 
-  selectAll(event) {
-    this.clearSelection();
-    this.points.forEach((point) => {
-      this.selectedPoints.push(point);
-      this.stylePointOnClick(event, point);
-    });
-    this.emitSelectionUpdate();
-  }
-
-  onDownloadImageClick() {
-    switch (this.downloadPlotType) {
+  onDownloadImageClick(downloadPlotType = this.downloadPlotType) {
+    switch (downloadPlotType) {
       case "svg":
         this.downloadAsSVG();
         break;
@@ -249,7 +281,474 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     }
   }
 
-  downloadAsPNG() {
+  selectGenesByName(
+    genes: string[],
+    options: {
+      label?: boolean;
+      fill?: string;
+    } = { label: false }
+  ): void {
+    const pointsToClick = this._points.filter((p) => genes.includes(p.gene));
+    const event = new MouseEvent("selectGenesByName");
+    this.stylePointsOnClick(event, pointsToClick, {
+      tooltip: false,
+      fill: options.fill,
+    });
+    this.selectedPoints.push(...pointsToClick);
+
+    if (options.label) {
+      this.labelPoints(this.selectedPoints);
+    }
+  }
+
+  clearSelection() {
+    // clear out the selected cohort subsets
+    this.selectedPoints.length = 0;
+
+    // reset the points to unselected style
+    d3.selectAll(".point")
+      .attr("fill", VolcanoComponent.COLOR_UNSELECTED)
+      .attr("opacity", function (d, i, nodes) {
+        const outOfView = d3.select(this).classed("out-of-view");
+        return outOfView ? 0 : VolcanoComponent.OPACITY;
+      })
+      .classed("selected", false);
+
+    // remove all tooltips
+    d3.selectAll(".volcano-tooltip").remove();
+    this.activeGeneTooltips.length = 0;
+
+    // remove all labels
+    this.labelPoints([]);
+
+    // emit the new cleared selection so other elements on the page can respond
+    this.emitSelectionUpdate();
+  }
+
+
+  selectByStats() {
+    // find all points that are above the -log10(padj) line and greater than the absolute value of log2FoldChange
+    const upregulatedPoints = this._points.filter(
+      (point) => this.getGeneRegulation(point) === "up"
+    );
+
+    const downregulatedPoints = this._points.filter(
+      (point) => this.getGeneRegulation(point) === "down"
+    );
+    this.clearSelection();
+
+    this.selectGenesByName(
+      [...downregulatedPoints, ...upregulatedPoints].map((p) => p.gene)
+    );
+
+    // draw dashed lines to show the thresholds
+    this.drawThresholdLines();
+
+    this.emitSelectionUpdate();
+  }
+
+  labelPoints(points: VolcanoPoint[]) {
+    // clear out any existing labels
+    d3.selectAll(`.volcano-label`).remove();
+
+    points.forEach((point) => {
+      const point_ = this._points.find((p) => p.gene === point.gene);
+      if (point_) {
+        const x =
+          this.zoomXScale(point_.x) +
+          VolcanoComponent.MARGIN.left +
+          VolcanoComponent.AXIS_LABEL_PADDING;
+        const y =
+          this.zoomYScale(point_.y) +
+          VolcanoComponent.MARGIN.top +
+          VolcanoComponent.TITLE_PADDING;
+
+        // // add a rectangle behind the text
+        // d3.select(`#${this.svgId}`).append("rect")
+        //   .attr("class", "volcano-label")
+        //   .attr("x", x + VolcanoComponent.LABEL_OFFSET.x - 2)
+        //   .attr("y", y + VolcanoComponent.LABEL_OFFSET.y - 12)
+        //   .attr("width", 10)
+        //   .attr("height", 10)
+        //   .attr("fill", "white");
+
+        this.plot
+          .append("text")
+          .attr("name", point.gene)
+          .attr("class", "volcano-label")
+          .attr("x", x + VolcanoComponent.LABEL_OFFSET.x)
+          .attr("y", y + VolcanoComponent.LABEL_OFFSET.y)
+          .attr("font-size", "10px")
+          .attr("font-weight", "bold")
+          .text(point_.gene);
+
+        // draw a line from the center left of the text to the point
+        // d3.select(`#${this.svgId}`).append("line")
+        //   .attr("class", "volcano-label-line")
+        //   .attr("x1", x + VolcanoComponent.LABEL_OFFSET.x - 2)
+        //   .attr("y1", y + VolcanoComponent.LABEL_OFFSET.y - 2)
+        //   .attr("x2", x)
+        //   .attr("y2", y)
+        //   .attr("stroke", "black")
+        //   .attr("stroke-width", 1);
+      }
+    });
+  }
+
+  resetView() {
+    const svg = d3.select(`#${this.svgId}`);
+
+    // @ts-ignore
+    const defaultMode = this._mode;
+    this.setMode(VolcanoInteractivityMode.PAN_ZOOM);
+    // @ts-ignore
+    svg.call(this.zoom.transform, d3.zoomIdentity);
+    this.setMode(defaultMode);
+  }
+
+  setMode(mode: string | VolcanoInteractivityMode) {
+    const svg = d3.select(`#${this.svgId}`);
+    this._mode = mode as VolcanoInteractivityMode;
+
+    const modeToggles = {
+      [VolcanoInteractivityMode.PAN_ZOOM]: {
+        enable: () => {
+          svg.call(this.zoom);
+        },
+        disable: () => {
+          svg.on(".zoom", null);
+        },
+      },
+      [VolcanoInteractivityMode.SELECT]: {
+        enable: () => {
+          d3.select(`#${this.svgId}`)
+            .on("mousedown", this.onMouseDown.bind(this))
+            .on("mousemove", this.onMouseMove.bind(this))
+            .on("mouseup", this.onMouseUp.bind(this));
+        },
+        disable: () => {
+          d3.select(`#${this.svgId}`)
+            .on("mousedown", null)
+            .on("mousemove", null)
+            .on("mouseup", null);
+        },
+      },
+    };
+
+    Object.keys(modeToggles).forEach((mode) => {
+      if (mode === this._mode) {
+        modeToggles[mode].enable();
+      } else {
+        modeToggles[mode].disable();
+      }
+    });
+  }
+
+  // #endregion
+
+  // #region Event Listeners
+
+  private onMouseDown(event) {
+    // return on right click
+    if (event.button == 2) {
+      return;
+    }
+
+    const shiftKeyPressed = event.shiftKey || this.artificallyHoldingShift;
+    const altKeyPressed = event.altKey;
+
+    if (shiftKeyPressed && altKeyPressed) {
+      // if both shift and alt are pressed, do nothing
+      return;
+    }
+
+    // If the mouse is over a point, do nothing. Let the point's click event handle it.
+    if (this.hovered) {
+      return;
+    }
+
+    const anyModifierKeyPressed = shiftKeyPressed || altKeyPressed;
+    if (!anyModifierKeyPressed) {
+      // if no modifier keys are pressed, clear the selection
+      this.clearSelection();
+    }
+
+    this.isDragging = true;
+    this.eventCoords = this.getEventCoords(event);
+
+    // remove any existing rectangle
+    d3.select(`#${this.svgId}`).selectAll(".drag-rectangle").remove();
+
+    this.drawTooltipText(event);
+  }
+
+  private onMouseMove(event) {
+    const shiftKeyPressed = event.shiftKey || this.artificallyHoldingShift;
+    const altKeyPressed = event.altKey;
+
+    // if both shift and alt are pressed, do nothing
+    if (shiftKeyPressed && altKeyPressed) {
+      return;
+    }
+
+    if (this.isDragging) {
+      // remove any existing rectangle
+      d3.select(`#${this.svgId}`).selectAll(".drag-rectangle").remove();
+      d3.select(`#${this.svgId}`)
+        .selectAll(".drag-rectangle-coordinates")
+        .remove();
+
+      let color = altKeyPressed ? "#d16666" : "lightblue";
+
+      // get start and current coordinates
+      const startDomain = this.eventCoords.domain;
+      const currentDomain = this.getEventCoords(event).domain;
+      const startDraw = this.eventCoords.draw;
+      const currentDraw = this.getEventCoords(event).draw;
+
+      // draw the rectangle
+      d3.select(`#${this.svgId}`)
+        .append("rect")
+        .data([
+          {
+            start: startDraw,
+            current: currentDraw,
+          },
+        ])
+        .attr("class", "drag-rectangle")
+        .attr("x", (d) => Math.min(d.start.x, d.current.x))
+        .attr("y", (d) => Math.min(d.start.y, d.current.y))
+        .attr("width", (d) => Math.abs(d.current.x - d.start.x))
+        .attr("height", (d) => Math.abs(d.current.y - d.start.y))
+        .attr("fill", color)
+        .attr("opacity", 0.2);
+
+      this.drawTooltipText(event);
+
+      // if current is beyond the domain, set it to the domain boundary
+      if (currentDomain.x > this.domain.x[1]) {
+        currentDomain.x = this.domain.x[1];
+      }
+      if (currentDomain.x < this.domain.x[0]) {
+        currentDomain.x = this.domain.x[0];
+      }
+      if (currentDomain.y > this.domain.y[1]) {
+        currentDomain.y = this.domain.y[1];
+      }
+      if (currentDomain.y < this.domain.y[0]) {
+        currentDomain.y = this.domain.y[0];
+      }
+
+      // calculate the rectangle coordinates
+      const rectCoords = [
+        {
+          x: Math.min(startDomain.x, currentDomain.x),
+          y: Math.min(startDomain.y, currentDomain.y),
+        },
+        {
+          x: Math.max(startDomain.x, currentDomain.x),
+          y: Math.max(startDomain.y, currentDomain.y),
+        },
+      ];
+
+      const toClick: VolcanoPoint[] = [];
+
+      const deselectPoint = (p: VolcanoPoint) => {
+        this.selectedPoints.splice(this.selectedPoints.indexOf(p), 1);
+        toClick.push(p);
+      };
+
+      const selectPoint = (p: VolcanoPoint) => {
+        this.selectedPoints.push(p);
+        toClick.push(p);
+      };
+
+      this._points.forEach((point) => {
+        const inRect =
+          this.pointInRect(point, rectCoords) &&
+          !d3.select(`circle[name=${point.gene}]`).classed("out-of-view");
+        const wasAlreadySelected = this.selectedPoints.includes(point);
+        const newToThisDrag = this.pointsNewToThisDrag.includes(point);
+        const deletedThisDrag = this.pointsDeletedThisDrag.includes(point);
+
+        if (!inRect && wasAlreadySelected) {
+          if (!shiftKeyPressed && !altKeyPressed) {
+            // selected point not in rectangle and no modifier keys pressed
+            // Expected behavior is to deselect the point
+            deselectPoint(point);
+            return;
+          }
+
+          if (shiftKeyPressed && !newToThisDrag) {
+            // selected point not in rectangle and shift is pressed, and not new to this drag
+            // Expected behavior is to keep the point (do nothing)
+            return;
+          }
+
+          if (shiftKeyPressed && newToThisDrag) {
+            // selected point not in rectangle and shift is pressed, and new to this drag
+            // Expected behavior is to deselect the point
+            deselectPoint(point);
+            return;
+          }
+        }
+
+        if (!inRect && deletedThisDrag && altKeyPressed) {
+          // selected point not in rectangle and alt is pressed, and deleted this drag
+          // Expected behavior is to select the point
+          selectPoint(point);
+          this.pointsDeletedThisDrag.splice(
+            this.pointsDeletedThisDrag.indexOf(point),
+            1
+          );
+          return;
+        }
+
+        if (inRect) {
+          if (wasAlreadySelected) {
+            if (altKeyPressed) {
+              // point previously selected, alt is pressed, point is in rectangle
+              // Expected behavior is to deselect the point
+              deselectPoint(point);
+              this.pointsDeletedThisDrag.push(point);
+              return;
+            }
+          }
+
+          if (!wasAlreadySelected) {
+            if (!altKeyPressed) {
+              // point not previously selected, alt is not pressed, and point is in rectangle
+              // Expected behavior is to select the point
+              selectPoint(point);
+              this.pointsNewToThisDrag.push(point);
+              return;
+            }
+          }
+        }
+      });
+
+      // bulk style the points
+      this.stylePointsOnClick(event, toClick, { tooltip: false });
+    }
+  }
+
+  private onMouseUp() {
+    // end the drag
+    if (this.isDragging) {
+      this.isDragging = false;
+      this.pointsNewToThisDrag.length = 0;
+      this.pointsDeletedThisDrag.length = 0;
+      d3.select(".drag-rectangle-text").remove();
+      d3.select(".drag-rectangle").remove();
+      d3.select(".drag-rectangle-coordinates").remove();
+    }
+
+    this.emitSelectionUpdate();
+  }
+
+  private onTooltipMouseOver(event: MouseEvent, point: VolcanoPoint) {
+    this.activeGeneTooltips.push(point.gene);
+  }
+
+  private onTooltipMouseOut(event: MouseEvent, point: VolcanoPoint) {
+    this.onPointMouseOut(event, point);
+  }
+
+  private onPointMouseOver(event: MouseEvent, point: VolcanoPoint) {
+    // don't call the same hover event twice
+    if (this.hovered == point) {
+      return;
+    }
+
+    this.hovered = point;
+    this.stylePointOnHover(event, point);
+  }
+
+  private onPointClick(event: MouseEvent, point: VolcanoPoint) {
+    const shiftPressed = event.shiftKey || this.artificallyHoldingShift;
+    const altKeyPressed = event.altKey;
+
+    const alreadySelected = this.selectedPoints.includes(point);
+    const somethingIsSelected = this.selectedPoints.length > 0;
+    if (somethingIsSelected) {
+      if (altKeyPressed) {
+        if (this.selectedPoints.includes(point)) {
+          // the point is already selected with alt pressed
+          // Expected behavior is to remove this point from the selection
+          this.selectedPoints.splice(this.selectedPoints.indexOf(point), 1);
+          this.stylePointOnClick(event, point);
+          this.onPointMouseOut(event, point);
+          this.emitSelectionUpdate();
+          return;
+        } else {
+          // something is already selected and alt is pressed. The point is not already selected
+          // Expected behavior is to do nothing
+          return;
+        }
+      }
+
+      if (shiftPressed) {
+        // shift is pressed and something else is already selected
+        if (alreadySelected) {
+          // the point is already selected with shift or alt pressed
+          // Expected behavior is to remove this point from the selection
+          this.selectedPoints.splice(this.selectedPoints.indexOf(point), 1);
+          this.stylePointOnClick(event, point);
+          this.onPointMouseOut(event, point);
+          this.emitSelectionUpdate();
+          return;
+        } else {
+          // the point is not already selected with shift pressed
+          // Expected behavior is to add this point to the selection
+
+          // clear all tooltips
+          d3.selectAll(".volcano-tooltip").remove();
+          this.activeGeneTooltips.length = 0;
+
+          this.selectedPoints.push(point);
+          this.stylePointOnClick(event, point);
+          this.mostRecentSelectedPoint = point;
+          this.emitSelectionUpdate();
+          return;
+        }
+      } else {
+        // shift is not pressed and something else is already selected.
+        // Expected behavior is to clear the selection and select this point
+        this.clearSelection();
+        // put this point back in focus
+        this.stylePointOnClick(event, point, true);
+        this.selectedPoints.push(point);
+        this.mostRecentSelectedPoint = point;
+
+        // because the order of operations for putting the point back in focus, we need to manually call drawTooltip
+        this.drawTooltip(event, point);
+        this.emitSelectionUpdate();
+        return;
+      }
+    }
+
+    this.mostRecentSelectedPoint = point;
+    this.selectedPoints.push(point);
+    this.stylePointOnClick(event, point);
+    this.emitSelectionUpdate();
+  }
+
+  // #endregion
+
+  // #region Helper functions
+
+  private getSelectedColor(point: VolcanoPoint): string {
+    switch (this.getGeneRegulation(point)) {
+      case "up":
+        return this._selectByStatsForm.upregulatedColor;
+      case "down":
+        return this._selectByStatsForm.downregulatedColor;
+      default:
+        return VolcanoComponent.COLOR_SELECTED;
+    }
+  }
+
+  private downloadAsPNG() {
     // get SVG element
     var svg = document.getElementById(this.svgId);
 
@@ -319,7 +818,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     };
   }
 
-  downloadAsSVG() {
+  private downloadAsSVG() {
     //get svg element.
     var svg = document.getElementById(this.svgId);
 
@@ -365,11 +864,11 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
    * {x: number, y: number, gene: string},
    * ]
    */
-  processData(
+  private processData(
     data: Object,
     genesToSelectByDefault = []
   ): {
-    data: Point[];
+    data: VolcanoPoint[];
     genesToSelectByDefault: string[];
     genes: string[];
   } {
@@ -389,7 +888,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       return res;
     });
 
-    let finalData: Point[] = x.map((xValue, i) => {
+    let finalData: VolcanoPoint[] = x.map((xValue, i) => {
       return {
         x: xValue,
         y: y[i],
@@ -407,29 +906,59 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     };
   }
 
-  // Called by things like Oncoscape legend clicks
-  selectGenesByName(
-    genes: string[],
-    options: {
-      label?: boolean;
-      fill?: string;
-    } = { label: false }
-  ): void {
-    const pointsToClick = this.points.filter((p) => genes.includes(p.gene));
-    const event = new MouseEvent("selectGenesByName");
-    this.stylePointsOnClick(event, pointsToClick, {
-      tooltip: false,
-      fill: options.fill,
-    });
-    this.selectedPoints.push(...pointsToClick);
+  private onPointMouseOut(event, point) {
+    // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
+    this.activeGeneTooltips.splice(
+      this.activeGeneTooltips.indexOf(point.gene),
+      1
+    );
 
-    if (options.label) {
-      this.labelPoints(this.selectedPoints);
-    }
+    setTimeout(() => {
+      // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
+      if (this.activeGeneTooltips.includes(point.gene)) {
+        return;
+      }
+
+      this.hovered = null;
+
+      if (this.mostRecentSelectedPoint === point) {
+        this.mostRecentSelectedPoint = null;
+        return;
+      }
+
+      // remove the tooltip
+      d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
+      this.activeGeneTooltips.splice(
+        this.activeGeneTooltips.indexOf(point.gene),
+        1
+      );
+
+      if (this.selectedPoints.includes(point)) {
+        return;
+      }
+
+      // see if the point has the "selected" class
+      const isSelected = d3
+        .select(`.point[name="${point.gene}"]`)
+        .classed("selected");
+
+      d3.select(`.point[name="${point.gene}"]`)
+        .attr(
+          "fill",
+          isSelected
+            ? VolcanoComponent.COLOR_SELECTED
+            : VolcanoComponent.COLOR_UNSELECTED
+        )
+        .attr(
+          "opacity",
+          isSelected
+            ? VolcanoComponent.OPACITY_SELECTED
+            : VolcanoComponent.OPACITY
+        );
+    }, 1);
   }
 
-  // This will eventually be replaced with an Oncoscape call instead of the current html page updates
-  emitSelectionUpdate(): void {
+  private emitSelectionUpdate(): void {
     // emit gets called when we programatically select a bunch of points, but we want to wait until the selection completes to emit
     if (this.artificallyHoldingShift) {
       return;
@@ -440,60 +969,13 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     });
 
     // we don't want selections to hang around in the table when all points are deselected in the volcano plot
-    if (sortedSelectedPoints.length === 0) {
+    if (sortedSelectedPoints.length === 0 && this.geneTable) {
       this.geneTable.selection.clear();
     }
 
     this.emittedPoints = sortedSelectedPoints;
-    this.emittedGenes = sortedSelectedPoints.map(p => p.gene)
+    this.emittedGenes = sortedSelectedPoints.map((p) => p.gene);
     this.cd.detectChanges();
-  }
-
-  clearSelection() {
-    // clear out the selected cohort subsets
-    this.selectedPoints.length = 0;
-
-    // reset the points to unselected style
-    d3.selectAll(".point")
-      .attr("fill", VolcanoComponent.COLOR_UNSELECTED)
-      .attr("opacity", function (d, i, nodes) {
-        const outOfView = d3.select(this).classed("out-of-view")
-        return outOfView ? 0 : VolcanoComponent.OPACITY;
-      })
-      .classed("selected", false);
-
-    // remove all tooltips
-    d3.selectAll(".volcano-tooltip").remove();
-    this.activeGeneTooltips.length = 0;
-
-    this.labelPoints([]);
-
-    // emit the new cleared selection so other elements on the page can respond
-    this.emitSelectionUpdate();
-  }
-
-  /**
-   * Select up and down regulated genes by -log10(padj) and log2FoldChange thresholds
-   */
-  selectByStats() {
-    // find all points that are above the -log10(padj) line and greater than the absolute value of log2FoldChange
-    const upregulatedPoints = this.points.filter(
-      (point) => this.getGeneRegulation(point) === "up"
-    );
-
-    const downregulatedPoints = this.points.filter(
-      (point) => this.getGeneRegulation(point) === "down"
-    );
-    this.clearSelection();
-
-    this.selectGenesByName(
-      [...downregulatedPoints, ...upregulatedPoints].map((p) => p.gene)
-    );
-
-    // draw dashed lines to show the thresholds
-    this.drawThresholdLines();
-
-    this.emitSelectionUpdate();
   }
 
   private drawThresholdLines() {
@@ -503,18 +985,18 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
     // Calculate the new positions based on the zoom transform
     const lowerLog2FoldChange = -Math.abs(
-      this.selectByStatsForm.log2FoldChange
+      this._selectByStatsForm.log2FoldChange
     );
-    const upperLog2FoldChange = Math.abs(this.selectByStatsForm.log2FoldChange);
+    const upperLog2FoldChange = Math.abs(
+      this._selectByStatsForm.log2FoldChange
+    );
 
     const inRange = (value: number, range: number[]): boolean => {
-      return value >= range[0] && value <= range[1]
-    }
+      return value >= range[0] && value <= range[1];
+    };
 
     [lowerLog2FoldChange, upperLog2FoldChange].forEach((x, i) => {
-
       // hide of the lines are beyond the limits of the graph x-axis
-
 
       svg
         .append("line")
@@ -535,11 +1017,11 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
         .attr("y2", 0)
         .attr("stroke", "black")
         .attr("stroke-dasharray", "5,5")
-        .attr("opacity", Number(inRange(x, this.zoomXScale.domain())))
+        .attr("opacity", Number(inRange(x, this.zoomXScale.domain())));
     });
 
     // Calculate the y position based on the current zoom transform
-    const yThresholdY = this.zoomYScale(this.selectByStatsForm.nlogpadj);
+    const yThresholdY = this.zoomYScale(this._selectByStatsForm.nlogpadj);
 
     // Draw the -log10(padj) threshold line
     svg
@@ -569,7 +1051,12 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       )
       .attr("stroke", "black")
       .attr("stroke-dasharray", "5,5")
-      .attr("opacity", Number(inRange(this.selectByStatsForm.nlogpadj, this.zoomYScale.domain())))
+      .attr(
+        "opacity",
+        Number(
+          inRange(this._selectByStatsForm.nlogpadj, this.zoomYScale.domain())
+        )
+      );
   }
 
   /**
@@ -578,8 +1065,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
    * @param { { x: number, y: number }[] } rectPoints
    */
   private pointInRect(
-    point: Point,
-    rectPoints: Omit<Point, "gene">[]
+    point: VolcanoPoint,
+    rectPoints: Omit<VolcanoPoint, "gene">[]
   ): boolean {
     const x = point.x;
     const y = point.y;
@@ -660,395 +1147,9 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .text(tooltipText);
   }
 
-  // #endregion
-
-  // #region Event Listeners
-
-  onMouseDown(event) {
-    // return on right click
-    if (event.button == 2) {
-      return;
-    }
-
-    const shiftKeyPressed = event.shiftKey || this.artificallyHoldingShift;
-    const altKeyPressed = event.altKey;
-
-    if (shiftKeyPressed && altKeyPressed) {
-      // if both shift and alt are pressed, do nothing
-      return;
-    }
-
-    // If the mouse is over a point, do nothing. Let the point's click event handle it.
-    if (this.hovered) {
-      return;
-    }
-
-    const anyModifierKeyPressed = shiftKeyPressed || altKeyPressed;
-    if (!anyModifierKeyPressed) {
-      // if no modifier keys are pressed, clear the selection
-      this.clearSelection();
-    }
-
-    this.isDragging = true;
-    this.eventCoords = this.getEventCoords(event);
-
-    // remove any existing rectangle
-    d3.select(`#${this.svgId}`).selectAll(".drag-rectangle").remove();
-
-    this.drawTooltipText(event);
-  }
-
-  onMouseMove(event) {
-    const shiftKeyPressed = event.shiftKey || this.artificallyHoldingShift;
-    const altKeyPressed = event.altKey;
-
-    // if both shift and alt are pressed, do nothing
-    if (shiftKeyPressed && altKeyPressed) {
-      return;
-    }
-
-    if (this.isDragging) {
-      // remove any existing rectangle
-      d3.select(`#${this.svgId}`).selectAll(".drag-rectangle").remove();
-      d3.select(`#${this.svgId}`)
-        .selectAll(".drag-rectangle-coordinates")
-        .remove();
-
-      let color = altKeyPressed ? "#d16666" : "lightblue";
-
-      // get start and current coordinates
-      const startDomain = this.eventCoords.domain;
-      const currentDomain = this.getEventCoords(event).domain;
-      const startDraw = this.eventCoords.draw;
-      const currentDraw = this.getEventCoords(event).draw;
-
-      // draw the rectangle
-      d3.select(`#${this.svgId}`)
-        .append("rect")
-        .data([
-          {
-            start: startDraw,
-            current: currentDraw,
-          },
-        ])
-        .attr("class", "drag-rectangle")
-        .attr("x", (d) => Math.min(d.start.x, d.current.x))
-        .attr("y", (d) => Math.min(d.start.y, d.current.y))
-        .attr("width", (d) => Math.abs(d.current.x - d.start.x))
-        .attr("height", (d) => Math.abs(d.current.y - d.start.y))
-        .attr("fill", color)
-        .attr("opacity", 0.2);
-
-      this.drawTooltipText(event);
-
-      // if current is beyond the domain, set it to the domain boundary
-      if (currentDomain.x > this.domain.x[1]) {
-        currentDomain.x = this.domain.x[1];
-      }
-      if (currentDomain.x < this.domain.x[0]) {
-        currentDomain.x = this.domain.x[0];
-      }
-      if (currentDomain.y > this.domain.y[1]) {
-        currentDomain.y = this.domain.y[1];
-      }
-      if (currentDomain.y < this.domain.y[0]) {
-        currentDomain.y = this.domain.y[0];
-      }
-
-      // calculate the rectangle coordinates
-      const rectCoords = [
-        {
-          x: Math.min(startDomain.x, currentDomain.x),
-          y: Math.min(startDomain.y, currentDomain.y),
-        },
-        {
-          x: Math.max(startDomain.x, currentDomain.x),
-          y: Math.max(startDomain.y, currentDomain.y),
-        },
-      ];
-
-      const toClick: Point[] = [];
-
-      const deselectPoint = (p: Point) => {
-        this.selectedPoints.splice(this.selectedPoints.indexOf(p), 1);
-        toClick.push(p);
-      };
-
-      const selectPoint = (p: Point) => {
-        this.selectedPoints.push(p);
-        toClick.push(p);
-      };
-
-      this.points.forEach((point) => {
-        const inRect = this.pointInRect(point, rectCoords) && !d3.select(`circle[name=${point.gene}]`).classed("out-of-view")
-        const wasAlreadySelected = this.selectedPoints.includes(point);
-        const newToThisDrag = this.pointsNewToThisDrag.includes(point);
-        const deletedThisDrag = this.pointsDeletedThisDrag.includes(point);
-
-        if (!inRect && wasAlreadySelected) {
-          if (!shiftKeyPressed && !altKeyPressed) {
-            // selected point not in rectangle and no modifier keys pressed
-            // Expected behavior is to deselect the point
-            deselectPoint(point);
-            return;
-          }
-
-          if (shiftKeyPressed && !newToThisDrag) {
-            // selected point not in rectangle and shift is pressed, and not new to this drag
-            // Expected behavior is to keep the point (do nothing)
-            return;
-          }
-
-          if (shiftKeyPressed && newToThisDrag) {
-            // selected point not in rectangle and shift is pressed, and new to this drag
-            // Expected behavior is to deselect the point
-            deselectPoint(point);
-            return;
-          }
-        }
-
-        if (!inRect && deletedThisDrag && altKeyPressed) {
-          // selected point not in rectangle and alt is pressed, and deleted this drag
-          // Expected behavior is to select the point
-          selectPoint(point);
-          this.pointsDeletedThisDrag.splice(
-            this.pointsDeletedThisDrag.indexOf(point),
-            1
-          );
-          return;
-        }
-
-        if (inRect) {
-          if (wasAlreadySelected) {
-            if (altKeyPressed) {
-              // point previously selected, alt is pressed, point is in rectangle
-              // Expected behavior is to deselect the point
-              deselectPoint(point);
-              this.pointsDeletedThisDrag.push(point);
-              return;
-            }
-          }
-
-          if (!wasAlreadySelected) {
-            if (!altKeyPressed) {
-              // point not previously selected, alt is not pressed, and point is in rectangle
-              // Expected behavior is to select the point
-              selectPoint(point);
-              this.pointsNewToThisDrag.push(point);
-              return;
-            }
-          }
-        }
-      });
-
-      // bulk style the points
-      this.stylePointsOnClick(event, toClick, { tooltip: false });
-    }
-  }
-
-  onMouseUp() {
-    // end the drag
-    if (this.isDragging) {
-      this.isDragging = false;
-      this.pointsNewToThisDrag.length = 0;
-      this.pointsDeletedThisDrag.length = 0;
-      d3.select(".drag-rectangle-text").remove();
-      d3.select(".drag-rectangle").remove();
-      d3.select(".drag-rectangle-coordinates").remove();
-    }
-
-    this.emitSelectionUpdate();
-  }
-
-  onTooltipMouseOver(event: MouseEvent, point: Point) {
-    this.activeGeneTooltips.push(point.gene);
-  }
-
-  onTooltipMouseOut(event: MouseEvent, point: Point) {
-    this.onPointMouseOut(event, point);
-  }
-
-  onPointMouseOver(event: MouseEvent, point: Point) {
-    // don't call the same hover event twice
-    if (this.hovered == point) {
-      return;
-    }
-
-    this.hovered = point;
-    this.stylePointOnHover(event, point);
-  }
-
-  onPointClick(event, point) {
-    const shiftPressed = event.shiftKey || this.artificallyHoldingShift;
-    const altKeyPressed = event.altKey;
-
-    const alreadySelected = this.selectedPoints.includes(point);
-    const somethingIsSelected = this.selectedPoints.length > 0;
-    if (somethingIsSelected) {
-      if (altKeyPressed) {
-        if (this.selectedPoints.includes(point)) {
-          // the point is already selected with alt pressed
-          // Expected behavior is to remove this point from the selection
-          this.selectedPoints.splice(this.selectedPoints.indexOf(point), 1);
-          this.stylePointOnClick(event, point);
-          this.onPointMouseOut(event, point);
-          this.emitSelectionUpdate();
-          return;
-        } else {
-          // something is already selected and alt is pressed. The point is not already selected
-          // Expected behavior is to do nothing
-          return;
-        }
-      }
-
-      if (shiftPressed) {
-        // shift is pressed and something else is already selected
-        if (alreadySelected) {
-          // the point is already selected with shift or alt pressed
-          // Expected behavior is to remove this point from the selection
-          this.selectedPoints.splice(this.selectedPoints.indexOf(point), 1);
-          this.stylePointOnClick(event, point);
-          this.onPointMouseOut(event, point);
-          this.emitSelectionUpdate();
-          return;
-        } else {
-          // the point is not already selected with shift pressed
-          // Expected behavior is to add this point to the selection
-
-          // clear all tooltips
-          d3.selectAll(".volcano-tooltip").remove();
-          this.activeGeneTooltips.length = 0;
-
-          this.selectedPoints.push(point);
-          this.stylePointOnClick(event, point);
-          this.mostRecentSelectedPoint = point;
-          this.emitSelectionUpdate();
-          return;
-        }
-      } else {
-        // shift is not pressed and something else is already selected.
-        // Expected behavior is to clear the selection and select this point
-        this.clearSelection();
-        // put this point back in focus
-        this.stylePointOnClick(event, point, true);
-        this.selectedPoints.push(point);
-        this.mostRecentSelectedPoint = point;
-
-        // because the order of operations for putting the point back in focus, we need to manually call drawTooltip
-        this.drawTooltip(event, point);
-        this.emitSelectionUpdate();
-        return;
-      }
-    }
-
-    this.mostRecentSelectedPoint = point;
-    this.selectedPoints.push(point);
-    this.stylePointOnClick(event, point);
-    this.emitSelectionUpdate();
-  }
-  onPointMouseOut(event, point) {
-    // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
-    this.activeGeneTooltips.splice(
-      this.activeGeneTooltips.indexOf(point.gene),
-      1
-    );
-
-    setTimeout(() => {
-      // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
-      if (this.activeGeneTooltips.includes(point.gene)) {
-        return;
-      }
-
-      this.hovered = null;
-
-      if (this.mostRecentSelectedPoint === point) {
-        this.mostRecentSelectedPoint = null;
-        return;
-      }
-
-      // remove the tooltip
-      d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
-      this.activeGeneTooltips.splice(
-        this.activeGeneTooltips.indexOf(point.gene),
-        1
-      );
-
-      if (this.selectedPoints.includes(point)) {
-        return;
-      }
-
-      // see if the point has the "selected" class
-      const isSelected = d3
-        .select(`.point[name="${point.gene}"]`)
-        .classed("selected");
-
-      d3.select(`.point[name="${point.gene}"]`)
-        .attr(
-          "fill",
-          isSelected
-            ? VolcanoComponent.COLOR_SELECTED
-            : VolcanoComponent.COLOR_UNSELECTED
-        )
-        .attr(
-          "opacity",
-          isSelected
-            ? VolcanoComponent.OPACITY_SELECTED
-            : VolcanoComponent.OPACITY
-        );
-    }, 1);
-  }
-
-  labelPoints(points: Point[]) {
-    // clear out any existing labels
-    d3.selectAll(`.volcano-label`).remove();
-
-    points.forEach((point) => {
-      const point_ = this.points.find((p) => p.gene === point.gene);
-      if (point_) {
-        const x =
-          this.zoomXScale(point_.x) +
-          VolcanoComponent.MARGIN.left +
-          VolcanoComponent.AXIS_LABEL_PADDING;
-        const y =
-          this.zoomYScale(point_.y) +
-          VolcanoComponent.MARGIN.top +
-          VolcanoComponent.TITLE_PADDING;
-
-        // // add a rectangle behind the text
-        // d3.select(`#${this.svgId}`).append("rect")
-        //   .attr("class", "volcano-label")
-        //   .attr("x", x + VolcanoComponent.LABEL_OFFSET.x - 2)
-        //   .attr("y", y + VolcanoComponent.LABEL_OFFSET.y - 12)
-        //   .attr("width", 10)
-        //   .attr("height", 10)
-        //   .attr("fill", "white");
-
-        this.plot
-          .append("text")
-          .attr("name", point.gene)
-          .attr("class", "volcano-label")
-          .attr("x", x + VolcanoComponent.LABEL_OFFSET.x)
-          .attr("y", y + VolcanoComponent.LABEL_OFFSET.y)
-          .attr("font-size", "10px")
-          .attr("font-weight", "bold")
-          .text(point_.gene);
-
-        // draw a line from the center left of the text to the point
-        // d3.select(`#${this.svgId}`).append("line")
-        //   .attr("class", "volcano-label-line")
-        //   .attr("x1", x + VolcanoComponent.LABEL_OFFSET.x - 2)
-        //   .attr("y1", y + VolcanoComponent.LABEL_OFFSET.y - 2)
-        //   .attr("x2", x)
-        //   .attr("y2", y)
-        //   .attr("stroke", "black")
-        //   .attr("stroke-width", 1);
-      }
-    });
-  }
-
-  stylePointOnHover(
+  private stylePointOnHover(
     event: MouseEvent,
-    point: Point,
+    point: VolcanoPoint,
     options: {
       tooltip?: boolean;
       fill?: string;
@@ -1094,9 +1195,9 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     }
   }
 
-  stylePointsOnClick(
+  private stylePointsOnClick(
     event: MouseEvent,
-    points: Point[],
+    points: VolcanoPoint[],
     options?: {
       tooltip?: boolean;
       fill?: string;
@@ -1111,7 +1212,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     const selection = d3
       .select(`#${this.svgId}`)
       .selectAll(".point")
-      .data(points, (d: Point) => d.gene);
+      .data(points, (d: VolcanoPoint) => d.gene);
 
     const selectedPoints = selection.filter(".selected");
     const unselectedPoints = selection.filter(":not(.selected)");
@@ -1140,11 +1241,109 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     }
   }
 
-  stylePointOnClick(event: MouseEvent, point: Point, tooltip = true) {
+  private stylePointOnClick(
+    event: MouseEvent,
+    point: VolcanoPoint,
+    tooltip = true
+  ) {
     this.stylePointsOnClick(event, [point], { tooltip });
   }
 
-  private drawTooltip(event: MouseEvent, point: Point, opacity = 1) {
+  // updateAxisRange(event: Event, minOrMax: "min" | "max") {
+  //   // @ts-ignore
+  //   const axis = event.target.name;
+  //   // @ts-ignore
+  //   const value = event.target.value;
+
+  //   // xMin, xMax, yMin, yMax - axis followed by uppercase minOrMax
+  //   const axisRangesAttr =
+  //     axis + minOrMax.charAt(0).toUpperCase() + minOrMax.slice(1);
+  //   this.axisRanges[axisRangesAttr] = value;
+
+  //   if (axis == "x") {
+  //     // adjust negative to positive value range for x axis (LogFC)
+  //     this.xScale.domain([
+  //       minOrMax === "min" ? value : this.xScale.domain()[0],
+  //       minOrMax === "max" ? value : this.xScale.domain()[1],
+  //     ]);
+  //     this.xAxis.transition().duration(1000).call(d3.axisBottom(this.xScale));
+  //   } else if (axis == "y") {
+  //     this.yScale.domain([
+  //       minOrMax === "min" ? value : this.yScale.domain()[0],
+  //       minOrMax === "max" ? value : this.yScale.domain()[1],
+  //     ]);
+  //     this.yAxis.transition().duration(1000).call(d3.axisLeft(this.yScale));
+  //   } else {
+  //     throw Error(`Unknown axis ${axis}`);
+  //   }
+
+  //   // Filter out data points beyond the updated axis limits
+  //   const filteredData = this.points.filter((d) => {
+  //     const xWithinLimits =
+  //       d.x >= this.xScale.domain()[0] && d.x <= this.xScale.domain()[1];
+  //     const yWithinLimits =
+  //       d.y >= this.yScale.domain()[0] && d.y <= this.yScale.domain()[1];
+  //     return xWithinLimits && yWithinLimits;
+  //   });
+
+  //   // Update the circles within the new limits
+  //   this.plot
+  //     .selectAll("circle")
+  //     .data(filteredData, (d: VolcanoPoint) => d.gene) // Use a key function to bind data
+  //     .transition()
+  //     .duration(1000)
+  //     .attr("cx", (d) => this.xScale(d.x))
+  //     .attr("cy", (d) => this.yScale(d.y))
+  //     .attr("opacity", (d) =>
+  //       this.selectedPoints.includes(d)
+  //         ? VolcanoComponent.OPACITY_SELECTED
+  //         : VolcanoComponent.OPACITY
+  //     );
+
+  //   // hide circles outside of axis limits
+  //   this.plot
+  //     .selectAll("circle")
+  //     .data(this.points, (d: VolcanoPoint) => d.gene) // Rebind the data
+  //     .filter((d) => !filteredData.includes(d)) // Select circles that are not in filteredData
+  //     .attr("opacity", 0); // Set opacity to hide them
+  // }
+
+  private drawData(
+    xScale: d3.ScaleLinear<any, any, any> = this.xScale,
+    yScale: d3.ScaleLinear<any, any, any> = this.yScale
+  ) {
+    this.plot
+      .selectAll("circle")
+      .data(this._points)
+      .enter()
+      .append("circle")
+      .attr("class", "point")
+      .attr("name", (d) => d.gene)
+      .attr(
+        "cx",
+        (d) =>
+          xScale(d.x) +
+          VolcanoComponent.MARGIN.left +
+          VolcanoComponent.AXIS_LABEL_PADDING
+      )
+      .attr(
+        "cy",
+        (d) =>
+          yScale(d.y) +
+          VolcanoComponent.MARGIN.top +
+          VolcanoComponent.TITLE_PADDING
+      )
+      .attr("r", VolcanoComponent.POINT_RADIUS)
+      .attr("fill", VolcanoComponent.COLOR_UNSELECTED)
+      .attr("stroke", "none")
+      .attr("opacity", VolcanoComponent.OPACITY)
+      // @ts-ignore
+      .on("mouseover", (e, d) => this.onPointMouseOver(e, d))
+      .on("mouseout", (e, d) => this.onPointMouseOut(e, d))
+      .on("click", (e, d) => this.onPointClick(e, d));
+  }
+
+  private drawTooltip(event: MouseEvent, point: VolcanoPoint, opacity = 1) {
     // Remove the tooltip for this point if it already exists
     d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
     this.activeGeneTooltips.splice(
@@ -1152,15 +1351,14 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       1
     );
 
+    // const cnaData = OncoData.instance.currentCommonSidePanel.getCnaDataForGene(
+    //   point.gene
+    // );
     const cnaData = {
       min: "--",
       max: "--",
-      mean: "--",
+      mean: 0,
     };
-
-    // OncoData.instance.currentCommonSidePanel.getCnaDataForGene(
-    //   point.gene
-    // );
 
     let detailsHtml = `
       <hr />
@@ -1175,18 +1373,14 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     }
 
     // TODO: Is it worth calculating CNA data just for this iterative standalone application?
-    // if (cnaData) {
-    //   detailsHtml += `
-    //   <hr />
-    //   CNA: Min=${cnaData.min} Max=${cnaData.max} Mean=${cnaData.mean}<br />
-    //   `;
-    //   // detailsHtml += `
-    //   // <hr />
-    //   // CNA: Min=${cnaData.min} Max=${cnaData.max} Mean=${(
-    //   //   cnaData.mean as number
-    //   // ).toPrecision(4)}<br />
-    //   // `;
-    // }
+    if (cnaData) {
+      detailsHtml += `
+      <hr />
+      CNA: Min=${cnaData.min} Max=${cnaData.max} Mean=${(
+        cnaData.mean as number
+      ).toPrecision(4)}<br />
+      `;
+    }
 
     const html = `
     <span class="xtooltiptext" style="opacity: ${opacity}">
@@ -1214,150 +1408,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     this.activeGeneTooltips.push(point.gene);
   }
 
-  updateAxisRange(event: Event, minOrMax: "min" | "max") {
-    // @ts-ignore
-    const axis = event.target.name;
-    // @ts-ignore
-    const value = event.target.value;
-
-    // xMin, xMax, yMin, yMax - axis followed by uppercase minOrMax
-    const axisRangesAttr =
-      axis + minOrMax.charAt(0).toUpperCase() + minOrMax.slice(1);
-    this.axisRanges[axisRangesAttr] = value;
-
-    if (axis == "x") {
-      // adjust negative to positive value range for x axis (LogFC)
-      this.xScale.domain([
-        minOrMax === "min" ? value : this.xScale.domain()[0],
-        minOrMax === "max" ? value : this.xScale.domain()[1],
-      ]);
-      this.xAxis.transition().duration(1000).call(d3.axisBottom(this.xScale));
-    } else if (axis == "y") {
-      this.yScale.domain([
-        minOrMax === "min" ? value : this.yScale.domain()[0],
-        minOrMax === "max" ? value : this.yScale.domain()[1],
-      ]);
-      this.yAxis.transition().duration(1000).call(d3.axisLeft(this.yScale));
-    } else {
-      throw Error(`Unknown axis ${axis}`);
-    }
-
-    // Filter out data points beyond the updated axis limits
-    const filteredData = this.points.filter((d) => {
-      const xWithinLimits =
-        d.x >= this.xScale.domain()[0] && d.x <= this.xScale.domain()[1];
-      const yWithinLimits =
-        d.y >= this.yScale.domain()[0] && d.y <= this.yScale.domain()[1];
-      return xWithinLimits && yWithinLimits;
-    });
-
-    // Update the circles within the new limits
-    this.plot
-      .selectAll("circle")
-      .data(filteredData, (d: Point) => d.gene) // Use a key function to bind data
-      .transition()
-      .duration(1000)
-      .attr("cx", (d) => this.xScale(d.x))
-      .attr("cy", (d) => this.yScale(d.y))
-      .attr("opacity", (d) =>
-        this.selectedPoints.includes(d)
-          ? VolcanoComponent.OPACITY_SELECTED
-          : VolcanoComponent.OPACITY
-      );
-
-    // hide circles outside of axis limits
-    this.plot
-      .selectAll("circle")
-      .data(this.points, (d: Point) => d.gene) // Rebind the data
-      .filter((d) => !filteredData.includes(d)) // Select circles that are not in filteredData
-      .attr("opacity", 0); // Set opacity to hide them
-  }
-
-  setMode(mode: string | VolcanoInteractivityMode) {
-    const svg = d3.select(`#${this.svgId}`);
-    this.mode = mode as VolcanoInteractivityMode;
-
-    const modeToggles = {
-      [VolcanoInteractivityMode.PAN_ZOOM]: {
-        enable: () => {
-          svg.call(this.zoom);
-        },
-        disable: () => {
-          svg.on(".zoom", null);
-        },
-      },
-      [VolcanoInteractivityMode.SELECT]: {
-        enable: () => {
-          d3.select(`#${this.svgId}`)
-            .on("mousedown", this.onMouseDown.bind(this))
-            .on("mousemove", this.onMouseMove.bind(this))
-            .on("mouseup", this.onMouseUp.bind(this));
-        },
-        disable: () => {
-          d3.select(`#${this.svgId}`)
-            .on("mousedown", null)
-            .on("mousemove", null)
-            .on("mouseup", null);
-        },
-      },
-    };
-
-    Object.keys(modeToggles).forEach((mode) => {
-      if (mode === this.mode) {
-        modeToggles[mode].enable();
-      } else {
-        modeToggles[mode].disable();
-      }
-    });
-  }
-
-  drawData(
-    xScale: d3.ScaleLinear<any, any, any> = this.xScale,
-    yScale: d3.ScaleLinear<any, any, any> = this.yScale
-  ) {
-    this.plot
-      .selectAll("circle")
-      .data(this.points)
-      .enter()
-      .append("circle")
-      .attr("class", "point")
-      .attr("name", (d) => d.gene)
-      .attr(
-        "cx",
-        (d) =>
-          xScale(d.x) +
-          VolcanoComponent.MARGIN.left +
-          VolcanoComponent.AXIS_LABEL_PADDING
-      )
-      .attr(
-        "cy",
-        (d) =>
-          yScale(d.y) +
-          VolcanoComponent.MARGIN.top +
-          VolcanoComponent.TITLE_PADDING
-      )
-      .attr("r", VolcanoComponent.POINT_RADIUS)
-      .attr("fill", VolcanoComponent.COLOR_UNSELECTED)
-      .attr("stroke", "none")
-      .attr("opacity", VolcanoComponent.OPACITY)
-      .on("mouseover", (e, d) => this.onPointMouseOver(e, d))
-      .on("mouseout", (e, d) => this.onPointMouseOut(e, d))
-      .on("click", (e, d) => this.onPointClick(e, d));
-  }
-
-  resetView() {
-    const svg = d3.select(`#${this.svgId}`);
-
-    // @ts-ignore
-    const defaultMode = this.mode;
-    this.setMode(VolcanoInteractivityMode.PAN_ZOOM);
-    // @ts-ignore
-    svg.call(this.zoom.transform, d3.zoomIdentity);
-    this.setMode(defaultMode);
-  }
-
-  private handleZoom(event: d3.D3ZoomEvent<any, Point>) {
-    if (this.mode !== VolcanoInteractivityMode.PAN_ZOOM) {
+  private handleZoom(event: d3.D3ZoomEvent<any, VolcanoPoint>) {
+    if (this._mode !== VolcanoInteractivityMode.PAN_ZOOM) {
       return;
     }
 
@@ -1373,7 +1425,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
     //#region Update Point and Label positions, event listeners, and stylings
 
-    const inAxisLimits = (d: Point) => {
+    const inAxisLimits = (d: VolcanoPoint) => {
       const xWithinLimits =
         d.x >= this.zoomXScale.domain()[0] &&
         d.x <= this.zoomXScale.domain()[1];
@@ -1383,8 +1435,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       return xWithinLimits && yWithinLimits;
     };
 
-    const pointsInAxisLimits = this.points.filter(inAxisLimits);
-    const pointsNotInAxisLimits = this.points.filter(
+    const pointsInAxisLimits = this._points.filter(inAxisLimits);
+    const pointsNotInAxisLimits = this._points.filter(
       (d) => !pointsInAxisLimits.includes(d)
     );
 
@@ -1403,13 +1455,14 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       (1 / zt.k);
     this.plot
       .selectAll("circle")
-      .data(pointsInAxisLimits, (d: Point) => d.gene)
+      .data(pointsInAxisLimits, (d: VolcanoPoint) => d.gene)
       // reposition
-      .attr("cx", (d: Point) => this.xScale(d.x) + xOffset)
-      .attr("cy", (d: Point) => this.yScale(d.y) + yOffset)
-      .attr("r", VolcanoComponent.POINT_RADIUS * (1/zt.k))
+      .attr("cx", (d: VolcanoPoint) => this.xScale(d.x) + xOffset)
+      .attr("cy", (d: VolcanoPoint) => this.yScale(d.y) + yOffset)
+      .attr("r", VolcanoComponent.POINT_RADIUS * (1 / zt.k))
 
       // add event listeners back
+      // @ts-ignore
       .on("mouseover", (e, d) => this.onPointMouseOver(e, d))
       .on("mouseout", (e, d) => this.onPointMouseOut(e, d))
       .on("click", (e, d) => this.onPointClick(e, d))
@@ -1420,7 +1473,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
           ? VolcanoComponent.OPACITY_SELECTED
           : VolcanoComponent.OPACITY
       )
-      .classed("out-of-view", false)
+      .classed("out-of-view", false);
 
     // show labels in axis limits
     this.plot
@@ -1431,13 +1484,13 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     // hide points outside axis limits
     this.plot
       .selectAll("circle")
-      .data(pointsNotInAxisLimits, (d: Point) => d.gene)
+      .data(pointsNotInAxisLimits, (d: VolcanoPoint) => d.gene)
       .attr("opacity", 0) // Set opacity to hide them
       // disable event listeners
       .on("mouseover", null)
       .on("mouseout", null)
       .on("click", null)
-      .classed("out-of-view", true)
+      .classed("out-of-view", true);
 
     // hide labels outside axis limits
     this.plot
@@ -1454,20 +1507,21 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
 
   // #endregion
 
+  // #region lifecycle events
+
   ngAfterViewInit(): void {
     this.svgId = `volcano-${this.id}`;
     const { data: processedData, genesToSelectByDefault } = this.processData(
       this.data,
       this.genesToSelectByDefault
     );
-    this.points = processedData;
-    this.dataBoundingBox = {
-      xMin: Number(Math.min(...this.points.map((p) => p.x)).toFixed(3)),
-      xMax: Number(Math.max(...this.points.map((p) => p.x)).toFixed(3)),
-      yMin: Number(Math.min(...this.points.map((p) => p.y)).toFixed(3)),
-      yMax: Number(Math.max(...this.points.map((p) => p.y)).toFixed(3)),
-    };
-    this.axisRanges = { ...this.dataBoundingBox };
+    this._points = processedData;
+    // this.dataBoundingBox = {
+    //   xMin: Number(Math.min(...this.points.map((p) => p.x)).toFixed(3)),
+    //   xMax: Number(Math.max(...this.points.map((p) => p.x)).toFixed(3)),
+    //   yMin: Number(Math.min(...this.points.map((p) => p.y)).toFixed(3)),
+    //   yMax: Number(Math.max(...this.points.map((p) => p.y)).toFixed(3)),
+    // };
 
     // clear out the container
     d3.select(`#${this.svgId}`).selectAll("*").remove();
@@ -1489,8 +1543,10 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       .select(`#${this.svgId}`)
       .attr("width", width)
       .attr("height", height)
+      // @ts-ignore
       .attr("viewBox", [0, 0, width, height]);
 
+    // @ts-ignore
     this.plot = svg
       .append("g")
       .attr(
@@ -1501,18 +1557,30 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       );
 
     this.domain = {
-      x: [d3.min(this.points, (d) => d.x), d3.max(this.points, (d) => d.x)],
-      y: [d3.min(this.points, (d) => d.y), d3.max(this.points, (d) => d.y)],
+      x: [d3.min(this._points, (d) => d.x), d3.max(this._points, (d) => d.x)],
+      y: [d3.min(this._points, (d) => d.y), d3.max(this._points, (d) => d.y)],
     };
+
+    const paddedDomain = {
+      x: [
+        this.domain.x[0] - VolcanoComponent.DATA_PADDING.left,
+        this.domain.x[1] + VolcanoComponent.DATA_PADDING.right,
+      ],
+      y: [
+        this.domain.y[0] - VolcanoComponent.DATA_PADDING.bottom,
+        this.domain.y[1] + VolcanoComponent.DATA_PADDING.top,
+      ],
+    };
+
     this.xScale = d3
       .scaleLinear()
-      .domain(this.domain.x)
+      .domain(paddedDomain.x)
       .range([0, VolcanoComponent.WIDTH]);
     this.zoomXScale = this.xScale;
 
     this.yScale = d3
       .scaleLinear()
-      .domain(this.domain.y)
+      .domain(paddedDomain.y)
       .range([
         VolcanoComponent.HEIGHT -
           VolcanoComponent.MARGIN.top -
@@ -1562,6 +1630,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
     //   .style("font-weight", "bold")
 
     // Add x-axis ticks
+    // @ts-ignore
     this.xAxis = svg
       .append("g")
       .attr("class", "x-axis")
@@ -1571,9 +1640,11 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
           VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING
         }, ${VolcanoComponent.HEIGHT})`
       )
+      // @ts-ignore
       .call(d3.axisBottom(this.xScale));
 
     // Add y-axis ticks
+    // @ts-ignore
     this.yAxis = svg
       .append("g")
       .attr("class", "y-axis")
@@ -1583,6 +1654,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
           VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING
         }, ${VolcanoComponent.MARGIN.top + VolcanoComponent.TITLE_PADDING})`
       )
+      // @ts-ignore
       .call(d3.axisLeft(this.yScale));
 
     // Some weird stuff happens with point placement if we don't trigger zoom first. To fix this, reset the view, which briefly goes into zoom/pan mode and sets the zoom and origin to 0
@@ -1605,6 +1677,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit {
       // this.ngAfterViewInit();
     });
   }
+
+  // #endregion
 
   constructor(private cd: ChangeDetectorRef) {}
 }

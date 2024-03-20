@@ -1,26 +1,29 @@
+import { HttpClient } from "@angular/common/http";
 import {
   ChangeDetectionStrategy,
   Component,
   Input,
-  OnInit,
   AfterViewInit,
 } from "@angular/core";
-import { EnrichmentAnalysisService } from "app/service/enrichment-analysis/enrichment-analysis.service";
+import { EnrichmentAnalysisService, PANTHER_APIOptions } from "app/service/enrichment-analysis/enrichment-analysis.service";
 import {
   PANTHER_Results,
   PANTHER_ResultItem,
 } from "app/service/enrichment-analysis/enrichment-analysis.service.types";
 import * as d3 from "d3";
 
-type RenderOptions = {
+type EnrichmentAnalysisVizOptions = {
   preprocessing: PreprocessingOptions;
   plotting: PlottingOptions;
+  api: PANTHER_APIOptions;
 };
+
+
 
 type PreprocessingOptions = {
   /** Whether to include unmapped reference genes in the bgRatio calculation */
   includeUnmappedReferenceGenes: boolean;
-  /** Whether to include unmapped input list genes in the geneRation calculation */
+  /** Whether to include unmapped input list genes in the geneRatio calculation */
   includeUnmappedInputListGenes: boolean;
 };
 
@@ -41,8 +44,8 @@ type PlottingOptions = {
   styleUrls: ["./enrichment-analysis.component.scss"],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EnrichmentAnalysisComponent implements OnInit {
-  static DEFAULT_RENDER_OPTIONS: RenderOptions = {
+export class EnrichmentAnalysisComponent implements AfterViewInit {
+  static DEFAULT_RENDER_OPTIONS: EnrichmentAnalysisVizOptions = {
     preprocessing: {
       includeUnmappedInputListGenes: false,
       includeUnmappedReferenceGenes: false,
@@ -56,13 +59,22 @@ export class EnrichmentAnalysisComponent implements OnInit {
       sizeBy: "number_in_list",
       n: 20,
     },
+    api: EnrichmentAnalysisService.DEFAULT_PANTHER_APIOptions
   };
 
   static MARGIN = { top: 20, right: 40, bottom: 60, left: 20 };
-  static LEGEND_WIDTH = 50;
+  static LEGEND_WIDTH = 80;
   static LEGEND_PADDING = 10;
 
   public loading = false;
+
+  private options: EnrichmentAnalysisVizOptions = EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
+
+
+  get currentAnnDatasetId(): string {return this.options.api.annotationDatasetId}
+  set currentAnnDatasetId(id: string) {
+    this.setAnnotationDataset(id)
+  }
 
   @Input() id: string;
 
@@ -79,12 +91,7 @@ export class EnrichmentAnalysisComponent implements OnInit {
     if (!this._active) {
       return;
     }
-    this.loading = true;
-    this.ea.runPANTHERAnalysis(value, false).subscribe((res) => {
-      this.loading = false;
-      this.data = res;
-      this.render();
-    });
+    this.runPANTHERAnalysis()
   }
 
   // We have this active flag so we don't render hit the API endpoint when the viz is not open.
@@ -92,16 +99,12 @@ export class EnrichmentAnalysisComponent implements OnInit {
   @Input() set active(value: boolean) {
     this._active = value;
     if (this._active && this._genes.length > 0) {
-      this.loading = true;
-      this.ea.runPANTHERAnalysis(this._genes, false).subscribe((res) => {
-        this.loading = false;
-        this.data = res;
-        this.render();
-      });
+     this.runPANTHERAnalysis()
     }
   }
 
   private data: PANTHER_Results;
+  private plot:  d3.Selection<SVGGElement, unknown, HTMLElement, any>;
 
   private xScale: d3.ScaleLinear<any, any>;
   private yScale: d3.ScaleBand<string>;
@@ -127,7 +130,7 @@ export class EnrichmentAnalysisComponent implements OnInit {
     }
     let totalGenesInInputList = data.input_list.mapped_count;
     if (options.includeUnmappedInputListGenes) {
-      totalGenesInInputList += data.reference.unmapped_count;
+      totalGenesInInputList += data.input_list.unmapped_count;
     }
 
     const resultWithRatios = data.result.map((d) => {
@@ -149,9 +152,49 @@ export class EnrichmentAnalysisComponent implements OnInit {
     return resultWithTermInfo;
   }
 
+  /**
+   * @description run Enrichment (Overrepresenation) Analysis on a set of genes, followed by a rerender. Will use the current this.options.api options
+   */
+  private runPANTHERAnalysis() {
+    this.loading = true;
+    this.removeSVG();
+    this.ea.runPANTHERAnalysis(this._genes, this.options.api).subscribe((res) => {
+      this.loading = false;
+      this.data = res;
+      this.render();
+    });
+  }
+
+  /**
+   * @description Set the annotation dataset to use for the visualization. Will trigger an API call and a rerender.
+   * @param datasetId ID of the annotation dataset to use (GO:xxxxxxx)
+   */
+  public setAnnotationDataset(datasetId: string) {
+
+    if (this.ea.availableAnnotationDatasets === undefined) {
+      return
+    }
+
+    const index = this.ea.availableAnnotationDatasets.findIndex(
+      (d) => d.id === datasetId
+    );
+    if (index === -1) {
+      throw new Error(
+        `Could not find annotation dataset with id: ${datasetId}`
+      );
+    }
+    this.options.api.annotationDatasetId = datasetId;
+    this.runPANTHERAnalysis()
+  }
+
   render(
-    options: RenderOptions = EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS
+    options: EnrichmentAnalysisVizOptions = this.options
   ) {
+
+    if (this.data === undefined) {
+      return
+    }
+
     console.log("Rendering Enrichment analysis dotplot with options:", options);
     const availableWidth = Number(
       window
@@ -162,13 +205,16 @@ export class EnrichmentAnalysisComponent implements OnInit {
 
     // Set up the SVG container dimensions
 
-    const width = availableWidth -
-    EnrichmentAnalysisComponent.MARGIN.left -
-    EnrichmentAnalysisComponent.MARGIN.right -
-    EnrichmentAnalysisComponent.LEGEND_WIDTH -
-    EnrichmentAnalysisComponent.LEGEND_PADDING
-    ;
-    const height = availableHeight - EnrichmentAnalysisComponent.MARGIN.top - EnrichmentAnalysisComponent.MARGIN.bottom;
+    const width =
+      availableWidth -
+      EnrichmentAnalysisComponent.MARGIN.left -
+      EnrichmentAnalysisComponent.MARGIN.right -
+      EnrichmentAnalysisComponent.LEGEND_WIDTH -
+      EnrichmentAnalysisComponent.LEGEND_PADDING;
+    const height =
+      availableHeight -
+      EnrichmentAnalysisComponent.MARGIN.top -
+      EnrichmentAnalysisComponent.MARGIN.bottom;
 
     // preprocess the data and apply sorting and top n limits
     const data = EnrichmentAnalysisComponent.preprocessData(
@@ -183,6 +229,8 @@ export class EnrichmentAnalysisComponent implements OnInit {
       })
       .slice(0, options.plotting.n);
 
+    console.log("preprocessed EA data", data)
+
     this.removeSVG();
 
     // Create the SVG container
@@ -192,30 +240,41 @@ export class EnrichmentAnalysisComponent implements OnInit {
       .attr(
         "width",
         EnrichmentAnalysisComponent.MARGIN.left +
-        width +
-        EnrichmentAnalysisComponent.LEGEND_PADDING +
-        EnrichmentAnalysisComponent.LEGEND_WIDTH +
-        EnrichmentAnalysisComponent.MARGIN.right
+          width +
+          EnrichmentAnalysisComponent.LEGEND_PADDING +
+          EnrichmentAnalysisComponent.LEGEND_WIDTH +
+          EnrichmentAnalysisComponent.MARGIN.right
       )
-      .attr("height", height + EnrichmentAnalysisComponent.MARGIN.top + EnrichmentAnalysisComponent.MARGIN.bottom);
+      .attr(
+        "height",
+        height +
+          EnrichmentAnalysisComponent.MARGIN.top +
+          EnrichmentAnalysisComponent.MARGIN.bottom
+      );
 
-    const plot = svg
+    this.plot = svg
       .append("g")
-      .attr("transform", "translate(" + EnrichmentAnalysisComponent.MARGIN.left + "," + EnrichmentAnalysisComponent.MARGIN.top + ")");
+      .attr(
+        "transform",
+        "translate(" +
+          EnrichmentAnalysisComponent.MARGIN.left +
+          "," +
+          EnrichmentAnalysisComponent.MARGIN.top +
+          ")"
+      );
 
     const legend = svg
       .append("g")
       .attr(
         "transform",
         "translate(" +
-          (
-            EnrichmentAnalysisComponent.MARGIN.left +
+          (EnrichmentAnalysisComponent.MARGIN.left +
             width +
             EnrichmentAnalysisComponent.LEGEND_PADDING) +
           "," +
           EnrichmentAnalysisComponent.MARGIN.top +
           ")"
-      )
+      );
 
     // Create x and y scales
     this.xScale = d3
@@ -242,7 +301,7 @@ export class EnrichmentAnalysisComponent implements OnInit {
     // trick to make sure that the potentially very long y axis ticks are always visible
     // https://stackoverflow.com/a/21604029
     var maxTermWidth = 0;
-    plot
+    this.plot
       .selectAll("text.foo")
       .data(data.map((d) => d[options.plotting.y]))
       .enter()
@@ -250,12 +309,13 @@ export class EnrichmentAnalysisComponent implements OnInit {
       .text((d) => d)
       .each(function (d) {
         maxTermWidth = Math.max(
+          //@ts-ignore
           this.getBBox().width + yAxis.tickSize() + yAxis.tickPadding(),
           maxTermWidth
         );
       })
       .remove();
-    plot.attr(
+    this.plot.attr(
       "transform",
       "translate(" +
         Math.abs(maxTermWidth - EnrichmentAnalysisComponent.MARGIN.left) +
@@ -267,25 +327,33 @@ export class EnrichmentAnalysisComponent implements OnInit {
     // update the range of the x axis
     this.xScale.range([
       0,
-      width + EnrichmentAnalysisComponent.MARGIN.left - Math.abs(maxTermWidth - EnrichmentAnalysisComponent.MARGIN.left),
+      width +
+        EnrichmentAnalysisComponent.MARGIN.left -
+        Math.abs(maxTermWidth - EnrichmentAnalysisComponent.MARGIN.left),
     ]);
     const xAxis = d3.axisBottom(this.xScale);
 
     // Append x axis
-    plot
+    this.plot
       .append("g")
       .attr("transform", "translate(0," + height + ")")
+      //@ts-ignore
       .call(xAxis);
 
     // Append y axis
-    plot.append("g").call(yAxis);
+    //@ts-ignore
+    this.plot.append("g").call(yAxis);
 
     // Add circles for dot plot
-    const sizeScale = d3.scaleLinear()
-    .domain(d3.extent(data.map(d => d[options.plotting.sizeBy])))
-    .range([3, 10])
+    const sizeScale = d3
+      .scaleLinear()
+      .domain(d3.extent(data.map((d) => d[options.plotting.sizeBy])))
+      .range([3, 10]);
 
-    this.circles = plot
+    const self = this
+
+    //@ts-ignore
+    this.circles = this.plot
       .selectAll("circle")
       .data(data)
       .enter()
@@ -298,8 +366,24 @@ export class EnrichmentAnalysisComponent implements OnInit {
       .attr("r", (d) => sizeScale(d[options.plotting.sizeBy]))
       .attr("fill", (d) => colorScale(d[options.plotting.colorBy]));
 
+    this.circles
+      .on("mouseover", function (event, d) {
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .attr("fill", self.darkenColor(colorScale(d[options.plotting.colorBy])));
+        self.showTooltip(event, options.plotting);
+      })
+      .on("mouseout", function (event, d) {
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .attr("fill", colorScale(d[options.plotting.colorBy]));
+        self.hideTooltip();
+      });
+
     // Adding x-axis label
-    plot
+    this.plot
       .append("text")
       .attr(
         "transform",
@@ -312,24 +396,125 @@ export class EnrichmentAnalysisComponent implements OnInit {
       .style("text-anchor", "middle")
       .text(options.plotting.x);
 
-    this.drawLegend(legend, data, options, colorScale)
+    //@ts-ignore
+    this.drawLegend(legend, data, options, colorScale, sizeScale);
+  }
+
+  private showTooltip(event: any, options: PlottingOptions) {
+    console.log("showing tooltip for", event)
+    const d: ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>[number] = event.srcElement.__data__;
+
+    d3.select(`body`)
+      .append("div")
+      .attr("class", "ea-tooltip xtooltiptext")
+      .attr("name", d.termId)
+      .style("position", "absolute")
+      // the differential-expression-panel has a z-index of 100 since it is an overlay
+      .style("z-index", "1000")
+      .style("left", event.pageX + 15 + "px")
+      .style("top", event.pageY - 20 + "px")
+      .style("font-size", "12px")
+      .html(`
+        <div><b>${d.termLabel}</b> (${d.termId})</div>
+        <div>${options.x}: ${d[options.x]}</div>
+        <div>${options.y}: ${d[options.y]}</div>
+        <div>${options.sizeBy}: ${d[options.sizeBy]}</div>
+        <div>${options.colorBy}: ${d[options.colorBy]}</div>
+      `);
+  }
+
+  private hideTooltip() {
+    d3.select(".ea-tooltip").remove();
+  }
+
+  /** Helper function to darken a color by a given factor. */
+  private darkenColor(color: string, factor = 0.8): string {
+    // Convert color to RGB format
+    const rgbColor = d3.rgb(color);
+
+    // Darken the color by reducing its brightness
+    const darkenedColor = d3.rgb(
+      rgbColor.r * factor,
+      rgbColor.g * factor,
+      rgbColor.b * factor
+    );
+
+    return darkenedColor.toString();
   }
 
   private drawLegend(
     legend: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
     data: ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>,
-    options: RenderOptions,
-    colorScale: d3.ScaleSequential<string, never>
+    options: EnrichmentAnalysisVizOptions,
+    colorScale: d3.ScaleSequential<string, never>,
+    sizeScale: d3.ScaleLinear<number, number, never>
   ) {
-    this.drawColorLegend(legend, data, options, colorScale)
+
+    const PADDING_BETWEEN_LEGEND_ITEMS = 35
+
+    const colorLegendHeight = this.drawColorLegend(legend, data, options, colorScale);
+    this.drawSizeLegend(legend, data, options, sizeScale, colorLegendHeight + PADDING_BETWEEN_LEGEND_ITEMS)
+  }
+
+  private drawSizeLegend(
+    legend: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
+    data: ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>,
+    options: EnrichmentAnalysisVizOptions,
+    sizeScale: d3.ScaleLinear<number, number, never>,
+    heightOffset: number
+  ) {
+    const domain = sizeScale.domain() // raw data
+    const range = sizeScale.range() // [3,10]
+
+    // Define the color legend height and width
+    const SIZE_LEGEND_WIDTH = 35;
+    const CIRCLE_PADDING = 15;
+    const TITLE_PADDING = 20;
+
+    const legendSizeValues = [
+      {domain:  domain[0], range: sizeScale(domain[0])},
+      {domain: Math.floor((domain[0] + domain[1]) / 2), range: sizeScale((domain[0] + domain[1]) / 2)},
+      {domain: domain[1], range: sizeScale(domain[1])}
+      ]
+
+    const g =  legend.append("g").attr("transform", `translate(${SIZE_LEGEND_WIDTH}, ${heightOffset})`)
+
+    g.append("text")
+    // .attr("text-anchor", "middle")
+    .text(options.plotting.sizeBy)
+
+    g
+    .selectAll("circle")
+    .data(legendSizeValues)
+    .enter()
+    .append("circle")
+    .attr("fill", "black")
+    .attr("cy", (d, i) => ((range[1] + CIRCLE_PADDING) * i) + TITLE_PADDING)
+    .attr("r", d => d.range)
+
+    g
+    .selectAll(".sizeby-legend-text")
+    .data(legendSizeValues)
+    .enter()
+    .append("text")
+    .attr("fill", "black")
+    .attr("x", range[1] + CIRCLE_PADDING)
+    .attr("y", (d, i) => {
+      return ((range[1] + CIRCLE_PADDING) * i) + TITLE_PADDING
+    })
+    .attr("alignment-baseline", "middle")
+    .text(d => {
+      return d.domain
+    })
+
   }
 
   private drawColorLegend(
     legend: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
     data: ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>,
-    options: RenderOptions,
+    options: EnrichmentAnalysisVizOptions,
     colorScale: d3.ScaleSequential<string, never>
-  ) {
+  ): number {
     const dataColorExtent: [number, number] = d3.extent(
       data.map((d) => d[options.plotting.colorBy])
     );
@@ -348,7 +533,7 @@ export class EnrichmentAnalysisComponent implements OnInit {
     const legendColorValues = d3.range(0, COLOR_LEGEND_HEIGHT + 1, 1);
 
     // Create color legend axis
-    const legendAxis = d3.axisRight(legendColorScale).ticks(5)
+    const legendAxis = d3.axisRight(legendColorScale).ticks(5);
 
     // Add color gradient to the legend
     legend
@@ -365,7 +550,13 @@ export class EnrichmentAnalysisComponent implements OnInit {
       .enter()
       .append("stop")
       .attr("offset", (d) => (d / COLOR_LEGEND_HEIGHT) * 100 + "%")
-      .attr("stop-color", (d) => colorScale((d / COLOR_LEGEND_HEIGHT) * (dataColorExtent[1] - dataColorExtent[0]) + dataColorExtent[0]));
+      .attr("stop-color", (d) =>
+        colorScale(
+          (d / COLOR_LEGEND_HEIGHT) *
+            (dataColorExtent[1] - dataColorExtent[0]) +
+            dataColorExtent[0]
+        )
+      );
 
     legend
       .append("text")
@@ -388,9 +579,7 @@ export class EnrichmentAnalysisComponent implements OnInit {
       .attr(
         "transform",
         "translate(" +
-          (
-            EnrichmentAnalysisComponent.LEGEND_WIDTH / 2
-            ) +
+          EnrichmentAnalysisComponent.LEGEND_WIDTH / 2 +
           " ," +
           10 +
           ")"
@@ -400,8 +589,16 @@ export class EnrichmentAnalysisComponent implements OnInit {
     // Append the color legend axis
     legend
       .append("g")
-      .attr("transform", "translate(" + (EnrichmentAnalysisComponent.LEGEND_WIDTH / 2 + COLOR_LEGEND_WIDTH) + ", 10)")
+      .attr(
+        "transform",
+        "translate(" +
+          (EnrichmentAnalysisComponent.LEGEND_WIDTH / 2 + COLOR_LEGEND_WIDTH) +
+          ", 10)"
+      )
+      //@ts-ignore
       .call(legendAxis);
+
+    return COLOR_LEGEND_HEIGHT;
   }
 
   private removeSVG() {
@@ -436,9 +633,17 @@ export class EnrichmentAnalysisComponent implements OnInit {
     );
   }
 
-  ngOnInit(): void {
+  ngAfterViewInit(): void {
+    this.ea.getAvailableAnnotationDatasets().subscribe(datasets => {
+      this.ea.availableAnnotationDatasets = datasets
+      this.setAnnotationDataset(this.options.api.annotationDatasetId)
+    })
+
     window.addEventListener("resize", this.render.bind(this));
   }
 
-  constructor(private ea: EnrichmentAnalysisService) {}
+  constructor(
+    public ea: EnrichmentAnalysisService,
+    private http: HttpClient
+  ) {}
 }

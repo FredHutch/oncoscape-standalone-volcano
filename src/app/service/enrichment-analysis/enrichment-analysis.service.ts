@@ -1,19 +1,32 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
-import { Injectable } from "@angular/core";
+import { Injectable, OnInit } from "@angular/core";
 import { MatSnackBar, MatSnackBarConfig } from "@angular/material";
-import { PANTHER_Results } from "./enrichment-analysis.service.types";
+import { PANTHERAnnotationDataset, PANTHER_Results } from "./enrichment-analysis.service.types";
 import { Observable, of } from "rxjs";
-import { map, startWith } from "rxjs/operators";
+import { first, map, startWith } from "rxjs/operators";
 import testData from "assets/data/PANTHERenrichmentAnalysisResults.json"
 
 enum PANTHER_ORGANISMS {
   HUMAN = 9606,
 }
 
+export type PANTHER_APIOptions = {
+  annotationDatasetId: string;
+  snackbar: boolean;
+};
+
 @Injectable({
   providedIn: "root",
 })
 export class EnrichmentAnalysisService {
+
+  static DEFAULT_PANTHER_APIOptions: PANTHER_APIOptions = {
+    // biological processes
+    annotationDatasetId: "GO:0008150",
+    snackbar: false
+  }
+
+  public availableAnnotationDatasets: PANTHERAnnotationDataset[];
 
   private mostRecentResults: PANTHER_Results;
 
@@ -34,7 +47,7 @@ export class EnrichmentAnalysisService {
    * @param genes list of genes
    * @returns {Observable<PANTHER_Results>} the results
    */
-  runPANTHERAnalysis(genes: string[], snackbar=true): Observable<PANTHER_Results> {
+  runPANTHERAnalysis(genes: string[], options: PANTHER_APIOptions): Observable<PANTHER_Results> {
 
     // dont let multiple analyses run at the same time, over any instances
     // The PANTHER API documentation (https://pantherdb.org/services/details.jsp) says:
@@ -45,6 +58,7 @@ export class EnrichmentAnalysisService {
     }
 
     // use this for testing
+    // @ts-ignore
     // return of(testData).pipe(startWith(testData))
 
     const ENDPOINT =
@@ -59,7 +73,7 @@ export class EnrichmentAnalysisService {
     let msg = `Running Panther Analysis on ${genes.length} genes`;
     if (genes.length !== input_size) {
       msg += ` (sampled from ${input_size} genes)`;
-      if (snackbar) {
+      if (options.snackbar) {
         this.snackbar.open(
           msg,
           'Close',
@@ -74,7 +88,7 @@ export class EnrichmentAnalysisService {
     const urlParams = {
       geneInputList: genes.join(','),
       organism: PANTHER_ORGANISMS.HUMAN.toString(),
-      annotDataSet: 'GO:0003674',
+      annotDataSet: options.annotationDatasetId,
     };
 
     const full_url =
@@ -85,7 +99,7 @@ export class EnrichmentAnalysisService {
       map((response: {
         results: PANTHER_Results
       }) => {
-        if (snackbar) {
+        if (options.snackbar) {
           this.snackbar.open('Enrichment Analysis complete.', 'Close', this.snackbarConfig);
         }
         console.log('Enrichment Analysis complete.')
@@ -113,18 +127,19 @@ export class EnrichmentAnalysisService {
     return list.slice(0, targetLength);
   }
 
+  public getAvailableAnnotationDatasets(): Observable<
+    PANTHERAnnotationDataset[]
+  > {
+    return this.http
+      .get(
+        "https://pantherdb.org/services/oai/pantherdb/supportedannotdatasets"
+      )
+      .pipe(
+        map((res: any) => res.search.annotation_data_sets.annotation_data_type),
+        first()
+      );
+  }
+
   constructor(private http: HttpClient, private snackbar: MatSnackBar) {
-    // this.http.get('assets/data/example_genes.txt', { responseType: 'text' }).subscribe((data: string) => {
-    //   // Split the text into an array of strings using newline as the delimiter
-
-    //   let genes = data.split('\n').map((line) => line.trim());
-    //   // filter out empty genes
-    //   genes = genes.filter(g => g.length > 0)
-
-    //   this.runPANTHERAnalysis(genes)
-    // },
-    // (error) => {
-    //   console.error('Error reading file:', error);
-    // })
   }
 }
