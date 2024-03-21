@@ -190,7 +190,7 @@
       ></app-volcano-gene-table>
         </mat-tab>
         <mat-tab label="Enrichment Analysis" id="enrichment-dotplot-tab" *ngIf="isTabEnabled('EnrichmentAnalysis')">
-          <app-enrichment-analysis [id]="id" [genes]="emittedGenes" [active]="activeTabName === 'Enrichment Analysis'"></app-enrichment-analysis>
+          <app-enrichment-analysis [id]="id" [selectionObservable]="selectionOfType$('Standard')" [active]="activeTabName === 'Enrichment Analysis'"></app-enrichment-analysis>
         </mat-tab>
 
       </mat-tab-group>

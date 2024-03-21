@@ -4,6 +4,7 @@ import {
   Component,
   Input,
   AfterViewInit,
+  OnInit,
 } from "@angular/core";
 import { EnrichmentAnalysisService, PANTHER_APIOptions } from "app/service/enrichment-analysis/enrichment-analysis.service";
 import {
@@ -11,6 +12,8 @@ import {
   PANTHER_ResultItem,
 } from "app/service/enrichment-analysis/enrichment-analysis.service.types";
 import * as d3 from "d3";
+import { Observable } from "rxjs";
+import { VolcanoSelection } from "../volcano/volcano.component.types";
 
 type EnrichmentAnalysisVizOptions = {
   preprocessing: PreprocessingOptions;
@@ -44,7 +47,7 @@ type PlottingOptions = {
   styleUrls: ["./enrichment-analysis.component.scss"],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EnrichmentAnalysisComponent implements AfterViewInit {
+export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   static DEFAULT_RENDER_OPTIONS: EnrichmentAnalysisVizOptions = {
     preprocessing: {
       includeUnmappedInputListGenes: false,
@@ -82,17 +85,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit {
   get genes(): string[] {
     return this._genes;
   }
-  @Input() set genes(value: string[]) {
-    this._genes = value;
-    if (value === undefined || value.length === 0) {
-      this.removeSVG();
-      return;
-    }
-    if (!this._active) {
-      return;
-    }
-    this.runPANTHERAnalysis()
-  }
+  @Input() selectionObservable: Observable<VolcanoSelection>;
 
   // We have this active flag so we don't render hit the API endpoint when the viz is not open.
   private _active: boolean = false;
@@ -640,6 +633,22 @@ export class EnrichmentAnalysisComponent implements AfterViewInit {
     })
 
     window.addEventListener("resize", this.render.bind(this));
+  }
+
+  ngOnInit(): void {
+
+    this.selectionObservable.subscribe(selection => {
+      this._genes = selection.points.map(p => p.gene)
+      if (this._genes === undefined || this._genes.length === 0) {
+        this.removeSVG();
+        return;
+      }
+      if (!this._active) {
+        return;
+      }
+      this.runPANTHERAnalysis()
+    })
+
   }
 
   constructor(
