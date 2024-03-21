@@ -185,7 +185,7 @@
         [getGeneRegulation]="getGeneRegulation.bind(this)"
         [selectByStatsFormCollapsed]="selectByStatsFormCollapsed"
         [points]="points"
-        [selectedPoints]="emittedPoints"
+        [selectionObservable]="selectionOfType$('Standard')"
         (selectionChanged)="labelPoints($event)"
       ></app-volcano-gene-table>
         </mat-tab>

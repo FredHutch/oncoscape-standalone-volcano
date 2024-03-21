@@ -1,3 +1,5 @@
+import { Observable } from "rxjs";
+
 export enum VolcanoSelectionType {
 
   /** The selection is showing a standard selection of genes for exploratory analysis, enrichment analysis, etc. */
@@ -24,13 +26,28 @@ export enum VolcanoSelectionTrigger {
   EnrichmentAnalysisTab = "EnrichmentAnalysisTab"
 }
 
+export type VolcanoSelectionConfig = {
+  opacity: number;
+  opacityHover: number;
+  opacitySelected: number;
+
+  colorSelected: string,
+  colorUnselected: string;
+
+  /** Disable mouse selection, which includes clicking on points and drag selection */
+  disableMouseSelection: boolean;
+
+  disableTooltip: boolean
+}
+
 export type VolcanoSelection = {
   type: VolcanoSelectionType,
   trigger: VolcanoSelectionTrigger,
-  points: VolcanoPoint
+  points: VolcanoPoint[],
+  config: VolcanoSelectionConfig
 }
 
-export type VolcanoPoint = { x: number; y: number; gene: string; };
+export type VolcanoPoint = { x: number; y: number; gene: string; visibleLabel: boolean; };
 
 export enum VolcanoInteractivityMode {
   SELECT = "select",
@@ -67,9 +84,7 @@ export interface IVolcanoVisualization {
   activeTabName: string;
   selectByStatsFormCollapsed: boolean;
 
-  /** Short-hand for emittedPoints.map(p => p.gene). */
-  emittedGenes: string[];
-  emittedPoints: VolcanoPoint[];
+  selectionOfType$(type: VolcanoSelectionType): Observable<VolcanoSelection>
 
   /** Selected plot type to download (used for an ngModel) */
   downloadPlotType: "svg" | "png";
@@ -93,8 +108,10 @@ export interface IVolcanoVisualization {
   /** Select up and down regulated genes by -log10(padj) and log2FoldChange thresholds */
   selectByStats(): void;
 
-  /** Clear the selection. **TODO:** specify which selection type to clear */
-  clearSelection(): void;
+  /** Clear the selection.
+   * @param type The selection type to clear. Defaults to `this.activeSelectionType` if not specified.
+  */
+  clearSelection(type?: VolcanoSelectionType): void;
 
   /** Select genes by name, with an optional override for fill color (defaults to regulation color), and whether to show the label for the selected genes (defaults to false) */
   selectGenesByName(genes: string[], options?: { label ?: boolean; fill?: string}): void;

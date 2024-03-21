@@ -4,6 +4,8 @@ import { SelectionModel } from '@angular/cdk/collections';
 import {FormControl, FormGroup, Validators} from '@angular/forms';
 import { EventEmitter } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { VolcanoSelection } from '../volcano.component.types';
 
 type Point = { x: number; y: number; gene: string }
 
@@ -44,26 +46,7 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   @Input() downregulatedColor: string = 'red';
   @Input() selectByStatsFormCollapsed: boolean = false;
   private _selectedPoints: Point[] = [];
-  @Input() set selectedPoints(selectedPoints: Point[]) {
-
-    if (!this.filterForm) {
-      this.filterFormInit();
-    }
-
-    // when the selection clears, we want to show all points, including ones not in selection
-    if (selectedPoints.length == 0 && this.filterForm) {
-      this.filterForm.setValue({
-        ...this.filterForm.value,
-        'onlySelection': false
-      })
-    }
-    this._selectedPoints = selectedPoints
-
-    if (this.dataSource) {
-      this.applyFilter()
-    }
-
-  }
+  @Input() selectionObservable: Observable<VolcanoSelection>;
 
   private _points: Point[] = [];
   @Input() set points(points: Point[]) {
@@ -132,6 +115,27 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   @ViewChild(MatTable, {static: false}) table: MatTable<Point>;
 
   ngOnInit(): void {
+    this.selectionObservable.subscribe(selection => {
+
+      const selectedPoints = selection.points;
+
+      if (!this.filterForm) {
+        this.filterFormInit();
+      }
+
+      // when the selection clears, we want to show all points, including ones not in selection
+      if (selectedPoints.length == 0 && this.filterForm) {
+        this.filterForm.setValue({
+          ...this.filterForm.value,
+          'onlySelection': false
+        })
+      }
+      this._selectedPoints = selectedPoints
+
+      if (this.dataSource) {
+        this.applyFilter()
+      }
+    })
     this.filterFormInit();
     const initialSelection = [];
     const allowMultiSelect = true;
