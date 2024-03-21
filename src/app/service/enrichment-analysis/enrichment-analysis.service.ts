@@ -47,14 +47,14 @@ export class EnrichmentAnalysisService {
    * @param genes list of genes
    * @returns {Observable<PANTHER_Results>} the results
    */
-  runPANTHERAnalysis(genes: string[], options: PANTHER_APIOptions): Observable<PANTHER_Results> {
+  runPANTHERAnalysis(genes: string[], options: PANTHER_APIOptions): Observable<PANTHER_Results | {inProgress: true}> {
 
     // dont let multiple analyses run at the same time, over any instances
     // The PANTHER API documentation (https://pantherdb.org/services/details.jsp) says:
     //  "It is recommended that response from previous web service request is received before sending a new request.
     //  Failure to comply with this policy may result in the IP address being blocked from accessing PANTHER."
     if (EnrichmentAnalysisService.analysisInProgress) {
-      return
+      return of({inProgress: true})
     }
 
     // use this for testing

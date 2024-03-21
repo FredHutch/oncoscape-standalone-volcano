@@ -152,7 +152,14 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     this.loading = true;
     this.removeSVG();
     this.ea.runPANTHERAnalysis(this._genes, this.options.api).subscribe((res) => {
+
+      // @ts-ignore
+      if (res.inProgress) {
+        return;
+      }
+
       this.loading = false;
+      // @ts-ignore
       this.data = res;
       this.render();
     });
@@ -638,9 +645,11 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   ngOnInit(): void {
 
     this.selectionObservable.subscribe(selection => {
+      console.log('EA selection update', selection.points.length)
       this._genes = selection.points.map(p => p.gene)
       if (this._genes === undefined || this._genes.length === 0) {
         this.removeSVG();
+        this.loading = false;
         return;
       }
       if (!this._active) {
