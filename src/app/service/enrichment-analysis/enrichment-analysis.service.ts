@@ -6,7 +6,7 @@ import { Observable, of } from "rxjs";
 import { first, map, startWith } from "rxjs/operators";
 import testData from "assets/data/PANTHERenrichmentAnalysisResults.json"
 
-enum PANTHER_ORGANISMS {
+enum NCBI_TAXONS {
   HUMAN = 9606,
 }
 
@@ -35,6 +35,29 @@ export class EnrichmentAnalysisService {
     verticalPosition: "top",
     duration: 3000
   };
+
+  getGenesByGOTermId(id: string): Observable<string[]> {
+    const ENDPOINT = `https://api.geneontology.org/api/bioentity/function/${id}/genes`
+
+    const urlParams = {
+      taxon: `NCBITaxon:${NCBI_TAXONS.HUMAN}`,
+      relationship_type: "involved_in",
+      // start: "0",
+      // rows: "20000"
+    };
+
+    const full_url =
+      ENDPOINT + '?' + new URLSearchParams(urlParams).toString();
+
+    return this.http.get(full_url, {
+      headers: {
+        "accept": "application/json"
+      }
+    }).pipe(map((res: any) => {
+      return res.associations.map(a => a.subject.label)
+    })) as Observable<string[]>
+
+  }
 
   public static analysisInProgress = false;
 
@@ -87,7 +110,7 @@ export class EnrichmentAnalysisService {
 
     const urlParams = {
       geneInputList: genes.join(','),
-      organism: PANTHER_ORGANISMS.HUMAN.toString(),
+      organism: NCBI_TAXONS.HUMAN.toString(),
       annotDataSet: options.annotationDatasetId,
     };
 

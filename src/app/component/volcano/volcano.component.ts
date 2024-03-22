@@ -193,6 +193,10 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
 
   // #region Public functions
 
+  handleEAGOTermHover(genesInGOTerm: string[]): void {
+    console.log("Genes!", genesInGOTerm)
+  }
+
   selectionOfType$(type: string): Observable<VolcanoSelection> {
     return this.selections$.pipe(
       map(list => list.find(item => item.type === type)), // Get the object with the requested type
@@ -507,6 +511,12 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
       return;
     }
 
+    const activeSelectionConfig = this.getActiveSelection().config
+
+    if (activeSelectionConfig.disableMouseSelection) {
+      return;
+    }
+
     const anyModifierKeyPressed = shiftKeyPressed || altKeyPressed;
     if (!anyModifierKeyPressed) {
       // if no modifier keys are pressed, clear the selection
@@ -528,6 +538,12 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
 
     // if both shift and alt are pressed, do nothing
     if (shiftKeyPressed && altKeyPressed) {
+      return;
+    }
+
+    const activeSelectionConfig = this.getActiveSelection().config
+
+    if (activeSelectionConfig.disableMouseSelection) {
       return;
     }
 

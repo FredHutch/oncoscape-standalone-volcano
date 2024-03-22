@@ -5,6 +5,8 @@ import {
   Input,
   AfterViewInit,
   OnInit,
+  Output,
+  EventEmitter,
 } from "@angular/core";
 import { EnrichmentAnalysisService, PANTHER_APIOptions } from "app/service/enrichment-analysis/enrichment-analysis.service";
 import {
@@ -87,14 +89,17 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
   @Input() selectionObservable: Observable<VolcanoSelection>;
 
+
   // We have this active flag so we don't render hit the API endpoint when the viz is not open.
   private _active: boolean = false;
   @Input() set active(value: boolean) {
     this._active = value;
     if (this._active && this._genes.length > 0) {
-     this.runPANTHERAnalysis()
+      this.runPANTHERAnalysis()
     }
   }
+
+  @Output() onGOTermHover: EventEmitter<string[]> = new EventEmitter();
 
   private data: PANTHER_Results;
   private plot:  d3.Selection<SVGGElement, unknown, HTMLElement, any>;
@@ -373,6 +378,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           .duration(200)
           .attr("fill", self.darkenColor(colorScale(d[options.plotting.colorBy])));
         self.showTooltip(event, options.plotting);
+        self.ea.getGenesByGOTermId(d.termId).subscribe((genesInGOTerm) => {
+          self.onGOTermHover.emit(genesInGOTerm)
+        })
       })
       .on("mouseout", function (event, d) {
         d3.select(this)
@@ -401,7 +409,6 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   private showTooltip(event: any, options: PlottingOptions) {
-    console.log("showing tooltip for", event)
     const d: ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>[number] = event.srcElement.__data__;
 
     d3.select(`body`)
@@ -645,13 +652,14 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   ngOnInit(): void {
 
     this.selectionObservable.subscribe(selection => {
-      console.log('EA selection update', selection.points.length)
       this._genes = selection.points.map(p => p.gene)
       if (this._genes === undefined || this._genes.length === 0) {
         this.removeSVG();
         this.loading = false;
         return;
       }
+
+      // if genes update but the EA tab is not active, don't run the analysis
       if (!this._active) {
         return;
       }
