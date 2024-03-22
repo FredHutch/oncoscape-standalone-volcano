@@ -1670,7 +1670,7 @@ export class VolcanoComponent
     this._points = processedData;
     this.selections.forEach((s) => {
       // clear selection points and add the new data in
-      s.resetData(this._points);
+      s.resetData([...this._points]);
     });
     // this.dataBoundingBox = {
     //   xMin: Number(Math.min(...this.points.map((p) => p.x)).toFixed(3)),
