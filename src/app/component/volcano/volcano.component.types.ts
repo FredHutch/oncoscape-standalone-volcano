@@ -10,6 +10,10 @@ export enum VolcanoSelectionType {
 }
 
 export enum VolcanoSelectionTrigger {
+
+  /** Used in creating the selection object. Can be ignored. */
+  Init = "Init",
+
   /** The selection was triggered by the user clicking on a point */
   Click = "Click",
 
@@ -34,10 +38,16 @@ export type VolcanoSelectionConfig = {
   colorSelected: string,
   colorUnselected: string;
 
+  /** If true, significantly regulated genes will be colored by the regulation colors. If false, any selected point will be colored by `this.colorSelected`. Defaults to True */
+  useSelectByStatColorLogic: boolean;
+
   /** Disable mouse selection, which includes clicking on points and drag selection */
   disableMouseSelection: boolean;
 
   disableTooltip: boolean
+
+  /** Whether to label a point when it is selection. Defaults to false */
+  labelOnSelection: boolean;
 }
 
 export type VolcanoPoint = { x: number; y: number; gene: string; labelled: boolean; selected: boolean };

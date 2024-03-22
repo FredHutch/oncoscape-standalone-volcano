@@ -1,5 +1,5 @@
 import { VolcanoSelection } from "./VolcanoSelection";
-import { IVolcanoSelection, VolcanoSelectionType, VolcanoSelectionConfig } from "./volcano.component.types";
+import { IVolcanoSelection, VolcanoSelectionType, VolcanoSelectionConfig, VolcanoSelectionTrigger } from "./volcano.component.types";
 const AbstractVolcanoSelectionConfig: VolcanoSelectionConfig = {
   opacity: 0.2,
   opacityHover: 0.5,
@@ -8,6 +8,8 @@ const AbstractVolcanoSelectionConfig: VolcanoSelectionConfig = {
   colorUnselected: "#454444",
   disableMouseSelection: false,
   disableTooltip: false,
+  labelOnSelection: false,
+  useSelectByStatColorLogic: true
 }
 
 export const StandardVolcanoSelectionConfig: VolcanoSelectionConfig = {
@@ -19,7 +21,10 @@ export const GOTermVolcanoSelectionConfig: VolcanoSelectionConfig = {
 
   // force all selected points to be one color, instead of adhering to the gene regulation coloring logic.
   colorSelected: "lightblue",
-  disableMouseSelection: true
+  disableMouseSelection: true,
+  labelOnSelection: false,
+  // We want all points to be colorSelected, regardless of stats thresholds
+  useSelectByStatColorLogic: false
 }
 
 /** factory method to create an empty selection, populated with the correct config for its type */
@@ -30,5 +35,5 @@ export function createEmptyVolcanoSelection(type: VolcanoSelectionType): IVolcan
     [VolcanoSelectionType.GOTerm]: GOTermVolcanoSelectionConfig
   }
 
-  return new VolcanoSelection(type, undefined, [], configs[type])
+  return new VolcanoSelection(type, VolcanoSelectionTrigger.Init, [], configs[type])
 }

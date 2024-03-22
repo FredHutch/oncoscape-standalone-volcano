@@ -95,6 +95,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   @Input() set active(value: boolean) {
     this._active = value;
     if (this._active && this._genes.length > 0) {
+      console.log(`Running EA with ${this._genes.length} genes`)
       this.runPANTHERAnalysis()
     }
   }
@@ -189,6 +190,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       );
     }
     this.options.api.annotationDatasetId = datasetId;
+
+    if (!this._active) return
+
     this.runPANTHERAnalysis()
   }
 
@@ -196,9 +200,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     options: EnrichmentAnalysisVizOptions = this.options
   ) {
 
-    if (this.data === undefined) {
-      return
-    }
+    if (this.data === undefined) return
+    if (!this._active) return
 
     console.log("Rendering Enrichment analysis dotplot with options:", options);
     const availableWidth = Number(
@@ -657,7 +660,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   ngOnInit(): void {
 
     this.selectionObservable.subscribe(selection => {
-      this._genes = selection.points.map(p => p.gene)
+      console.log("new selection for ea:", selection, "active=", this._active)
+      this._genes = selection.selectedPoints.map(p => p.gene)
       if (this._genes === undefined || this._genes.length === 0) {
         this.removeSVG();
         this.loading = false;
