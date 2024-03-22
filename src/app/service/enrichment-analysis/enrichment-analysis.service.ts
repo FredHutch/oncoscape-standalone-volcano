@@ -36,30 +36,48 @@ export class EnrichmentAnalysisService {
     duration: 3000
   };
 
-  getGenesByGOTermId(id: string): Observable<string[]> {
+  // keep track of if a request is being made for each api, for rate limiting
+  public static apiAvailability = {
+    PANTHER: true,
+    geneOntology: true
+  }
+
+  /** @description Not enrichment analysis, but often used together with EA, so it is in this service. Get a list of genes in a GO Term */
+  getGenesByGOTermId(id: string): Observable<string[] | {inProgress: true}> {
+
+    if (!EnrichmentAnalysisService.apiAvailability.geneOntology) {
+      return of({inProgress: true})
+    }
+
     const ENDPOINT = `https://api.geneontology.org/api/bioentity/function/${id}/genes`
 
     const urlParams = {
       taxon: `NCBITaxon:${NCBI_TAXONS.HUMAN}`,
       relationship_type: "involved_in",
-      // start: "0",
-      // rows: "20000"
+      start: "0",
+      rows: "20000"
     };
 
     const full_url =
       ENDPOINT + '?' + new URLSearchParams(urlParams).toString();
 
+    EnrichmentAnalysisService.apiAvailability.geneOntology = false
     return this.http.get(full_url, {
       headers: {
         "accept": "application/json"
       }
     }).pipe(map((res: any) => {
-      return res.associations.map(a => a.subject.label)
+      const uniProt_provided_labels = res.associations
+      .filter(a => a.provided_by.findIndex(p => p === "UniProt") !== -1)
+      .map(a => a.subject.label)
+
+      // enable future API calls to geneOntology
+      EnrichmentAnalysisService.apiAvailability.geneOntology = true;
+
+      return Array.from<string>(new Set(uniProt_provided_labels))
     })) as Observable<string[]>
 
   }
-
-  public static analysisInProgress = false;
 
   getPANTHERResults(): PANTHER_Results {
     return this.mostRecentResults;
@@ -76,7 +94,7 @@ export class EnrichmentAnalysisService {
     // The PANTHER API documentation (https://pantherdb.org/services/details.jsp) says:
     //  "It is recommended that response from previous web service request is received before sending a new request.
     //  Failure to comply with this policy may result in the IP address being blocked from accessing PANTHER."
-    if (EnrichmentAnalysisService.analysisInProgress) {
+    if (!EnrichmentAnalysisService.apiAvailability.PANTHER) {
       return of({inProgress: true})
     }
 
@@ -117,7 +135,7 @@ export class EnrichmentAnalysisService {
     const full_url =
       ENDPOINT + '?' + new URLSearchParams(urlParams).toString();
 
-      EnrichmentAnalysisService.analysisInProgress = true;
+    EnrichmentAnalysisService.apiAvailability.PANTHER = false;
     return this.http.post(full_url, {}).pipe(
       map((response: {
         results: PANTHER_Results
@@ -126,7 +144,7 @@ export class EnrichmentAnalysisService {
           this.snackbar.open('Enrichment Analysis complete.', 'Close', this.snackbarConfig);
         }
         console.log('Enrichment Analysis complete.')
-        EnrichmentAnalysisService.analysisInProgress = false;
+        EnrichmentAnalysisService.apiAvailability.PANTHER = true;
 
         this.mostRecentResults = response.results;
         return response.results;

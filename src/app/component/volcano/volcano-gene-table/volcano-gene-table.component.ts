@@ -5,7 +5,7 @@ import {FormControl, FormGroup, Validators} from '@angular/forms';
 import { EventEmitter } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { VolcanoSelection } from '../volcano.component.types';
+import { IVolcanoSelection } from '../volcano.component.types';
 
 type Point = { x: number; y: number; gene: string }
 
@@ -46,7 +46,7 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   @Input() downregulatedColor: string = 'red';
   @Input() selectByStatsFormCollapsed: boolean = false;
   private _selectedPoints: Point[] = [];
-  @Input() selectionObservable: Observable<VolcanoSelection>;
+  @Input() selectionObservable: Observable<IVolcanoSelection>;
 
   private _points: Point[] = [];
   @Input() set points(points: Point[]) {
@@ -117,7 +117,7 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   ngOnInit(): void {
     this.selectionObservable.subscribe(selection => {
 
-      const selectedPoints = selection.points;
+      const selectedPoints = selection.selectedPoints;
 
       if (!this.filterForm) {
         this.filterFormInit();

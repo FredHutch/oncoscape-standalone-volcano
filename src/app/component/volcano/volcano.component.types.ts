@@ -40,14 +40,7 @@ export type VolcanoSelectionConfig = {
   disableTooltip: boolean
 }
 
-export type VolcanoSelection = {
-  type: VolcanoSelectionType,
-  trigger: VolcanoSelectionTrigger,
-  points: VolcanoPoint[],
-  config: VolcanoSelectionConfig
-}
-
-export type VolcanoPoint = { x: number; y: number; gene: string; visibleLabel: boolean; };
+export type VolcanoPoint = { x: number; y: number; gene: string; labelled: boolean; selected: boolean };
 
 export enum VolcanoInteractivityMode {
   SELECT = "select",
@@ -57,6 +50,47 @@ export enum VolcanoInteractivityMode {
 export enum VolcanoTab {
   Table = "Table",
   EnrichmentAnalysis = "EnrichmentAnalysis"
+}
+
+export interface IVolcanoSelection {
+  type: VolcanoSelectionType,
+  trigger: VolcanoSelectionTrigger,
+  config: VolcanoSelectionConfig,
+  selectedPoints: (VolcanoPoint & {selected: true})[]
+  labelledPoints: (VolcanoPoint & {labelled: true})[]
+
+  /** Reset the data for the selection. All selected and label flags will be lost */
+  resetData(points: VolcanoPoint[]): void;
+
+  sortSelection(compareFn: (a: VolcanoPoint, b: VolcanoPoint) => number): void;
+
+  isPointSelected(point: VolcanoPoint): boolean
+
+  /** Deselect a single point. */
+  deselectSinglePoint(point: VolcanoPoint): void
+
+  /** Select a single point. Will NOT deselect all first. */
+  selectSinglePoint(point: VolcanoPoint): void
+
+  /** Select points. Will deselect all first. Pass an empty array to deselect all. */
+  selectPoints(points: VolcanoPoint[], value?: boolean): void
+
+  /** Select points by gene name. Will deselect all first. Pass an empty array to deselect all. */
+  selectPointsByGeneName(genes: string[], value?: boolean): void
+
+  isPointLabelled(point: VolcanoPoint): boolean
+
+  /** Unlabel a single point. */
+  unlabelSinglePoint(point: VolcanoPoint): void
+
+  /** Label a single point. Will NOT unlabel all first. */
+  labelSinglePoint(point: VolcanoPoint): void
+
+  /** Label points. Will unlabel all first. Pass an empty array to unlabel all. */
+  labelPoints(points: VolcanoPoint[]): void
+
+  /** Label points by gene name. Will unlabel all first. Pass an empty array to unlabel all. */
+  labelPointsByGeneName(genes: string[], value?: boolean): void
 }
 
 export interface IVolcanoVisualization {
@@ -84,7 +118,7 @@ export interface IVolcanoVisualization {
   activeTabName: string;
   selectByStatsFormCollapsed: boolean;
 
-  selectionOfType$(type: VolcanoSelectionType): Observable<VolcanoSelection>
+  selectionOfType$(type: VolcanoSelectionType): Observable<IVolcanoSelection>
 
   /** Selected plot type to download (used for an ngModel) */
   downloadPlotType: "svg" | "png";

@@ -1,4 +1,5 @@
-import { VolcanoSelection, VolcanoSelectionType, VolcanoSelectionConfig } from "./volcano.component.types";
+import { VolcanoSelection } from "./VolcanoSelection";
+import { IVolcanoSelection, VolcanoSelectionType, VolcanoSelectionConfig } from "./volcano.component.types";
 const AbstractVolcanoSelectionConfig: VolcanoSelectionConfig = {
   opacity: 0.2,
   opacityHover: 0.5,
@@ -22,17 +23,12 @@ export const GOTermVolcanoSelectionConfig: VolcanoSelectionConfig = {
 }
 
 /** factory method to create an empty selection, populated with the correct config for its type */
-export function createEmptyVolcanoSelection(type: VolcanoSelectionType): VolcanoSelection {
+export function createEmptyVolcanoSelection(type: VolcanoSelectionType): IVolcanoSelection {
 
   const configs = {
     [VolcanoSelectionType.Standard]: StandardVolcanoSelectionConfig,
     [VolcanoSelectionType.GOTerm]: GOTermVolcanoSelectionConfig
   }
 
-  return {
-    type,
-    trigger: undefined,
-    points: [],
-    config: configs[type]
-  }
+  return new VolcanoSelection(type, undefined, [], configs[type])
 }

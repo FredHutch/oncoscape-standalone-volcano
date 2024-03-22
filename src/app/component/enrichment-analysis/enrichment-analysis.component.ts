@@ -15,7 +15,7 @@ import {
 } from "app/service/enrichment-analysis/enrichment-analysis.service.types";
 import * as d3 from "d3";
 import { Observable } from "rxjs";
-import { VolcanoSelection } from "../volcano/volcano.component.types";
+import { IVolcanoSelection } from "../volcano/volcano.component.types";
 
 type EnrichmentAnalysisVizOptions = {
   preprocessing: PreprocessingOptions;
@@ -87,7 +87,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   get genes(): string[] {
     return this._genes;
   }
-  @Input() selectionObservable: Observable<VolcanoSelection>;
+  @Input() selectionObservable: Observable<IVolcanoSelection>;
 
 
   // We have this active flag so we don't render hit the API endpoint when the viz is not open.
@@ -379,6 +379,11 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           .attr("fill", self.darkenColor(colorScale(d[options.plotting.colorBy])));
         self.showTooltip(event, options.plotting);
         self.ea.getGenesByGOTermId(d.termId).subscribe((genesInGOTerm) => {
+          // @ts-ignore
+          if (genesInGOTerm.inProgress) {
+            return
+          }
+          // @ts-ignore
           self.onGOTermHover.emit(genesInGOTerm)
         })
       })

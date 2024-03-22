@@ -12,7 +12,7 @@ import * as d3 from "d3";
 
 import { VolcanoGeneTableComponent } from "./volcano-gene-table/volcano-gene-table.component";
 import { MatTabChangeEvent } from "@angular/material";
-import { IVolcanoVisualization, VolcanoPoint, VolcanoTab, VolcanoSelection, VolcanoSelectionType, VolcanoSelectionTrigger } from "./volcano.component.types";
+import { IVolcanoVisualization, VolcanoPoint, VolcanoTab, IVolcanoSelection, VolcanoSelectionType, VolcanoSelectionTrigger } from "./volcano.component.types";
 import { VolcanoInteractivityMode } from "./volcano.component.types";
 import { SelectByStatsForm } from "./volcano.component.types";
 import { createEmptyVolcanoSelection } from "./volcanoSelectionTypesConfig";
@@ -120,7 +120,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
   set activeSelectionType(type: VolcanoSelectionType) {
     this._activeSelectionType = type;
     // relabel points, only with the ones that have visible labels for the new active selection
-    this.labelPoints(this.getActiveSelection().points.filter(p => p.visibleLabel))
+    this.labelPoints(this.getActiveSelection().labelledPoints)
   }
 
 
@@ -130,12 +130,12 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
   public isFullScreen = false;
   public activeTabName: string = "Table";
 
-  private selections$: BehaviorSubject<VolcanoSelection[]> = new BehaviorSubject([
+  private selections$: BehaviorSubject<IVolcanoSelection[]> = new BehaviorSubject([
     createEmptyVolcanoSelection(VolcanoSelectionType.Standard),
     createEmptyVolcanoSelection(VolcanoSelectionType.GOTerm)
   ]);
 
-  private selections: VolcanoSelection[] = [
+  private selections: IVolcanoSelection[] = [
     createEmptyVolcanoSelection(VolcanoSelectionType.Standard),
     createEmptyVolcanoSelection(VolcanoSelectionType.GOTerm)
   ]
@@ -197,7 +197,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
     console.log("Genes!", genesInGOTerm)
   }
 
-  selectionOfType$(type: string): Observable<VolcanoSelection> {
+  selectionOfType$(type: string): Observable<IVolcanoSelection> {
     return this.selections$.pipe(
       map(list => list.find(item => item.type === type)), // Get the object with the requested type
       filter(object => object !== undefined) // Filter out undefined objects (if no object with the requested type)
@@ -327,16 +327,16 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
       tooltip: false,
       fill: options.fill,
     });
-    this.getActiveSelection().points.push(...pointsToClick);
+    this.getActiveSelection().selectPoints(pointsToClick)
 
     if (options.label) {
-      this.labelPoints(this.getActiveSelection().points);
+      this.labelPoints(this.getActiveSelection().selectedPoints);
     }
   }
 
   clearSelection(type = this.activeSelectionType) {
     // clear out the selected cohort subsets
-    this.getActiveSelection().points.length = 0;
+    this.getActiveSelection().selectPoints([])
 
     // reset the points to unselected style
     d3.selectAll(".point")
@@ -386,56 +386,47 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
   labelPoints(points: VolcanoPoint[]) {
     // clear out any existing labels
     d3.selectAll(`.volcano-label`).remove();
-    this.getActiveSelection().points.forEach(p => {p.visibleLabel = false})
+
+    // update the label flag in the selection
+    this.getActiveSelection().labelPoints(points)
 
     points.forEach((point) => {
+      const x =
+        this.zoomXScale(point.x) +
+        VolcanoComponent.MARGIN.left +
+        VolcanoComponent.AXIS_LABEL_PADDING;
+      const y =
+        this.zoomYScale(point.y) +
+        VolcanoComponent.MARGIN.top +
+        VolcanoComponent.TITLE_PADDING;
 
-      // find the point in the list of ALL points
-      const point_ = this._points.find((p) => p.gene === point.gene);
+      // // add a rectangle behind the text
+      // d3.select(`#${this.svgId}`).append("rect")
+      //   .attr("class", "volcano-label")
+      //   .attr("x", x + VolcanoComponent.LABEL_OFFSET.x - 2)
+      //   .attr("y", y + VolcanoComponent.LABEL_OFFSET.y - 12)
+      //   .attr("width", 10)
+      //   .attr("height", 10)
+      //   .attr("fill", "white");
 
-      if (point_) {
+      this.plot
+        .append("text")
+        .attr("name", point.gene)
+        .attr("class", "volcano-label")
+        .attr("x", x + VolcanoComponent.LABEL_OFFSET.x)
+        .attr("y", y + VolcanoComponent.LABEL_OFFSET.y)
+        .attr("font-size", "10px")
+        .attr("font-weight", "bold")
+        .text(point.gene);
 
-        // mark the point label is visible for the active selection
-        this.getActiveSelection().points.find(p => p.gene === point_.gene).visibleLabel = true;
-
-        const x =
-          this.zoomXScale(point_.x) +
-          VolcanoComponent.MARGIN.left +
-          VolcanoComponent.AXIS_LABEL_PADDING;
-        const y =
-          this.zoomYScale(point_.y) +
-          VolcanoComponent.MARGIN.top +
-          VolcanoComponent.TITLE_PADDING;
-
-        // // add a rectangle behind the text
-        // d3.select(`#${this.svgId}`).append("rect")
-        //   .attr("class", "volcano-label")
-        //   .attr("x", x + VolcanoComponent.LABEL_OFFSET.x - 2)
-        //   .attr("y", y + VolcanoComponent.LABEL_OFFSET.y - 12)
-        //   .attr("width", 10)
-        //   .attr("height", 10)
-        //   .attr("fill", "white");
-
-        this.plot
-          .append("text")
-          .attr("name", point.gene)
-          .attr("class", "volcano-label")
-          .attr("x", x + VolcanoComponent.LABEL_OFFSET.x)
-          .attr("y", y + VolcanoComponent.LABEL_OFFSET.y)
-          .attr("font-size", "10px")
-          .attr("font-weight", "bold")
-          .text(point_.gene);
-
-        // draw a line from the center left of the text to the point
-        // d3.select(`#${this.svgId}`).append("line")
-        //   .attr("class", "volcano-label-line")
-        //   .attr("x1", x + VolcanoComponent.LABEL_OFFSET.x - 2)
-        //   .attr("y1", y + VolcanoComponent.LABEL_OFFSET.y - 2)
-        //   .attr("x2", x)
-        //   .attr("y2", y)
-        //   .attr("stroke", "black")
-        //   .attr("stroke-width", 1);
-      }
+      // draw a line from the center left of the text to the point
+      // d3.select(`#${this.svgId}`).append("line")
+      //   .attr("class", "volcano-label-line")
+      //   .attr("x1", x + VolcanoComponent.LABEL_OFFSET.x - 2)
+      //   .attr("y1", y + VolcanoComponent.LABEL_OFFSET.y - 2)
+      //   .attr("x2", x)
+      //   .attr("y2", y)
+      //   .attr("stroke", "black")
     });
   }
 
@@ -541,9 +532,10 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
       return;
     }
 
-    const activeSelectionConfig = this.getActiveSelection().config
+    const selection = this.getActiveSelection()
+    const selectionConfig = selection.config
 
-    if (activeSelectionConfig.disableMouseSelection) {
+    if (selectionConfig.disableMouseSelection) {
       return;
     }
 
@@ -609,13 +601,15 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
 
       const toClick: VolcanoPoint[] = [];
 
+
+
       const deselectPoint = (p: VolcanoPoint) => {
-        this.getActiveSelection().points.splice(this.getActiveSelection().points.indexOf(p), 1);
+        selection.deselectSinglePoint(p)
         toClick.push(p);
       };
 
       const selectPoint = (p: VolcanoPoint) => {
-        this.getActiveSelection().points.push(p);
+        selection.selectSinglePoint(p)
         toClick.push(p);
       };
 
@@ -623,7 +617,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
         const inRect =
           this.pointInRect(point, rectCoords) &&
           !d3.select(`circle[name=${point.gene}]`).classed("out-of-view");
-        const wasAlreadySelected = this.getActiveSelection().points.includes(point);
+        const wasAlreadySelected = selection.isPointSelected(point)
         const newToThisDrag = this.pointsNewToThisDrag.includes(point);
         const deletedThisDrag = this.pointsDeletedThisDrag.includes(point);
 
@@ -724,14 +718,14 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
     const shiftPressed = event.shiftKey || this.artificallyHoldingShift;
     const altKeyPressed = event.altKey;
 
-    const alreadySelected = this.getActiveSelection().points.includes(point);
-    const somethingIsSelected = this.getActiveSelection().points.length > 0;
+    const alreadySelected = this.getActiveSelection().isPointSelected(point)
+    const somethingIsSelected = this.getActiveSelection().selectedPoints.length > 0
     if (somethingIsSelected) {
       if (altKeyPressed) {
-        if (this.getActiveSelection().points.includes(point)) {
+        if (this.getActiveSelection().isPointSelected(point)) {
           // the point is already selected with alt pressed
           // Expected behavior is to remove this point from the selection
-          this.getActiveSelection().points.splice(this.getActiveSelection().points.indexOf(point), 1);
+          this.getActiveSelection().deselectSinglePoint(point)
           this.stylePointOnClick(event, point);
           this.onPointMouseOut(event, point);
           this.emitSelectionUpdate();
@@ -748,7 +742,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
         if (alreadySelected) {
           // the point is already selected with shift or alt pressed
           // Expected behavior is to remove this point from the selection
-          this.getActiveSelection().points.splice(this.getActiveSelection().points.indexOf(point), 1);
+          this.getActiveSelection().deselectSinglePoint(point)
           this.stylePointOnClick(event, point);
           this.onPointMouseOut(event, point);
           this.emitSelectionUpdate();
@@ -761,7 +755,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
           d3.selectAll(".volcano-tooltip").remove();
           this.activeGeneTooltips.length = 0;
 
-          this.getActiveSelection().points.push(point);
+          this.getActiveSelection().selectSinglePoint(point)
           this.stylePointOnClick(event, point);
           this.mostRecentSelectedPoint = point;
           this.emitSelectionUpdate();
@@ -773,7 +767,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
         this.clearSelection();
         // put this point back in focus
         this.stylePointOnClick(event, point, true);
-        this.getActiveSelection().points.push(point);
+        this.getActiveSelection().selectSinglePoint(point)
         this.mostRecentSelectedPoint = point;
 
         // because the order of operations for putting the point back in focus, we need to manually call drawTooltip
@@ -784,7 +778,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
     }
 
     this.mostRecentSelectedPoint = point;
-    this.getActiveSelection().points.push(point);
+    this.getActiveSelection().selectSinglePoint(point)
     this.stylePointOnClick(event, point);
     this.emitSelectionUpdate();
   }
@@ -793,7 +787,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
 
   // #region Helper functions
 
-  private getActiveSelection(): VolcanoSelection {
+  private getActiveSelection(): IVolcanoSelection {
     return this.selections.find(s => s.type === this.activeSelectionType)
   }
 
@@ -953,7 +947,8 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
         x: xValue,
         y: y[i],
         gene: genes[i],
-        visibleLabel: false
+        labelled: false,
+        selected: false
       };
     });
 
@@ -994,7 +989,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
         1
       );
 
-      if (this.getActiveSelection().points.includes(point)) {
+      if (this.getActiveSelection().isPointSelected(point)) {
         return;
       }
 
@@ -1027,13 +1022,13 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
 
     // sort each selection's points before emission
     this.selections.forEach(s => {
-      s.points = [...s.points].sort((a, b) => {
+      s.sortSelection((a, b) => {
         return Math.abs(b.x) - Math.abs(a.x);
-      });
+      })
     })
 
     // we don't want selections to hang around in the table when all points are deselected in the volcano plot
-    const standardSelectionPoints = this.selections.find(s => s.type === VolcanoSelectionType.Standard).points
+    const standardSelectionPoints = this.selections.find(s => s.type === VolcanoSelectionType.Standard).selectedPoints
     if (standardSelectionPoints.length === 0 && this.geneTable) {
       this.geneTable.selection.clear();
     }
@@ -1129,7 +1124,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
    */
   private pointInRect(
     point: VolcanoPoint,
-    rectPoints: Omit<VolcanoPoint, "gene" | "visibleLabel">[]
+    rectPoints: {x: number; y: number}[]
   ): boolean {
     const x = point.x;
     const y = point.y;
@@ -1541,7 +1536,7 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
 
       // make points visible again
       .attr("opacity", (d) =>
-        this.getActiveSelection().points.includes(d)
+        this.getActiveSelection().isPointSelected(d)
           ? activeSelectionConfig.opacitySelected
           : activeSelectionConfig.opacity
       )
@@ -1588,6 +1583,10 @@ export class VolcanoComponent implements AfterViewInit, OnInit, IVolcanoVisualiz
       this.genesToSelectByDefault
     );
     this._points = processedData;
+    this.selections.forEach(s => {
+      // clear selection points and add the new data in
+      s.resetData(this._points)
+    })
     // this.dataBoundingBox = {
     //   xMin: Number(Math.min(...this.points.map((p) => p.x)).toFixed(3)),
     //   xMax: Number(Math.max(...this.points.map((p) => p.x)).toFixed(3)),
