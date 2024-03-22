@@ -1,3 +1,4 @@
+import { EnrichmentAnalysisService } from "app/service/enrichment-analysis/enrichment-analysis.service";
 import { Observable } from "rxjs";
 
 export enum VolcanoSelectionType {
@@ -156,6 +157,9 @@ export interface IVolcanoVisualization {
    * @param type The selection type to clear. Defaults to `this.activeSelectionType` if not specified.
   */
   clearSelection(type?: VolcanoSelectionType): void;
+
+  /** Select genes by a GO Term. */
+  selectByGOTerm(GOTermId: string): ReturnType<EnrichmentAnalysisService["getGenesByGOTermId"]>
 
   /** Select genes by name, with an optional override for fill color (defaults to regulation color), and whether to show the label for the selected genes (defaults to false) */
   selectGenesByName(genes: string[], options?: { label ?: boolean; fill?: string}): void;

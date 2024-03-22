@@ -15,6 +15,11 @@ export type PANTHER_APIOptions = {
   snackbar: boolean;
 };
 
+export enum EA_API {
+  PANTHER = 'PANTHER',
+  GENE_ONTOLOGY = "geneOntology"
+}
+
 @Injectable({
   providedIn: "root",
 })
@@ -24,6 +29,12 @@ export class EnrichmentAnalysisService {
     // biological processes
     annotationDatasetId: "GO:0008150",
     snackbar: false
+  }
+
+  // keep track of if a request is being made for each api, for rate limiting
+  static apiAvailability = {
+    [EA_API.PANTHER]: true,
+    [EA_API.GENE_ONTOLOGY]: true
   }
 
   public availableAnnotationDatasets: PANTHERAnnotationDataset[];
@@ -36,17 +47,11 @@ export class EnrichmentAnalysisService {
     duration: 3000
   };
 
-  // keep track of if a request is being made for each api, for rate limiting
-  public static apiAvailability = {
-    PANTHER: true,
-    geneOntology: true
-  }
-
   /** @description Not enrichment analysis, but often used together with EA, so it is in this service. Get a list of genes in a GO Term */
-  getGenesByGOTermId(id: string): Observable<string[] | {inProgress: true}> {
+  getGenesByGOTermId(id: string): Observable<{inProgress: boolean, data: string[], cancelled: boolean}> {
 
-    if (!EnrichmentAnalysisService.apiAvailability.geneOntology) {
-      return of({inProgress: true})
+    if (!EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY]) {
+      return of({inProgress: true, data: [], cancelled: false})
     }
 
     const ENDPOINT = `https://api.geneontology.org/api/bioentity/function/${id}/genes`
@@ -61,21 +66,26 @@ export class EnrichmentAnalysisService {
     const full_url =
       ENDPOINT + '?' + new URLSearchParams(urlParams).toString();
 
-    EnrichmentAnalysisService.apiAvailability.geneOntology = false
+    EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] = false
     return this.http.get(full_url, {
       headers: {
         "accept": "application/json"
       }
-    }).pipe(map((res: any) => {
+    })
+    .pipe(map((res: any) => {
       const uniProt_provided_labels = res.associations
       .filter(a => a.provided_by.findIndex(p => p === "UniProt") !== -1)
       .map(a => a.subject.label)
 
       // enable future API calls to geneOntology
-      EnrichmentAnalysisService.apiAvailability.geneOntology = true;
+      EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] = true;
 
-      return Array.from<string>(new Set(uniProt_provided_labels))
-    })) as Observable<string[]>
+      return {
+        inProgress: false,
+        data: Array.from<string>(new Set(uniProt_provided_labels)),
+        cancelled: false
+      }
+    }))
 
   }
 
@@ -88,19 +98,19 @@ export class EnrichmentAnalysisService {
    * @param genes list of genes
    * @returns {Observable<PANTHER_Results>} the results
    */
-  runPANTHERAnalysis(genes: string[], options: PANTHER_APIOptions): Observable<PANTHER_Results | {inProgress: true}> {
+  runPANTHERAnalysis(genes: string[], options: PANTHER_APIOptions): Observable<{inProgress: boolean, data: PANTHER_Results, cancelled: boolean}> {
 
     // dont let multiple analyses run at the same time, over any instances
     // The PANTHER API documentation (https://pantherdb.org/services/details.jsp) says:
     //  "It is recommended that response from previous web service request is received before sending a new request.
     //  Failure to comply with this policy may result in the IP address being blocked from accessing PANTHER."
-    if (!EnrichmentAnalysisService.apiAvailability.PANTHER) {
-      return of({inProgress: true})
+    if (!EnrichmentAnalysisService.apiAvailability[EA_API.PANTHER]) {
+      return of({inProgress: true, data: undefined, cancelled: false})
     }
 
     // use this for testing
     // @ts-ignore
-    // return of(testData).pipe(startWith(testData))
+    return of(testData).pipe(startWith({inProgress: false, data: testData, cancelled: false}))
 
     const ENDPOINT =
       'https://pantherdb.org/services/oai/pantherdb/enrich/overrep';
@@ -135,19 +145,24 @@ export class EnrichmentAnalysisService {
     const full_url =
       ENDPOINT + '?' + new URLSearchParams(urlParams).toString();
 
-    EnrichmentAnalysisService.apiAvailability.PANTHER = false;
+    EnrichmentAnalysisService.apiAvailability[EA_API.PANTHER] = false;
     return this.http.post(full_url, {}).pipe(
       map((response: {
         results: PANTHER_Results
       }) => {
+
         if (options.snackbar) {
           this.snackbar.open('Enrichment Analysis complete.', 'Close', this.snackbarConfig);
         }
         console.log('Enrichment Analysis complete.')
-        EnrichmentAnalysisService.apiAvailability.PANTHER = true;
+        EnrichmentAnalysisService.apiAvailability[EA_API.PANTHER] = true;
 
         this.mostRecentResults = response.results;
-        return response.results;
+        return {
+          inProgress: false,
+          data: response.results,
+          cancelled: false
+        };
       })
     );
   }

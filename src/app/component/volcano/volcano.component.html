@@ -193,7 +193,8 @@
           <app-enrichment-analysis
           [id]="id"
           [selectionObservable]="selectionOfType$('Standard')"
-          (onGOTermHover)="handleEAGOTermHover($event)"
+          (onmouseover)="handleEAmouseover($event)"
+          (onmouseout)="handleEAmouseout()"
           [active]="activeTabName === 'Enrichment Analysis'"></app-enrichment-analysis>
         </mat-tab>
 

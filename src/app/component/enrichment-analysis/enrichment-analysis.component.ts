@@ -100,7 +100,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     }
   }
 
-  @Output() onGOTermHover: EventEmitter<string[]> = new EventEmitter();
+  @Output() onmouseover: EventEmitter<string> = new EventEmitter();
+  @Output() onmouseout: EventEmitter<void> = new EventEmitter();
+
 
   private data: PANTHER_Results;
   private plot:  d3.Selection<SVGGElement, unknown, HTMLElement, any>;
@@ -159,14 +161,17 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     this.removeSVG();
     this.ea.runPANTHERAnalysis(this._genes, this.options.api).subscribe((res) => {
 
-      // @ts-ignore
       if (res.inProgress) {
         return;
       }
 
+      if (res.cancelled) {
+        this.loading = false;
+        return
+      }
+
       this.loading = false;
-      // @ts-ignore
-      this.data = res;
+      this.data = res.data;
       this.render();
     });
   }
@@ -381,14 +386,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           .duration(200)
           .attr("fill", self.darkenColor(colorScale(d[options.plotting.colorBy])));
         self.showTooltip(event, options.plotting);
-        self.ea.getGenesByGOTermId(d.termId).subscribe((genesInGOTerm) => {
-          // @ts-ignore
-          if (genesInGOTerm.inProgress) {
-            return
-          }
-          // @ts-ignore
-          self.onGOTermHover.emit(genesInGOTerm)
-        })
+
+        self.onmouseover.emit(d.termId)
+
       })
       .on("mouseout", function (event, d) {
         d3.select(this)
@@ -396,6 +396,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           .duration(200)
           .attr("fill", colorScale(d[options.plotting.colorBy]));
         self.hideTooltip();
+        self.onmouseout.emit()
       });
 
     // Adding x-axis label
