@@ -1,4 +1,4 @@
-<div [id]="'enrichment-dot-plot-' + id">
+<div [id]="'enrichment-dot-plot-' + id" class="ea-container">
   <div *ngIf="genes.length > 0" id="enrichment-dot-plot-controls">
     <mat-expansion-panel
       [hideToggle]="false"
@@ -7,31 +7,100 @@
       (afterExpand)="render()"
     >
       <mat-expansion-panel-header>
-        <mat-panel-title style="text-transform: none">Controls</mat-panel-title>
+        <mat-panel-title style="text-transform: none">
+          Controls
+        </mat-panel-title>
         <mat-panel-description></mat-panel-description>
       </mat-expansion-panel-header>
 
-      <mat-form-field id="select-ann-dataset">
-        <mat-label>Annotation dataset</mat-label>
-        <mat-select [(ngModel)]="currentAnnDatasetId">
-          <mat-option
-            [value]="dataset.id"
-            [matTooltip]="dataset.description"
-            *ngFor="let dataset of ea.availableAnnotationDatasets"
-            >{{ dataset.label }}</mat-option
+      <div class="control-wrapper">
+        <mat-form-field id="select-color-by">
+          <mat-label>Color By</mat-label>
+          <mat-select
+            [value]="options.plotting.colorBy"
+            id="colorBy"
+            (selectionChange)="updatePlottingOption($event)"
           >
-        </mat-select>
-      </mat-form-field>
+            <mat-option
+              *ngFor="let option of colorByOptions"
+              [value]="option"
+              >{{ option }}</mat-option
+            >
+          </mat-select>
+        </mat-form-field>
 
-      <span *ngIf="loadingGenes">
-        <mat-spinner diameter="20" style="display: inline-block"></mat-spinner>
-        <p style="display: inline-block; margin-left: 10px">
-          Getting genes for GO Term
-        </p>
-      </span>
+        <mat-form-field id="select-size-by">
+          <mat-label>Scale By</mat-label>
+          <mat-select
+            [value]="options.plotting.sizeBy"
+            id="sizeBy"
+            (selectionChange)="updatePlottingOption($event)"
+          >
+            <mat-option *ngFor="let option of sizeByOptions" [value]="option">{{
+              option
+            }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field id="select-sort-by">
+          <mat-label>Sort By</mat-label>
+          <mat-select
+            [value]="options.plotting.sortBy"
+            id="sortBy"
+            (selectionChange)="updatePlottingOption($event)"
+          >
+            <mat-option *ngFor="let option of sortByOptions" [value]="option">{{
+              option
+            }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field id="select-x-axis">
+          <mat-label>X Axis</mat-label>
+          <mat-select
+            [value]="options.plotting.x"
+            id="x"
+            (selectionChange)="updatePlottingOption($event)"
+          >
+            <mat-option *ngFor="let option of xAxisOptions" [value]="option">{{
+              option
+            }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="control-wrapper">
+        <mat-form-field id="select-ann-dataset">
+          <mat-label>Annotation dataset</mat-label>
+          <mat-select [(ngModel)]="currentAnnDatasetId">
+            <mat-option
+              [value]="dataset.id"
+              [matTooltip]="dataset.description"
+              *ngFor="let dataset of ea.availableAnnotationDatasets"
+              >{{ dataset.label }}</mat-option
+            >
+          </mat-select>
+        </mat-form-field>
+
+        <div class="toggle-container">
+          <span class="toggle-label">Shorten GO Term labels</span>
+          <mat-slide-toggle
+            [(ngModel)]="useIdsForTermLabels"
+          ></mat-slide-toggle>
+        </div>
+      </div>
     </mat-expansion-panel>
   </div>
+  <div id="ea-svg-container">
+    <div id="loading-genes-container" *ngIf="loadingGenes">
+      <img src="assets/icons/spinner.gif" width="15px" height="15px" />
+      <p style="display: inline-block; margin-left: 10px; font-size: 10px">
+        Getting genes for GO Term
+      </p>
+    </div>
+  </div>
 </div>
+
 <div
   *ngIf="genes.length === 0"
   style="

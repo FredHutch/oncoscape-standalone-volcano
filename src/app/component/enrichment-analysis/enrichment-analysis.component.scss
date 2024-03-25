@@ -3,6 +3,10 @@
     display: block;
   }
 
+  #ea-svg-container {
+    position: relative;
+  }
+
   #no-genes-hint {
     color: lightslategray;
   }
@@ -17,10 +21,35 @@
     margin: 0 !important;
     padding: 5px !important;
   }
+
+  .toggle-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+  }
+
+  .toggle-label {
+    font-size: 9px;
+    color: grey;
+    margin-bottom: 5px; /* Adjust spacing as needed */
+  }
+
+  #loading-genes-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: white;
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+  }
+
+  .control-wrapper {
+    display: flex;
+    gap: 5px;
+  }
 }
 
 .ea-tooltip {
-  font-size: 10px !important
+  font-size: 10px !important;
 }
-
-

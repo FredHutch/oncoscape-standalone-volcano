@@ -19,6 +19,7 @@ import {
 import * as d3 from "d3";
 import { Observable } from "rxjs";
 import { IVolcanoSelection } from "../volcano/volcano.component.types";
+import { MatSelectChange } from "@angular/material";
 
 type EnrichmentAnalysisVizOptions = {
   preprocessing: PreprocessingOptions;
@@ -34,15 +35,39 @@ type PreprocessingOptions = {
 };
 
 type PlottingOptions = {
-  x: string;
-  y: string;
+  x: XAxisOptions;
   sortBy: string;
   sortDirection: "asc" | "desc";
-  colorBy: string;
-  sizeBy: string;
+  colorBy: ColorByOptions;
+  sizeBy: SizeByOptions;
   /** The number of top n terms to show */
   n: number;
+  useIdsForTermLabels?: boolean;
 };
+
+enum ColorByOptions {
+  FDR = "fdr",
+  // PValue = "pValue",
+  FoldEnrichment = "fold_enrichment",
+}
+
+enum SizeByOptions {
+  NumberInList = "number_in_list",
+  NumberInReference = "number_in_reference",
+}
+
+enum XAxisOptions {
+  GeneRatio = "geneRatio",
+  BgRatio = "bgRatio",
+  // PValue = "pValue",
+}
+
+enum SortByOptions {
+  GeneRatio = "geneRatio",
+  BgRatio = "bgRatio",
+  // PValue = "pValue",
+  FoldEnrichment = "fold_enrichment",
+}
 
 @Component({
   selector: "app-enrichment-analysis",
@@ -57,19 +82,19 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       includeUnmappedReferenceGenes: false,
     },
     plotting: {
-      x: "geneRatio",
-      y: "termLabel",
+      x: XAxisOptions.GeneRatio,
       sortBy: "geneRatio",
       sortDirection: "desc",
-      colorBy: "fdr",
-      sizeBy: "number_in_list",
+      colorBy: ColorByOptions.FDR,
+      sizeBy: SizeByOptions.NumberInList,
       n: 20,
+      useIdsForTermLabels: false,
     },
     api: EnrichmentAnalysisService.DEFAULT_PANTHER_APIOptions,
   };
 
   static MARGIN = { top: 20, right: 40, bottom: 60, left: 20 };
-  static LEGEND_WIDTH = 80;
+  static LEGEND_WIDTH = 200;
   static LEGEND_PADDING = 10;
 
   public loading = false;
@@ -77,6 +102,32 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   private options: EnrichmentAnalysisVizOptions =
     EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
+
+  public get useIdsForTermLabels(): boolean {
+    return this.options.plotting.useIdsForTermLabels;
+  }
+
+  public set useIdsForTermLabels(value: boolean) {
+    this.options.plotting.useIdsForTermLabels = value;
+    this.render();
+  }
+
+  get colorByOptions(): string[] {
+    // since we cant use Object.values
+    return Object.keys(ColorByOptions).map((key) => ColorByOptions[key]);
+  }
+
+  get sizeByOptions(): string[] {
+    return Object.keys(SizeByOptions).map((key) => SizeByOptions[key]);
+  }
+
+  get xAxisOptions(): string[] {
+    return Object.keys(XAxisOptions).map((key) => XAxisOptions[key]);
+  }
+
+  get sortByOptions(): string[] {
+    return Object.keys(SortByOptions).map((key) => SortByOptions[key]);
+  }
 
   get currentAnnDatasetId(): string {
     return this.options.api.annotationDatasetId;
@@ -168,11 +219,6 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           return;
         }
 
-        if (res.cancelled) {
-          this.loading = false;
-          return;
-        }
-
         if (res.data === undefined) {
           return;
         }
@@ -207,8 +253,13 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     this.runPANTHERAnalysis();
   }
 
+  public updatePlottingOption(event: MatSelectChange) {
+    const option = event.source.id;
+    this.options.plotting[option] = event.value;
+    this.render();
+  }
+
   async render(options: EnrichmentAnalysisVizOptions = this.options) {
-    console.log("render", this.data, this._active, this);
     if (this.data === undefined) return;
     if (!this._active) return;
 
@@ -252,7 +303,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     // Create the SVG container
     const svg = d3
-      .select(`#enrichment-dot-plot-${this.id}`)
+      .select(`#ea-svg-container`)
       .append("svg")
       .attr(
         "width",
@@ -301,7 +352,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     this.yScale = d3
       .scaleBand()
-      .domain(data.map((d) => d[options.plotting.y]))
+      .domain(data.map((d) => d.termId))
       .range([0, height])
       .padding(0.1);
 
@@ -313,14 +364,22 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     // Create x and y axes
 
-    const yAxis = d3.axisLeft(this.yScale);
+    const yAxis = d3.axisLeft(this.yScale).tickFormat((d, i) => {
+      return options.plotting.useIdsForTermLabels
+        ? data[i].termId
+        : data[i].termLabel;
+    });
 
     // trick to make sure that the potentially very long y axis ticks are always visible
     // https://stackoverflow.com/a/21604029
     var maxTermWidth = 0;
     this.plot
       .selectAll("text.foo")
-      .data(data.map((d) => d[options.plotting.y]))
+      .data(
+        data.map((d, i) =>
+          options.plotting.useIdsForTermLabels ? data[i].termId : d.termLabel
+        )
+      )
       .enter()
       .append("text")
       .text((d) => d)
@@ -335,7 +394,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     this.plot.attr(
       "transform",
       "translate(" +
-        Math.abs(maxTermWidth - EnrichmentAnalysisComponent.MARGIN.left) +
+        Math.abs(maxTermWidth) +
         "," +
         EnrichmentAnalysisComponent.MARGIN.top +
         ")"
@@ -344,9 +403,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     // update the range of the x axis
     this.xScale.range([
       0,
-      width +
-        EnrichmentAnalysisComponent.MARGIN.left -
-        Math.abs(maxTermWidth - EnrichmentAnalysisComponent.MARGIN.left),
+      width + EnrichmentAnalysisComponent.MARGIN.left - Math.abs(maxTermWidth),
     ]);
     const xAxis = d3.axisBottom(this.xScale);
 
@@ -376,10 +433,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .enter()
       .append("circle")
       .attr("cx", (d) => this.xScale(d[options.plotting.x]))
-      .attr(
-        "cy",
-        (d) => this.yScale(d[options.plotting.y]) + this.yScale.bandwidth() / 2
-      )
+      .attr("cy", (d) => this.yScale(d.termId) + this.yScale.bandwidth() / 2)
       .attr("r", (d) => sizeScale(d[options.plotting.sizeBy]))
       .attr("fill", (d) => colorScale(d[options.plotting.colorBy]));
 
@@ -442,7 +496,6 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .style("font-size", "12px").html(`
         <div><b>${d.termLabel}</b> (${d.termId})</div>
         <div>${options.x}: ${d[options.x]}</div>
-        <div>${options.y}: ${d[options.y]}</div>
         <div>${options.sizeBy}: ${d[options.sizeBy]}</div>
         <div>${options.colorBy}: ${d[options.colorBy]}</div>
       `);
@@ -501,8 +554,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     const domain = sizeScale.domain(); // raw data
     const range = sizeScale.range(); // [3,10]
 
-    // Define the color legend height and width
-    const SIZE_LEGEND_WIDTH = 35;
+    // Define the size legend height and width
     const CIRCLE_PADDING = 15;
     const TITLE_PADDING = 20;
 
@@ -517,10 +569,15 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     const g = legend
       .append("g")
-      .attr("transform", `translate(${SIZE_LEGEND_WIDTH}, ${heightOffset})`);
+      .attr(
+        "transform",
+        `translate(${
+          EnrichmentAnalysisComponent.LEGEND_WIDTH * 0.75
+        }, ${heightOffset})`
+      );
 
     g.append("text")
-      // .attr("text-anchor", "middle")
+      .attr("text-anchor", "middle")
       .text(options.plotting.sizeBy);
 
     g.selectAll("circle")
@@ -572,9 +629,19 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     // Create color legend axis
     const legendAxis = d3.axisRight(legendColorScale).ticks(5);
 
+    const g = legend
+      .append("g")
+      .attr(
+        "transform",
+        "translate(" +
+          EnrichmentAnalysisComponent.LEGEND_WIDTH * 0.75 +
+          "," +
+          0 +
+          ")"
+      );
+
     // Add color gradient to the legend
-    legend
-      .append("defs")
+    g.append("defs")
       .append("linearGradient")
       .attr("id", "colorLegendGradient")
       .attr("gradientUnits", "userSpaceOnUse")
@@ -595,43 +662,23 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
         )
       );
 
-    legend
-      .append("text")
-      .attr(
-        "transform",
-        "translate(" +
-          EnrichmentAnalysisComponent.LEGEND_WIDTH / 2 +
-          " ," +
-          0 +
-          ")"
-      )
-
+    g.append("text")
+      .attr("text-anchor", "middle")
       .text(options.plotting.colorBy);
 
     // Append the color legend rectangle
-    legend
-      .append("rect")
+    g.append("rect")
       .attr("width", COLOR_LEGEND_WIDTH)
       .attr("height", COLOR_LEGEND_HEIGHT)
       .attr(
         "transform",
-        "translate(" +
-          EnrichmentAnalysisComponent.LEGEND_WIDTH / 2 +
-          " ," +
-          10 +
-          ")"
+        "translate(" + -COLOR_LEGEND_WIDTH / 2 + " ," + 10 + ")"
       )
       .style("fill", "url(#colorLegendGradient)");
 
     // Append the color legend axis
-    legend
-      .append("g")
-      .attr(
-        "transform",
-        "translate(" +
-          (EnrichmentAnalysisComponent.LEGEND_WIDTH / 2 + COLOR_LEGEND_WIDTH) +
-          ", 10)"
-      )
+    g.append("g")
+      .attr("transform", "translate(" + COLOR_LEGEND_WIDTH / 2 + ", 10)")
       //@ts-ignore
       .call(legendAxis);
 
@@ -639,7 +686,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   private removeSVG() {
-    d3.select(`#enrichment-dot-plot-${this.id}`).selectAll("svg").remove();
+    d3.select(`#ea-svg-container`).selectAll("svg").remove();
   }
 
   private calculateAvailableHeight(): Promise<number> {
@@ -673,8 +720,6 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
             ) + prev
           );
         }, 0);
-
-        console.log(tabsHeight, idsHeight, classesHeight);
 
         const availableHeight = tabsHeight - idsHeight - classesHeight;
         resolve(availableHeight);

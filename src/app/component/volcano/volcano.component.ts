@@ -241,25 +241,51 @@ export class VolcanoComponent
         })
         .subscribe(
           (res) => {
-            console.log("sub getGenesByGOTermId", res);
             if (res.inProgress) {
               observer.next(res);
               return;
             }
 
-            console.log("Selecting genes by GO term:", GOTermId);
+            console.log("# genes in GO Term", res.data.length);
 
+            console.group("Selection sizes");
+            console.table(
+              this.selections.map((s) => {
+                return {
+                  type: s.type,
+                  selectedPoints: s.selectedPoints.length,
+                };
+              })
+            );
+            console.groupEnd();
+
+            console.log("Applying selection by GO Term");
+
+            // find the GO Term selection
             const goTermSelection = this.selections.find(
               (s) => s.type === VolcanoSelectionType.GOTerm
             );
-            goTermSelection.trigger =
-              VolcanoSelectionTrigger.EnrichmentAnalysisTab;
+
+            // select the points by gene name in the GO Term selection
             goTermSelection.selectPointsByGeneName(res.data);
+
+            // set the active selection type to GO Term
             this.activeSelectionType = VolcanoSelectionType.GOTerm;
 
+            console.group("Selection sizes");
+            console.table(
+              this.selections.map((s) => {
+                return {
+                  type: s.type,
+                  selectedPoints: s.selectedPoints.length,
+                };
+              })
+            );
+            console.groupEnd();
+
             this.cd.detectChanges();
-            observer.next(res); // Emit the GOTermSelection
-            observer.complete(); // Complete the Observable
+            observer.next(res);
+            observer.complete();
           },
           (error) => {
             observer.error(error); // Emit error if any
@@ -1690,7 +1716,7 @@ export class VolcanoComponent
     this._points = processedData;
     this.selections.forEach((s) => {
       // clear selection points and add the new data in
-      s.resetData([...this._points]);
+      s.resetData(this._points);
     });
     // this.dataBoundingBox = {
     //   xMin: Number(Math.min(...this.points.map((p) => p.x)).toFixed(3)),
