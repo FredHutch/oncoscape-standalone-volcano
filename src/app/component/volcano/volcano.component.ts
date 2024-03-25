@@ -7,11 +7,17 @@ import {
   OnInit,
   ViewChild,
 } from "@angular/core";
+import {
+  ComponentFactoryResolver,
+  Injector,
+  ApplicationRef,
+  Injectable,
+} from "@angular/core";
 // import { OncoData } from "app/oncoData";
 import * as d3 from "d3";
 
 import { VolcanoGeneTableComponent } from "./volcano-gene-table/volcano-gene-table.component";
-import { MatTabChangeEvent } from "@angular/material";
+import { MatSpinner, MatTabChangeEvent } from "@angular/material";
 import {
   IVolcanoVisualization,
   VolcanoPoint,
@@ -25,7 +31,11 @@ import { SelectByStatsForm } from "./volcano.component.types";
 import { createEmptyVolcanoSelection } from "./volcanoSelectionTypesConfig";
 import { BehaviorSubject, Observable, Subject } from "rxjs";
 import { filter, map } from "rxjs/operators";
-import { EA_API, EnrichmentAnalysisService } from "app/service/enrichment-analysis/enrichment-analysis.service";
+import {
+  EA_API,
+  EnrichmentAnalysisService,
+} from "app/service/enrichment-analysis/enrichment-analysis.service";
+import { EnrichmentAnalysisComponent } from "../enrichment-analysis/enrichment-analysis.component";
 
 @Component({
   selector: "app-visualization-volcano",
@@ -69,6 +79,9 @@ export class VolcanoComponent
 
   @ViewChild(VolcanoGeneTableComponent, { static: false })
   geneTable: VolcanoGeneTableComponent;
+
+  @ViewChild(EnrichmentAnalysisComponent, { static: false })
+  eaComponent: EnrichmentAnalysisComponent;
 
   get plotOnly(): boolean {
     return this._plotOnly;
@@ -214,24 +227,27 @@ export class VolcanoComponent
 
   // #region Public functions
 
-  selectByGOTerm(GOTermId: string): ReturnType<EnrichmentAnalysisService["getGenesByGOTermId"]> {
-
+  selectByGOTerm(
+    GOTermId: string
+  ): ReturnType<EnrichmentAnalysisService["getGenesByGOTermId"]> {
     // Wrap the asynchronous operation inside an Observable
     return new Observable((observer) => {
       this.ea.getGenesByGOTermId(GOTermId).subscribe(
         (res) => {
-          console.log("sub getGenesByGOTermId", res)
+          console.log("sub getGenesByGOTermId", res);
           if (res.inProgress) {
-            observer.next(res); // Complete the Observable if in progress
+            observer.next(res);
             return;
           }
           if (res.cancelled) {
-            observer.next(res)
+            observer.next(res);
             observer.complete();
+            this.eaComponent.loadingGenes = false;
+            this.cd.detectChanges();
             return;
           }
 
-          console.log('Selecting genes by GO term:', GOTermId)
+          console.log("Selecting genes by GO term:", GOTermId);
 
           const goTermSelection = this.selections.find(
             (s) => s.type === VolcanoSelectionType.GOTerm
@@ -240,6 +256,8 @@ export class VolcanoComponent
             VolcanoSelectionTrigger.EnrichmentAnalysisTab;
           goTermSelection.selectPointsByGeneName(res.data);
           this.activeSelectionType = VolcanoSelectionType.GOTerm;
+          this.eaComponent.loadingGenes = false;
+          this.cd.detectChanges();
 
           observer.next(res); // Emit the GOTermSelection
           observer.complete(); // Complete the Observable
@@ -255,7 +273,7 @@ export class VolcanoComponent
     this.selectByGOTerm(GOTermId).subscribe((res) => {
       if (res.inProgress) return;
 
-      const selection = this.getActiveSelection()
+      const selection = this.getActiveSelection();
       selection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisTab;
       console.log("handleEAmouseover", selection);
     });
@@ -276,7 +294,7 @@ export class VolcanoComponent
   selectionOfType$(type: string): Observable<IVolcanoSelection> {
     return this.selections$.pipe(
       map((list) => list.find((item) => item.type === type)), // Get the object with the requested type
-      filter((object) => object !== undefined) // Filter out undefined objects (if no object with the requested type)
+      filter((object) => object !== undefined) // Filter out undefined objects (if no object with the requested type)th
     );
   }
 
@@ -1840,6 +1858,9 @@ export class VolcanoComponent
 
   constructor(
     private cd: ChangeDetectorRef,
-    private ea: EnrichmentAnalysisService
+    private ea: EnrichmentAnalysisService,
+    private componentFactoryResolver: ComponentFactoryResolver,
+    private injector: Injector,
+    private appRef: ApplicationRef
   ) {}
 }

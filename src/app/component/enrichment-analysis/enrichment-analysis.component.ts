@@ -8,7 +8,10 @@ import {
   Output,
   EventEmitter,
 } from "@angular/core";
-import { EnrichmentAnalysisService, PANTHER_APIOptions } from "app/service/enrichment-analysis/enrichment-analysis.service";
+import {
+  EnrichmentAnalysisService,
+  PANTHER_APIOptions,
+} from "app/service/enrichment-analysis/enrichment-analysis.service";
 import {
   PANTHER_Results,
   PANTHER_ResultItem,
@@ -22,8 +25,6 @@ type EnrichmentAnalysisVizOptions = {
   plotting: PlottingOptions;
   api: PANTHER_APIOptions;
 };
-
-
 
 type PreprocessingOptions = {
   /** Whether to include unmapped reference genes in the bgRatio calculation */
@@ -64,7 +65,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       sizeBy: "number_in_list",
       n: 20,
     },
-    api: EnrichmentAnalysisService.DEFAULT_PANTHER_APIOptions
+    api: EnrichmentAnalysisService.DEFAULT_PANTHER_APIOptions,
   };
 
   static MARGIN = { top: 20, right: 40, bottom: 60, left: 20 };
@@ -72,13 +73,16 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   static LEGEND_PADDING = 10;
 
   public loading = false;
+  public loadingGenes = false;
 
-  private options: EnrichmentAnalysisVizOptions = EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
+  private options: EnrichmentAnalysisVizOptions =
+    EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
 
-
-  get currentAnnDatasetId(): string {return this.options.api.annotationDatasetId}
+  get currentAnnDatasetId(): string {
+    return this.options.api.annotationDatasetId;
+  }
   set currentAnnDatasetId(id: string) {
-    this.setAnnotationDataset(id)
+    this.setAnnotationDataset(id);
   }
 
   @Input() id: string;
@@ -89,23 +93,21 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
   @Input() selectionObservable: Observable<IVolcanoSelection>;
 
-
   // We have this active flag so we don't render hit the API endpoint when the viz is not open.
   private _active: boolean = false;
   @Input() set active(value: boolean) {
     this._active = value;
     if (this._active && this._genes.length > 0) {
-      console.log(`Running EA with ${this._genes.length} genes`)
-      this.runPANTHERAnalysis()
+      console.log(`Running EA with ${this._genes.length} genes`);
+      this.runPANTHERAnalysis();
     }
   }
 
   @Output() onmouseover: EventEmitter<string> = new EventEmitter();
   @Output() onmouseout: EventEmitter<void> = new EventEmitter();
 
-
   private data: PANTHER_Results;
-  private plot:  d3.Selection<SVGGElement, unknown, HTMLElement, any>;
+  private plot: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
 
   private xScale: d3.ScaleLinear<any, any>;
   private yScale: d3.ScaleBand<string>;
@@ -159,21 +161,26 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   private runPANTHERAnalysis() {
     this.loading = true;
     this.removeSVG();
-    this.ea.runPANTHERAnalysis(this._genes, this.options.api).subscribe((res) => {
+    this.ea
+      .runPANTHERAnalysis(this._genes, this.options.api)
+      .subscribe((res) => {
+        if (res.inProgress) {
+          return;
+        }
 
-      if (res.inProgress) {
-        return;
-      }
+        if (res.cancelled) {
+          this.loading = false;
+          return;
+        }
 
-      if (res.cancelled) {
+        if (res.data === undefined) {
+          return;
+        }
+
         this.loading = false;
-        return
-      }
-
-      this.loading = false;
-      this.data = res.data;
-      this.render();
-    });
+        this.data = res.data;
+        this.render();
+      });
   }
 
   /**
@@ -181,9 +188,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
    * @param datasetId ID of the annotation dataset to use (GO:xxxxxxx)
    */
   public setAnnotationDataset(datasetId: string) {
-
     if (this.ea.availableAnnotationDatasets === undefined) {
-      return
+      return;
     }
 
     const index = this.ea.availableAnnotationDatasets.findIndex(
@@ -196,17 +202,15 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     }
     this.options.api.annotationDatasetId = datasetId;
 
-    if (!this._active) return
+    if (!this._active) return;
 
-    this.runPANTHERAnalysis()
+    this.runPANTHERAnalysis();
   }
 
-  render(
-    options: EnrichmentAnalysisVizOptions = this.options
-  ) {
-
-    if (this.data === undefined) return
-    if (!this._active) return
+  async render(options: EnrichmentAnalysisVizOptions = this.options) {
+    console.log("render", this.data, this._active, this);
+    if (this.data === undefined) return;
+    if (!this._active) return;
 
     console.log("Rendering Enrichment analysis dotplot with options:", options);
     const availableWidth = Number(
@@ -214,7 +218,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
         .getComputedStyle(document.getElementById("side-bar-tabs"))
         .width.replace("px", "")
     );
-    const availableHeight = this.calculateAvailableHeight();
+    const availableHeight = await this.calculateAvailableHeight();
 
     // Set up the SVG container dimensions
 
@@ -242,7 +246,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       })
       .slice(0, options.plotting.n);
 
-    console.log("preprocessed EA data", data)
+    console.log("preprocessed EA data", data);
 
     this.removeSVG();
 
@@ -363,7 +367,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .domain(d3.extent(data.map((d) => d[options.plotting.sizeBy])))
       .range([3, 10]);
 
-    const self = this
+    const self = this;
 
     //@ts-ignore
     this.circles = this.plot
@@ -384,11 +388,14 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
         d3.select(this)
           .transition()
           .duration(200)
-          .attr("fill", self.darkenColor(colorScale(d[options.plotting.colorBy])));
+          .attr(
+            "fill",
+            self.darkenColor(colorScale(d[options.plotting.colorBy]))
+          );
         self.showTooltip(event, options.plotting);
 
-        self.onmouseover.emit(d.termId)
-
+        self.loadingGenes = true;
+        self.onmouseover.emit(d.termId);
       })
       .on("mouseout", function (event, d) {
         d3.select(this)
@@ -396,7 +403,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           .duration(200)
           .attr("fill", colorScale(d[options.plotting.colorBy]));
         self.hideTooltip();
-        self.onmouseout.emit()
+        self.onmouseout.emit();
       });
 
     // Adding x-axis label
@@ -418,9 +425,12 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   private showTooltip(event: any, options: PlottingOptions) {
-    const d: ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>[number] = event.srcElement.__data__;
+    const d: ReturnType<
+      typeof EnrichmentAnalysisComponent.preprocessData
+    >[number] = event.srcElement.__data__;
 
-    d3.select(`body`)
+    d3
+      .select(`body`)
       .append("div")
       .attr("class", "ea-tooltip xtooltiptext")
       .attr("name", d.termId)
@@ -429,8 +439,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .style("z-index", "1000")
       .style("left", event.pageX + 15 + "px")
       .style("top", event.pageY - 20 + "px")
-      .style("font-size", "12px")
-      .html(`
+      .style("font-size", "12px").html(`
         <div><b>${d.termLabel}</b> (${d.termId})</div>
         <div>${options.x}: ${d[options.x]}</div>
         <div>${options.y}: ${d[options.y]}</div>
@@ -465,11 +474,21 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     colorScale: d3.ScaleSequential<string, never>,
     sizeScale: d3.ScaleLinear<number, number, never>
   ) {
+    const PADDING_BETWEEN_LEGEND_ITEMS = 35;
 
-    const PADDING_BETWEEN_LEGEND_ITEMS = 35
-
-    const colorLegendHeight = this.drawColorLegend(legend, data, options, colorScale);
-    this.drawSizeLegend(legend, data, options, sizeScale, colorLegendHeight + PADDING_BETWEEN_LEGEND_ITEMS)
+    const colorLegendHeight = this.drawColorLegend(
+      legend,
+      data,
+      options,
+      colorScale
+    );
+    this.drawSizeLegend(
+      legend,
+      data,
+      options,
+      sizeScale,
+      colorLegendHeight + PADDING_BETWEEN_LEGEND_ITEMS
+    );
   }
 
   private drawSizeLegend(
@@ -479,8 +498,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     sizeScale: d3.ScaleLinear<number, number, never>,
     heightOffset: number
   ) {
-    const domain = sizeScale.domain() // raw data
-    const range = sizeScale.range() // [3,10]
+    const domain = sizeScale.domain(); // raw data
+    const range = sizeScale.range(); // [3,10]
 
     // Define the color legend height and width
     const SIZE_LEGEND_WIDTH = 35;
@@ -488,41 +507,43 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     const TITLE_PADDING = 20;
 
     const legendSizeValues = [
-      {domain:  domain[0], range: sizeScale(domain[0])},
-      {domain: Math.floor((domain[0] + domain[1]) / 2), range: sizeScale((domain[0] + domain[1]) / 2)},
-      {domain: domain[1], range: sizeScale(domain[1])}
-      ]
+      { domain: domain[0], range: sizeScale(domain[0]) },
+      {
+        domain: Math.floor((domain[0] + domain[1]) / 2),
+        range: sizeScale((domain[0] + domain[1]) / 2),
+      },
+      { domain: domain[1], range: sizeScale(domain[1]) },
+    ];
 
-    const g =  legend.append("g").attr("transform", `translate(${SIZE_LEGEND_WIDTH}, ${heightOffset})`)
+    const g = legend
+      .append("g")
+      .attr("transform", `translate(${SIZE_LEGEND_WIDTH}, ${heightOffset})`);
 
     g.append("text")
-    // .attr("text-anchor", "middle")
-    .text(options.plotting.sizeBy)
+      // .attr("text-anchor", "middle")
+      .text(options.plotting.sizeBy);
 
-    g
-    .selectAll("circle")
-    .data(legendSizeValues)
-    .enter()
-    .append("circle")
-    .attr("fill", "black")
-    .attr("cy", (d, i) => ((range[1] + CIRCLE_PADDING) * i) + TITLE_PADDING)
-    .attr("r", d => d.range)
+    g.selectAll("circle")
+      .data(legendSizeValues)
+      .enter()
+      .append("circle")
+      .attr("fill", "black")
+      .attr("cy", (d, i) => (range[1] + CIRCLE_PADDING) * i + TITLE_PADDING)
+      .attr("r", (d) => d.range);
 
-    g
-    .selectAll(".sizeby-legend-text")
-    .data(legendSizeValues)
-    .enter()
-    .append("text")
-    .attr("fill", "black")
-    .attr("x", range[1] + CIRCLE_PADDING)
-    .attr("y", (d, i) => {
-      return ((range[1] + CIRCLE_PADDING) * i) + TITLE_PADDING
-    })
-    .attr("alignment-baseline", "middle")
-    .text(d => {
-      return d.domain
-    })
-
+    g.selectAll(".sizeby-legend-text")
+      .data(legendSizeValues)
+      .enter()
+      .append("text")
+      .attr("fill", "black")
+      .attr("x", range[1] + CIRCLE_PADDING)
+      .attr("y", (d, i) => {
+        return (range[1] + CIRCLE_PADDING) * i + TITLE_PADDING;
+      })
+      .attr("alignment-baseline", "middle")
+      .text((d) => {
+        return d.domain;
+      });
   }
 
   private drawColorLegend(
@@ -621,48 +642,57 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     d3.select(`#enrichment-dot-plot-${this.id}`).selectAll("svg").remove();
   }
 
-  private calculateAvailableHeight(): number {
-    const idsToSubstract: string[] = ["enrichment-dot-plot-controls"];
-    const classesToSubtract: string[] = ["mat-tab-labels"];
-    return (
-      Number(
+  private calculateAvailableHeight(): Promise<number> {
+    return new Promise((resolve, reject) => {
+      // wait until all id elements are rendered
+
+      const idsToSubstract: string[] = ["enrichment-dot-plot-controls"];
+      const classesToSubtract: string[] = ["mat-tab-labels"];
+
+      const tabsHeight = Number(
         window
           .getComputedStyle(document.getElementById("side-bar-tabs"))
           .height.replace("px", "")
-      ) -
-      idsToSubstract.reduce((prev, curr) => {
-        const temp = document.getElementById(curr);
-        return temp
-          ? Number(window.getComputedStyle(temp).height.replace("px", "")) +
-              prev
-          : 0 + prev;
-      }, 0) -
-      classesToSubtract.reduce((prev, curr) => {
-        return (
-          Number(
-            window
-              .getComputedStyle(document.getElementsByClassName(curr)[0])
-              .height.replace("px", "")
-          ) + prev
-        );
-      }, 0)
-    );
+      );
+
+      setTimeout(() => {
+        const idsHeight = idsToSubstract.reduce((prev, curr) => {
+          const temp = document.getElementById(curr);
+          return temp
+            ? Number(window.getComputedStyle(temp).height.replace("px", "")) +
+                prev
+            : 0 + prev;
+        }, 0);
+
+        const classesHeight = classesToSubtract.reduce((prev, curr) => {
+          return (
+            Number(
+              window
+                .getComputedStyle(document.getElementsByClassName(curr)[0])
+                .height.replace("px", "")
+            ) + prev
+          );
+        }, 0);
+
+        console.log(tabsHeight, idsHeight, classesHeight);
+
+        const availableHeight = tabsHeight - idsHeight - classesHeight;
+        resolve(availableHeight);
+      }, 100); // Adjust the timeout value as needed
+    });
   }
 
   ngAfterViewInit(): void {
-    this.ea.getAvailableAnnotationDatasets().subscribe(datasets => {
-      this.ea.availableAnnotationDatasets = datasets
-      this.setAnnotationDataset(this.options.api.annotationDatasetId)
-    })
+    this.ea.getAvailableAnnotationDatasets().subscribe((datasets) => {
+      this.ea.availableAnnotationDatasets = datasets;
+      this.setAnnotationDataset(this.options.api.annotationDatasetId);
+    });
 
     window.addEventListener("resize", this.render.bind(this));
-  }
 
-  ngOnInit(): void {
-
-    this.selectionObservable.subscribe(selection => {
-      console.log("new selection for ea:", selection, "active=", this._active)
-      this._genes = selection.selectedPoints.map(p => p.gene)
+    this.selectionObservable.subscribe((selection) => {
+      console.log("new selection for ea:", selection, "active=", this._active);
+      this._genes = selection.selectedPoints.map((p) => p.gene);
       if (this._genes === undefined || this._genes.length === 0) {
         this.removeSVG();
         this.loading = false;
@@ -673,13 +703,12 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       if (!this._active) {
         return;
       }
-      this.runPANTHERAnalysis()
-    })
 
+      this.runPANTHERAnalysis();
+    });
   }
 
-  constructor(
-    public ea: EnrichmentAnalysisService,
-    private http: HttpClient
-  ) {}
+  ngOnInit(): void {}
+
+  constructor(public ea: EnrichmentAnalysisService, private http: HttpClient) {}
 }
