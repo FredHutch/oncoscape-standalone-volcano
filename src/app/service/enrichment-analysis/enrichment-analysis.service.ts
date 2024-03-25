@@ -65,7 +65,7 @@ export class EnrichmentAnalysisService {
       taxon: `NCBITaxon:${NCBI_TAXONS.HUMAN}`,
       relationship_type: "involved_in",
       start: "0",
-      rows: "20000",
+      rows: "1000",
     };
 
     const full_url = ENDPOINT + "?" + new URLSearchParams(urlParams).toString();

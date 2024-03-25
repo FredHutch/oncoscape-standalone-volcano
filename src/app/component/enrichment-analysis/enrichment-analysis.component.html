@@ -82,6 +82,18 @@
           </mat-select>
         </mat-form-field>
 
+        <mat-form-field id="n-input" style="width: 75px">
+          <mat-label># GO Terms</mat-label>
+          <input
+            matInput
+            type="number"
+            [(ngModel)]="options.plotting.n"
+            (change)="render()"
+            [min]="5"
+            [max]="50"
+          />
+        </mat-form-field>
+
         <div class="toggle-container">
           <span class="toggle-label">Shorten GO Term labels</span>
           <mat-slide-toggle
@@ -95,7 +107,7 @@
     <div id="loading-genes-container" *ngIf="loadingGenes">
       <img src="assets/icons/spinner.gif" width="15px" height="15px" />
       <p style="display: inline-block; margin-left: 10px; font-size: 10px">
-        Getting genes for GO Term
+        Getting genes for GO Term (keep your mouse on the selected point)
       </p>
     </div>
   </div>
