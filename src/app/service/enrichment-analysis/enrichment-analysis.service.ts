@@ -1,10 +1,13 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable, OnInit } from "@angular/core";
 import { MatSnackBar, MatSnackBarConfig } from "@angular/material";
-import { PANTHERAnnotationDataset, PANTHER_Results } from "./enrichment-analysis.service.types";
-import { Observable, of } from "rxjs";
-import { first, map, startWith } from "rxjs/operators";
-import testData from "assets/data/PANTHERenrichmentAnalysisResults.json"
+import {
+  PANTHERAnnotationDataset,
+  PANTHER_Results,
+} from "./enrichment-analysis.service.types";
+import { Observable, Subject, of } from "rxjs";
+import { finalize, first, map, startWith, takeUntil } from "rxjs/operators";
+import testData from "assets/data/PANTHERenrichmentAnalysisResults.json";
 
 enum NCBI_TAXONS {
   HUMAN = 9606,
@@ -16,26 +19,25 @@ export type PANTHER_APIOptions = {
 };
 
 export enum EA_API {
-  PANTHER = 'PANTHER',
-  GENE_ONTOLOGY = "geneOntology"
+  PANTHER = "PANTHER",
+  GENE_ONTOLOGY = "geneOntology",
 }
 
 @Injectable({
   providedIn: "root",
 })
 export class EnrichmentAnalysisService {
-
   static DEFAULT_PANTHER_APIOptions: PANTHER_APIOptions = {
     // biological processes
     annotationDatasetId: "GO:0008150",
-    snackbar: false
-  }
+    snackbar: false,
+  };
 
   // keep track of if a request is being made for each api, for rate limiting
   static apiAvailability = {
     [EA_API.PANTHER]: true,
-    [EA_API.GENE_ONTOLOGY]: true
-  }
+    [EA_API.GENE_ONTOLOGY]: true,
+  };
 
   public availableAnnotationDatasets: PANTHERAnnotationDataset[];
 
@@ -44,49 +46,63 @@ export class EnrichmentAnalysisService {
   private snackbarConfig: MatSnackBarConfig<any> = {
     horizontalPosition: "right",
     verticalPosition: "top",
-    duration: 3000
+    duration: 3000,
   };
 
   /** @description Not enrichment analysis, but often used together with EA, so it is in this service. Get a list of genes in a GO Term */
-  getGenesByGOTermId(id: string): Observable<{inProgress: boolean, data: string[], cancelled: boolean}> {
-
+  getGenesByGOTermId(
+    id: string,
+    cancel: Subject<void> = new Subject<void>(),
+    onCanceled: () => void = () => {}
+  ): Observable<{ inProgress: boolean; data: string[] }> {
     if (!EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY]) {
-      return of({inProgress: true, data: [], cancelled: false})
+      return of({ inProgress: true, data: [], cancelled: false });
     }
 
-    const ENDPOINT = `https://api.geneontology.org/api/bioentity/function/${id}/genes`
+    const ENDPOINT = `https://api.geneontology.org/api/bioentity/function/${id}/genes`;
 
     const urlParams = {
       taxon: `NCBITaxon:${NCBI_TAXONS.HUMAN}`,
       relationship_type: "involved_in",
       start: "0",
-      rows: "20000"
+      rows: "20000",
     };
 
-    const full_url =
-      ENDPOINT + '?' + new URLSearchParams(urlParams).toString();
+    const full_url = ENDPOINT + "?" + new URLSearchParams(urlParams).toString();
 
-    EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] = false
-    return this.http.get(full_url, {
-      headers: {
-        "accept": "application/json"
-      }
-    })
-    .pipe(map((res: any) => {
-      const uniProt_provided_labels = res.associations
-      .filter(a => a.provided_by.findIndex(p => p === "UniProt") !== -1)
-      .map(a => a.subject.label)
+    EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] = false;
+    return this.http
+      .get(full_url, {
+        headers: {
+          accept: "application/json",
+        },
+      })
+      .pipe(
+        takeUntil(cancel),
+        finalize(() => {
+          EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] =
+            true;
+          onCanceled();
+        })
+      )
+      .pipe(
+        map((res: any) => {
+          const uniProt_provided_labels = res.associations
+            .filter(
+              (a) => a.provided_by.findIndex((p) => p === "UniProt") !== -1
+            )
+            .map((a) => a.subject.label);
 
-      // enable future API calls to geneOntology
-      EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] = true;
+          // enable future API calls to geneOntology
+          EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] =
+            true;
 
-      return {
-        inProgress: false,
-        data: Array.from<string>(new Set(uniProt_provided_labels)),
-        cancelled: false
-      }
-    }))
-
+          return {
+            inProgress: false,
+            data: Array.from<string>(new Set(uniProt_provided_labels)),
+          };
+        })
+      );
   }
 
   getPANTHERResults(): PANTHER_Results {
@@ -98,22 +114,27 @@ export class EnrichmentAnalysisService {
    * @param genes list of genes
    * @returns {Observable<PANTHER_Results>} the results
    */
-  runPANTHERAnalysis(genes: string[], options: PANTHER_APIOptions): Observable<{inProgress: boolean, data: PANTHER_Results, cancelled: boolean}> {
-
+  runPANTHERAnalysis(
+    genes: string[],
+    options: PANTHER_APIOptions
+  ): Observable<{
+    inProgress: boolean;
+    data: PANTHER_Results;
+  }> {
     // dont let multiple analyses run at the same time, over any instances
     // The PANTHER API documentation (https://pantherdb.org/services/details.jsp) says:
     //  "It is recommended that response from previous web service request is received before sending a new request.
     //  Failure to comply with this policy may result in the IP address being blocked from accessing PANTHER."
     if (!EnrichmentAnalysisService.apiAvailability[EA_API.PANTHER]) {
-      return of({inProgress: true, data: undefined, cancelled: false})
+      return of({ inProgress: true, data: undefined });
     }
 
     // use this for testing
     // @ts-ignore
-    return of(testData).pipe(startWith({inProgress: false, data: testData, cancelled: false}))
+    return of(testData).pipe(startWith({ inProgress: false, data: testData }));
 
     const ENDPOINT =
-      'https://pantherdb.org/services/oai/pantherdb/enrich/overrep';
+      "https://pantherdb.org/services/oai/pantherdb/enrich/overrep";
     const MAX_NUM_GENES = 5000;
 
     const input_size = genes.length;
@@ -125,43 +146,38 @@ export class EnrichmentAnalysisService {
     if (genes.length !== input_size) {
       msg += ` (sampled from ${input_size} genes)`;
       if (options.snackbar) {
-        this.snackbar.open(
-          msg,
-          'Close',
-          {
-            ...this.snackbarConfig,
-            duration: 10000,
-          }
-        );
+        this.snackbar.open(msg, "Close", {
+          ...this.snackbarConfig,
+          duration: 10000,
+        });
       }
     }
 
     const urlParams = {
-      geneInputList: genes.join(','),
+      geneInputList: genes.join(","),
       organism: NCBI_TAXONS.HUMAN.toString(),
       annotDataSet: options.annotationDatasetId,
     };
 
-    const full_url =
-      ENDPOINT + '?' + new URLSearchParams(urlParams).toString();
+    const full_url = ENDPOINT + "?" + new URLSearchParams(urlParams).toString();
 
     EnrichmentAnalysisService.apiAvailability[EA_API.PANTHER] = false;
     return this.http.post(full_url, {}).pipe(
-      map((response: {
-        results: PANTHER_Results
-      }) => {
-
+      map((response: { results: PANTHER_Results }) => {
         if (options.snackbar) {
-          this.snackbar.open('Enrichment Analysis complete.', 'Close', this.snackbarConfig);
+          this.snackbar.open(
+            "Enrichment Analysis complete.",
+            "Close",
+            this.snackbarConfig
+          );
         }
-        console.log('Enrichment Analysis complete.')
+        console.log("Enrichment Analysis complete.");
         EnrichmentAnalysisService.apiAvailability[EA_API.PANTHER] = true;
 
         this.mostRecentResults = response.results;
         return {
           inProgress: false,
           data: response.results,
-          cancelled: false
         };
       })
     );
@@ -196,6 +212,5 @@ export class EnrichmentAnalysisService {
       );
   }
 
-  constructor(private http: HttpClient, private snackbar: MatSnackBar) {
-  }
+  constructor(private http: HttpClient, private snackbar: MatSnackBar) {}
 }

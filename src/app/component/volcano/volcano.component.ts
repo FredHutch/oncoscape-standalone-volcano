@@ -30,7 +30,7 @@ import { VolcanoInteractivityMode } from "./volcano.component.types";
 import { SelectByStatsForm } from "./volcano.component.types";
 import { createEmptyVolcanoSelection } from "./volcanoSelectionTypesConfig";
 import { BehaviorSubject, Observable, Subject } from "rxjs";
-import { filter, map } from "rxjs/operators";
+import { filter, map, takeUntil } from "rxjs/operators";
 import {
   EA_API,
   EnrichmentAnalysisService,
@@ -225,6 +225,8 @@ export class VolcanoComponent
   private domain: { x: [number, number]; y: [number, number] };
   private hovered: VolcanoPoint;
 
+  private cancelSelectByGOTerm$: Subject<void> = new Subject();
+
   // #region Public functions
 
   selectByGOTerm(
@@ -232,46 +234,44 @@ export class VolcanoComponent
   ): ReturnType<EnrichmentAnalysisService["getGenesByGOTermId"]> {
     // Wrap the asynchronous operation inside an Observable
     return new Observable((observer) => {
-      this.ea.getGenesByGOTermId(GOTermId).subscribe(
-        (res) => {
-          console.log("sub getGenesByGOTermId", res);
-          if (res.inProgress) {
-            observer.next(res);
-            return;
-          }
-          if (res.cancelled) {
-            observer.next(res);
-            observer.complete();
-            this.eaComponent.loadingGenes = false;
+      const self = this;
+      this.ea
+        .getGenesByGOTermId(GOTermId, this.cancelSelectByGOTerm$, () => {
+          self.eaComponent.loadingGenes = false;
+        })
+        .subscribe(
+          (res) => {
+            console.log("sub getGenesByGOTermId", res);
+            if (res.inProgress) {
+              observer.next(res);
+              return;
+            }
+
+            console.log("Selecting genes by GO term:", GOTermId);
+
+            const goTermSelection = this.selections.find(
+              (s) => s.type === VolcanoSelectionType.GOTerm
+            );
+            goTermSelection.trigger =
+              VolcanoSelectionTrigger.EnrichmentAnalysisTab;
+            goTermSelection.selectPointsByGeneName(res.data);
+            this.activeSelectionType = VolcanoSelectionType.GOTerm;
+
             this.cd.detectChanges();
-            return;
+            observer.next(res); // Emit the GOTermSelection
+            observer.complete(); // Complete the Observable
+          },
+          (error) => {
+            observer.error(error); // Emit error if any
           }
-
-          console.log("Selecting genes by GO term:", GOTermId);
-
-          const goTermSelection = this.selections.find(
-            (s) => s.type === VolcanoSelectionType.GOTerm
-          );
-          goTermSelection.trigger =
-            VolcanoSelectionTrigger.EnrichmentAnalysisTab;
-          goTermSelection.selectPointsByGeneName(res.data);
-          this.activeSelectionType = VolcanoSelectionType.GOTerm;
-          this.eaComponent.loadingGenes = false;
-          this.cd.detectChanges();
-
-          observer.next(res); // Emit the GOTermSelection
-          observer.complete(); // Complete the Observable
-        },
-        (error) => {
-          observer.error(error); // Emit error if any
-        }
-      );
+        );
     });
   }
 
   handleEAmouseover(GOTermId: string) {
     this.selectByGOTerm(GOTermId).subscribe((res) => {
       if (res.inProgress) return;
+      this.eaComponent.loadingGenes = false;
 
       const selection = this.getActiveSelection();
       selection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisTab;
@@ -280,6 +280,8 @@ export class VolcanoComponent
   }
 
   handleEAmouseout(): void {
+    this.cancelSelectByGOTerm$.next();
+    this.eaComponent.loadingGenes = false;
     // mark the API call as cancelled when we leave an EA point so the volcano plot doesn't update later
     this.exitGOTermSelection();
     const selection = this.getActiveSelection();
