@@ -1,3 +1,4 @@
+import { EnrichrBackgroundType, EnrichrGSEAResults, EnrichrPathwaysBackground } from './../../service/enrichment-analysis/enrichment-analysis.service.types';
 import { HttpClient } from "@angular/common/http";
 import {
   ChangeDetectionStrategy,
@@ -10,12 +11,7 @@ import {
 } from "@angular/core";
 import {
   EnrichmentAnalysisService,
-  PANTHER_APIOptions,
 } from "app/service/enrichment-analysis/enrichment-analysis.service";
-import {
-  PANTHER_Results,
-  PANTHER_ResultItem,
-} from "app/service/enrichment-analysis/enrichment-analysis.service.types";
 import * as d3 from "d3";
 import { Observable } from "rxjs";
 import { IVolcanoSelection } from "../volcano/volcano.component.types";
@@ -24,7 +20,7 @@ import { MatSelectChange } from "@angular/material";
 type EnrichmentAnalysisVizOptions = {
   preprocessing: PreprocessingOptions;
   plotting: PlottingOptions;
-  api: PANTHER_APIOptions;
+  api: APIOptions;
 };
 
 type PreprocessingOptions = {
@@ -45,9 +41,13 @@ type PlottingOptions = {
   useIdsForTermLabels?: boolean;
 };
 
+type APIOptions = {
+  backgroundDataset: typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"][number]["value"];
+}
+
 enum ColorByOptions {
   FDR = "fdr",
-  // PValue = "pValue",
+  PValue = "pValue",
   FoldEnrichment = "fold_enrichment",
 }
 
@@ -83,14 +83,16 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     },
     plotting: {
       x: XAxisOptions.GeneRatio,
-      sortBy: "geneRatio",
+      sortBy: SortByOptions.GeneRatio,
       sortDirection: "desc",
-      colorBy: ColorByOptions.FDR,
+      colorBy: ColorByOptions.PValue,
       sizeBy: SizeByOptions.NumberInList,
       n: 20,
       useIdsForTermLabels: false,
     },
-    api: EnrichmentAnalysisService.DEFAULT_PANTHER_APIOptions,
+    api: {
+      backgroundDataset: EnrichrPathwaysBackground.REACTOME_2022,
+    }
   };
 
   static MARGIN = { top: 20, right: 40, bottom: 60, left: 20 };
@@ -112,6 +114,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     this.render();
   }
 
+
   get colorByOptions(): string[] {
     // since we cant use Object.values
     return Object.keys(ColorByOptions).map((key) => ColorByOptions[key]);
@@ -129,11 +132,15 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     return Object.keys(SortByOptions).map((key) => SortByOptions[key]);
   }
 
-  get currentAnnDatasetId(): string {
-    return this.options.api.annotationDatasetId;
+  get currentBackgroundDataset(): string {
+    return this.options.api.backgroundDataset;
   }
-  set currentAnnDatasetId(id: string) {
-    this.setAnnotationDataset(id);
+  set currentBackgroundDataset(dataset: typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"][number]["value"]) {
+    this.setBackgroundDataset(dataset);
+  }
+
+  get availableBackgrounds(): typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"] {
+    return EnrichmentAnalysisService.AVAILABLE_BACKGROUNDS;
   }
 
   @Input() id: string;
@@ -150,14 +157,14 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     this._active = value;
     if (this._active && this._genes.length > 0) {
       console.log(`Running EA with ${this._genes.length} genes`);
-      this.runPANTHERAnalysis();
+      this.runEnrichrGSEA();
     }
   }
 
   @Output() onmouseover: EventEmitter<string> = new EventEmitter();
   @Output() onmouseout: EventEmitter<void> = new EventEmitter();
 
-  private data: PANTHER_Results;
+  private data: EnrichrGSEAResults;
   private plot: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
 
   private xScale: d3.ScaleLinear<any, any>;
@@ -170,36 +177,35 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   >;
 
   static preprocessData(
-    data: PANTHER_Results,
+    data: EnrichrGSEAResults,
+    inputList: string[],
+    // TODO: implement bgRatio with the background list API endpoint that Enrichr provides
+    // referenceList: string[],
     options: PreprocessingOptions
-  ): (PANTHER_ResultItem & {
-    bgRatio: number;
+  ): (EnrichrGSEAResults[number] & {
+    // bgRatio: number;
     geneRatio: number;
     termId: string;
     termLabel: string;
+    number_in_list: number;
   })[] {
-    let totalGenesInReferenceSet = data.reference.mapped_count;
-    if (options.includeUnmappedReferenceGenes) {
-      totalGenesInReferenceSet += data.reference.unmapped_count;
-    }
-    let totalGenesInInputList = data.input_list.mapped_count;
-    if (options.includeUnmappedInputListGenes) {
-      totalGenesInInputList += data.input_list.unmapped_count;
-    }
+    console.log("preprocessing data", data, options)
 
-    const resultWithRatios = data.result.map((d) => {
+    const resultWithRatios = data.map((d) => {
       return {
         ...d,
-        geneRatio: d.number_in_list / totalGenesInInputList,
-        bgRatio: d.number_in_reference / totalGenesInReferenceSet,
+        geneRatio: d.overlappingGenes.length / inputList.length,
+        // TODO: implement bgRatio with the background list API endpoint that Enrichr provides
+        // bgRatio: d.number_in_reference / totalGenesInReferenceSet,
+        number_in_list: d.overlappingGenes.length,
       };
     });
 
     const resultWithTermInfo = resultWithRatios.map((r) => {
       return {
         ...r,
-        termId: r.term.id,
-        termLabel: r.term.label,
+        termId: r.term,
+        termLabel: r.term
       };
     });
 
@@ -209,48 +215,55 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   /**
    * @description run Enrichment (Overrepresenation) Analysis on a set of genes, followed by a rerender. Will use the current this.options.api options
    */
-  private runPANTHERAnalysis() {
+  // private runPANTHERAnalysis() {
+  //   this.loading = true;
+  //   this.removeSVG();
+  //   this.ea
+  //     .runPANTHERAnalysis(this._genes, this.options.api)
+  //     .subscribe((res) => {
+  //       if (res.inProgress) {
+  //         return;
+  //       }
+
+  //       if (res.data === undefined) {
+  //         return;
+  //       }
+
+  //       this.loading = false;
+  //       this.data = res.data;
+  //       this.render();
+  //     });
+  // }
+
+  private runEnrichrGSEA() {
     this.loading = true;
     this.removeSVG();
     this.ea
-      .runPANTHERAnalysis(this._genes, this.options.api)
-      .subscribe((res) => {
-        if (res.inProgress) {
-          return;
-        }
+      .runEnrichrGSEA(this._genes, this.options.api.backgroundDataset).then((observable) => {
+        observable.subscribe((res) => {
 
-        if (res.data === undefined) {
-          return;
-        }
+          if (res === undefined) {
+            return;
+          }
 
-        this.loading = false;
-        this.data = res.data;
-        this.render();
-      });
+          this.loading = false;
+          this.data = res;
+          this.render();
+        });
+      })
+
   }
 
   /**
    * @description Set the annotation dataset to use for the visualization. Will trigger an API call and a rerender.
    * @param datasetId ID of the annotation dataset to use (GO:xxxxxxx)
    */
-  public setAnnotationDataset(datasetId: string) {
-    if (this.ea.availableAnnotationDatasets === undefined) {
-      return;
-    }
-
-    const index = this.ea.availableAnnotationDatasets.findIndex(
-      (d) => d.id === datasetId
-    );
-    if (index === -1) {
-      throw new Error(
-        `Could not find annotation dataset with id: ${datasetId}`
-      );
-    }
-    this.options.api.annotationDatasetId = datasetId;
+  public setBackgroundDataset(dataset: typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"][number]["value"]) {
+    this.options.api.backgroundDataset = dataset;
 
     if (!this._active) return;
 
-    this.runPANTHERAnalysis();
+    this.runEnrichrGSEA();
   }
 
   public updatePlottingOption(event: MatSelectChange) {
@@ -287,6 +300,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     // preprocess the data and apply sorting and top n limits
     const data = EnrichmentAnalysisComponent.preprocessData(
       this.data,
+      this.genes,
       options.preprocessing
     )
       .sort((a, b) => {
@@ -365,9 +379,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     // Create x and y axes
 
     const yAxis = d3.axisLeft(this.yScale).tickFormat((d, i) => {
-      return options.plotting.useIdsForTermLabels
-        ? data[i].termId
-        : data[i].termLabel;
+      return data[i].termLabel.slice(0, 30) + (data[i].termLabel.length > 30 ? "..." : "");
     });
 
     // trick to make sure that the potentially very long y axis ticks are always visible
@@ -377,7 +389,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .selectAll("text.foo")
       .data(
         data.map((d, i) =>
-          options.plotting.useIdsForTermLabels ? data[i].termId : d.termLabel
+          data[i].termId.slice(0, 30) + (data[i].termId.length > 30 ? "..." : "")
         )
       )
       .enter()
@@ -416,7 +428,14 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     // Append y axis
     //@ts-ignore
-    this.plot.append("g").call(yAxis);
+    this.plot
+    .append("g")
+    .attr("class", "y axis")
+    .call(yAxis);
+
+    this.plot.selectAll('.y.axis>.tick') // gs for all ticks
+      .append('title') // append title with text
+      .text((d, i) => data[i].termLabel); // set text to the term label
 
     // Add circles for dot plot
     const sizeScale = d3
@@ -728,10 +747,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   ngAfterViewInit(): void {
-    this.ea.getAvailableAnnotationDatasets().subscribe((datasets) => {
-      this.ea.availableAnnotationDatasets = datasets;
-      this.setAnnotationDataset(this.options.api.annotationDatasetId);
-    });
+    this.setBackgroundDataset(EnrichrPathwaysBackground.REACTOME_2022)
 
     window.addEventListener("resize", this.render.bind(this));
 
@@ -749,7 +765,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
         return;
       }
 
-      this.runPANTHERAnalysis();
+      this.runEnrichrGSEA();
     });
   }
 

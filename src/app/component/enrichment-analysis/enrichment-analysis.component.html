@@ -71,13 +71,12 @@
 
       <div class="control-wrapper">
         <mat-form-field id="select-ann-dataset">
-          <mat-label>Annotation dataset</mat-label>
-          <mat-select [(ngModel)]="currentAnnDatasetId">
+          <mat-label>Background dataset</mat-label>
+          <mat-select [(ngModel)]="currentBackgroundDataset">
             <mat-option
-              [value]="dataset.id"
-              [matTooltip]="dataset.description"
-              *ngFor="let dataset of ea.availableAnnotationDatasets"
-              >{{ dataset.label }}</mat-option
+              [value]="bkg.value"
+              *ngFor="let bkg of availableBackgrounds"
+              >{{ bkg.name }}</mat-option
             >
           </mat-select>
         </mat-form-field>

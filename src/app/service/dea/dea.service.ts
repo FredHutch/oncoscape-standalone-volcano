@@ -42,7 +42,9 @@ type JobWithWorkerId = Job & { workerId: number };
   providedIn: "root",
 })
 export class DEAService {
-  private baseUrl = "http://127.0.0.1:5000";
+  // No slash at the end, please
+  private baseUrl = "http://127.0.0.1:5000"
+  // private baseUrl = "http://oncoscape-python-env.eba-7snxkbrh.us-west-2.elasticbeanstalk.com";
 
   public static instance: DEAService;
 
