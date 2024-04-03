@@ -100,7 +100,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   static LEGEND_PADDING = 10;
 
   public loading = false;
-  public loadingGenes = false;
+  public loadingBackgroundDatasetMapping = false;
 
   private options: EnrichmentAnalysisVizOptions =
     EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
@@ -164,6 +164,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   @Output() onmouseover: EventEmitter<string> = new EventEmitter();
   @Output() onmouseout: EventEmitter<void> = new EventEmitter();
 
+  /** key is userListId_dataset */
   private data: EnrichrGSEAResults;
   private plot: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
 
@@ -212,29 +213,6 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     return resultWithTermInfo;
   }
 
-  /**
-   * @description run Enrichment (Overrepresenation) Analysis on a set of genes, followed by a rerender. Will use the current this.options.api options
-   */
-  // private runPANTHERAnalysis() {
-  //   this.loading = true;
-  //   this.removeSVG();
-  //   this.ea
-  //     .runPANTHERAnalysis(this._genes, this.options.api)
-  //     .subscribe((res) => {
-  //       if (res.inProgress) {
-  //         return;
-  //       }
-
-  //       if (res.data === undefined) {
-  //         return;
-  //       }
-
-  //       this.loading = false;
-  //       this.data = res.data;
-  //       this.render();
-  //     });
-  // }
-
   private runEnrichrGSEA() {
     this.loading = true;
     this.removeSVG();
@@ -260,6 +238,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
    */
   public setBackgroundDataset(dataset: typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"][number]["value"]) {
     this.options.api.backgroundDataset = dataset;
+    this.ea.loadBackgroundDatasetMapping(dataset).then(() => {
+      this.loadingBackgroundDatasetMapping = false;
+    });
 
     if (!this._active) return;
 
@@ -467,7 +448,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           );
         self.showTooltip(event, options.plotting);
 
-        self.loadingGenes = true;
+        self.loadingBackgroundDatasetMapping = true;
         self.onmouseover.emit(d.termId);
       })
       .on("mouseout", function (event, d) {

@@ -159,7 +159,10 @@ export interface IVolcanoVisualization {
   clearSelection(type?: VolcanoSelectionType): void;
 
   /** Select genes by a GO Term. */
-  selectByGOTerm(GOTermId: string): ReturnType<EnrichmentAnalysisService["getGenesByGOTermId"]>
+  selectByTerm(
+    backgroundDataset: typeof EnrichmentAnalysisService.AVAILABLE_BACKGROUNDS[number]["value"],
+    term: string
+  ): ReturnType<EnrichmentAnalysisService["getGenesByTerm"]>
 
   /** Select genes by name, with an optional override for fill color (defaults to regulation color), and whether to show the label for the selected genes (defaults to false) */
   selectGenesByName(genes: string[], options?: { label ?: boolean; fill?: string}): void;

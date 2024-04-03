@@ -13,7 +13,7 @@
         <mat-panel-description></mat-panel-description>
       </mat-expansion-panel-header>
 
-      <div class="control-wrapper">
+      <!-- <div class="control-wrapper">
         <mat-form-field id="select-color-by">
           <mat-label>Color By</mat-label>
           <mat-select
@@ -67,7 +67,7 @@
             }}</mat-option>
           </mat-select>
         </mat-form-field>
-      </div>
+      </div> -->
 
       <div class="control-wrapper">
         <mat-form-field id="select-ann-dataset">
@@ -93,20 +93,20 @@
           />
         </mat-form-field>
 
-        <div class="toggle-container">
+        <!-- <div class="toggle-container">
           <span class="toggle-label">Shorten GO Term labels</span>
           <mat-slide-toggle
             [(ngModel)]="useIdsForTermLabels"
           ></mat-slide-toggle>
-        </div>
+        </div> -->
       </div>
     </mat-expansion-panel>
   </div>
   <div id="ea-svg-container">
-    <div id="loading-genes-container" *ngIf="loadingGenes">
+    <div id="loading-genes-container" *ngIf="loadingBackgroundDataset">
       <img src="assets/icons/spinner.gif" width="15px" height="15px" />
       <p style="display: inline-block; margin-left: 10px; font-size: 10px">
-        Getting genes for GO Term (keep your mouse on the selected point)
+        Getting background dataset information
       </p>
     </div>
   </div>

@@ -17,13 +17,17 @@ export enum EA_API {
   providedIn: "root",
 })
 export class EnrichmentAnalysisService {
-
   // keep track of if a request is being made for each api, for rate limiting
   static apiAvailability = {
     [EA_API.GENE_ONTOLOGY]: true,
   };
 
   public static AVAILABLE_BACKGROUNDS = availableEnrichrBackgrounds;
+  /** key is background. value is a map of term to genes list */
+  private cachedBackgrounds: { [key: string]: Map<string, string[]> } = {};
+  /** key is gene names concatted with a + and the background dataset name */
+  private cachedResults: { [key: string]: EnrichrGSEAResults } = {};
+
 
   private snackbarConfig: MatSnackBarConfig<any> = {
     horizontalPosition: "right",
@@ -31,61 +35,54 @@ export class EnrichmentAnalysisService {
     duration: 3000,
   };
 
-  /** @description Not enrichment analysis, but often used together with EA, so it is in this service. Get a list of genes in a GO Term */
-  // getGenesByGOTermId(
-  //   id: string,
-  //   cancel: Subject<void> = new Subject<void>(),
-  //   onCanceled: () => void = () => {}
-  // ): Observable<{ inProgress: boolean; data: string[] }> {
-  //   if (!EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY]) {
-  //     return of({ inProgress: true, data: [], cancelled: false });
-  //   }
+  async loadBackgroundDatasetMapping(dataset: string, cancel: Subject<void> = new Subject(), onCanceled: () => void = () => {}): Promise<Map<string, string[]>> {
+    if (dataset in this.cachedBackgrounds) {
+      return this.cachedBackgrounds[dataset]
+    }
 
-  //   const ENDPOINT = `https://api.geneontology.org/api/bioentity/function/${id}/genes`;
+    const url = `https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=${dataset}`;
+    return this.http
+      .get(url, { responseType: "text" })
+      .pipe(
+        takeUntil(cancel),
+        finalize(() => {
+          EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] =
+            true;
+          onCanceled();
+        })
+      )
+      .toPromise()
+      .then((tsvData: string) => {
+        // Split the TSV data into rows
+        const rows = tsvData.split("\n");
+        const termToGenesMapping = new Map<string, string[]>();
+        rows.map((row) => {
+          const columns = row.split("\t");
+          termToGenesMapping.set(columns[0], columns.slice(1));
+        });
+        this.cachedBackgrounds[dataset] = termToGenesMapping;
+        return termToGenesMapping;
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        throw error;
+      });
+  }
 
-  //   const urlParams = {
-  //     taxon: `NCBITaxon:${NCBI_TAXONS.HUMAN}`,
-  //     relationship_type: "involved_in",
-  //     start: "0",
-  //     rows: "1000",
-  //   };
+  async getGenesByTerm(
+    dataset: string,
+    term: string,
+    cancel: Subject<void> = new Subject<void>(),
+    onCanceled: () => void = () => {}
+  ): Promise<string[]> {
 
-  //   const full_url = ENDPOINT + "?" + new URLSearchParams(urlParams).toString();
-
-  //   EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] = false;
-  //   return this.http
-  //     .get(full_url, {
-  //       headers: {
-  //         accept: "application/json",
-  //       },
-  //     })
-  //     .pipe(
-  //       takeUntil(cancel),
-  //       finalize(() => {
-  //         EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] =
-  //           true;
-  //         onCanceled();
-  //       })
-  //     )
-  //     .pipe(
-  //       map((res: any) => {
-  //         const uniProt_provided_labels = res.associations
-  //           .filter(
-  //             (a) => a.provided_by.findIndex((p) => p === "UniProt") !== -1
-  //           )
-  //           .map((a) => a.subject.label);
-
-  //         // enable future API calls to geneOntology
-  //         EnrichmentAnalysisService.apiAvailability[EA_API.GENE_ONTOLOGY] =
-  //           true;
-
-  //         return {
-  //           inProgress: false,
-  //           data: Array.from<string>(new Set(uniProt_provided_labels)),
-  //         };
-  //       })
-  //     );
-  // }
+    const termToGenesMapping = await this.loadBackgroundDatasetMapping(dataset, cancel, onCanceled);
+    const genes = termToGenesMapping.get(term);
+    if (!genes) {
+      throw new Error(`Term ${term} not found in dataset ${dataset}`);
+    }
+    return genes;
+  }
 
   /**
    * @description Register a list of genes in the Enrichr database.
@@ -97,22 +94,37 @@ export class EnrichmentAnalysisService {
     userListId: number;
     shortId: string;
   }> {
-    const ENDPOINT = 'https://maayanlab.cloud/Enrichr/addList';
-    const description = 'Example gene list';
+    const ENDPOINT = "https://maayanlab.cloud/Enrichr/addList";
+    const description = "Example gene list";
     const formData = new FormData();
-    formData.append('list', genes.join('\n'));
-    formData.append('description', description);
+    formData.append("list", genes.join("\n"));
+    formData.append("description", description);
 
     // Define headers to specify content type
     const headers = new HttpHeaders();
-    headers.append('Content-Type', 'multipart/form-data');
+    headers.append("Content-Type", "multipart/form-data");
 
     return this.http.post<any>(ENDPOINT, formData, { headers: headers });
   }
 
-  async runEnrichrGSEA(genes: string[], backgroundType: typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"][number]["value"]): Promise<Observable<EnrichrGSEAResults>> {
+  async runEnrichrGSEA(
+    genes: string[],
+    backgroundType: (typeof EnrichmentAnalysisService)["AVAILABLE_BACKGROUNDS"][number]["value"]
+  ): Promise<Observable<EnrichrGSEAResults>> {
 
-    const { userListId, shortId } = await this.createEnrichrGeneList(genes).toPromise();
+    // create a key for the cache
+    const sortedGenesToCache = [...genes].sort()
+    const cacheKey = [...sortedGenesToCache, backgroundType].join("+");
+
+    // see if we have the results cached
+    if (cacheKey in this.cachedResults) {
+      return of(this.cachedResults[cacheKey]);
+    }
+
+    // otherwise create a new list and run the analysis
+    const { userListId, shortId } = await this.createEnrichrGeneList(
+      genes
+    ).toPromise();
 
     const ENDPOINT = "https://maayanlab.cloud/Enrichr/enrich";
     const urlParams = {
@@ -125,7 +137,7 @@ export class EnrichmentAnalysisService {
     return this.http.get(full_url).pipe(
       map((res: any) => {
         const data = res[backgroundType];
-        return data.map(d => {
+        const results: EnrichrGSEAResults = data.map((d: Array<any>) => {
           return {
             index: d[0],
             term: d[1],
@@ -135,9 +147,14 @@ export class EnrichmentAnalysisService {
             overlappingGenes: d[5],
             adjPValue: d[6],
           };
-        })
+        });
+
+        // cache the results
+        this.cachedResults[cacheKey] = results;
+
+        return results;
       })
-    )
+    );
   }
 
   constructor(private http: HttpClient, private snackbar: MatSnackBar) {}

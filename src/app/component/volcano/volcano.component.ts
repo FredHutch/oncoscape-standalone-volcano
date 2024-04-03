@@ -1,3 +1,4 @@
+import { availableEnrichrBackgrounds } from './../../service/enrichment-analysis/enrichment-analysis.service.types';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -229,85 +230,52 @@ export class VolcanoComponent
 
   // #region Public functions
 
-  selectByGOTerm(
-    GOTermId: string
-  ): ReturnType<EnrichmentAnalysisService["getGenesByGOTermId"]> {
+  selectByTerm(
+    backgroundDataset: typeof EnrichmentAnalysisService.AVAILABLE_BACKGROUNDS[number]["value"] | string,
+    term: string
+  ): ReturnType<EnrichmentAnalysisService["getGenesByTerm"]> {
+    const self = this;
     // Wrap the asynchronous operation inside an Observable
-    return new Observable((observer) => {
-      const self = this;
-      this.ea
-        .getGenesByGOTermId(GOTermId, this.cancelSelectByGOTerm$, () => {
-          self.eaComponent.loadingGenes = false;
-        })
-        .subscribe(
-          (res) => {
-            if (res.inProgress) {
-              observer.next(res);
-              return;
-            }
-
-            console.log("# genes in GO Term", res.data.length);
-
-            console.group("Selection sizes");
-            console.table(
-              this.selections.map((s) => {
-                return {
-                  type: s.type,
-                  selectedPoints: s.selectedPoints.length,
-                };
-              })
-            );
-            console.groupEnd();
-
-            console.log("Applying selection by GO Term");
-
-            // find the GO Term selection
-            const goTermSelection = this.selections.find(
-              (s) => s.type === VolcanoSelectionType.GOTerm
-            );
-
-            // select the points by gene name in the GO Term selection
-            goTermSelection.selectPointsByGeneName(res.data);
-
-            // set the active selection type to GO Term
-            this.activeSelectionType = VolcanoSelectionType.GOTerm;
-
-            console.group("Selection sizes");
-            console.table(
-              this.selections.map((s) => {
-                return {
-                  type: s.type,
-                  selectedPoints: s.selectedPoints.length,
-                };
-              })
-            );
-            console.groupEnd();
-
-            this.cd.detectChanges();
-            observer.next(res);
-            observer.complete();
-          },
-          (error) => {
-            observer.error(error); // Emit error if any
-          }
+    return this.ea
+    .getGenesByTerm(backgroundDataset, term, this.cancelSelectByGOTerm$, () => {
+      self.eaComponent.loadingBackgroundDatasetMapping = false;
+    })
+    .then(
+      (genes) => {
+        // find the GO Term selection
+        const goTermSelection = this.selections.find(
+          (s) => s.type === VolcanoSelectionType.GOTerm
         );
-    });
+
+        // select the points by gene name in the GO Term selection
+        goTermSelection.selectPointsByGeneName(genes);
+
+        // set the active selection type to GO Term
+        this.activeSelectionType = VolcanoSelectionType.GOTerm;
+
+        this.cd.detectChanges();
+        return genes;
+      },
+      (error) => {
+        console.error("Error fetching data:", error);
+        throw error;
+      }
+    );
   }
 
-  handleEAmouseover(GOTermId: string) {
-    this.selectByGOTerm(GOTermId).subscribe((res) => {
-      if (res.inProgress) return;
-      this.eaComponent.loadingGenes = false;
+  handleEAmouseover(termId: string) {
+
+    this.selectByTerm(this.eaComponent.currentBackgroundDataset, termId).then(() => {
+      this.eaComponent.loadingBackgroundDatasetMapping = false;
 
       const selection = this.getActiveSelection();
       selection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisTab;
-      console.log("handleEAmouseover", selection);
     });
   }
 
   handleEAmouseout(): void {
     this.cancelSelectByGOTerm$.next();
-    this.eaComponent.loadingGenes = false;
+    this.eaComponent.loadingBackgroundDatasetMapping = false;
     // mark the API call as cancelled when we leave an EA point so the volcano plot doesn't update later
     this.exitGOTermSelection();
     const selection = this.getActiveSelection();
