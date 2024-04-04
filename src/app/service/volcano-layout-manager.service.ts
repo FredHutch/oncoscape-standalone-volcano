@@ -70,7 +70,6 @@ export class VolcanoLayoutManagerService {
     let maxHeight = document.getElementById("tabs-container").clientHeight;
 
     // get and subtract the height of the tab header
-    console.log(document.getElementsByTagName("mat-tab-header"))
     const tabHeaderHeight = document.getElementsByTagName("mat-tab-header")[0].clientHeight;
     maxHeight -= tabHeaderHeight;
 
@@ -78,7 +77,6 @@ export class VolcanoLayoutManagerService {
     maxHeight -= padding;
 
     const panelHeights = this.getPanelClientHeights();
-    console.log("panelHeights", panelHeights)
     maxHeight -= panelHeights[VolcanoPanel.SelectByStats]
     switch (this.activeTab) {
       case VolcanoTab.Table:

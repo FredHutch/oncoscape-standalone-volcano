@@ -34,6 +34,21 @@
     margin-bottom: 5px; /* Adjust spacing as needed */
   }
 
+  #download-type-select {
+    font-size: 10px;
+    width: 100px;
+  }
+  button {
+    font-size: 10px;
+  }
+  #download-link {
+    color: white;
+  }
+  #download-link:visited {
+    color: white;
+  }
+
+
   .hints {
     position: absolute;
     top: -20px;

@@ -135,8 +135,6 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
 
   ngOnInit(): void {
     this.selectionObservable.subscribe((selection) => {
-      console.log("Table selection update:", selection);
-
       const selectedPoints = selection.selectedPoints;
 
       if (!this.filterForm) {

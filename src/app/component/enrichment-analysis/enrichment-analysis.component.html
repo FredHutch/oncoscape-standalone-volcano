@@ -73,7 +73,7 @@
       <div class="control-wrapper">
         <mat-form-field id="select-ann-dataset">
           <mat-label>Background dataset</mat-label>
-          <mat-select [(ngModel)]="currentBackgroundDataset">
+          <mat-select [(ngModel)]="currentBackgroundDataset" [disabled]="!plotReady()">
             <mat-option
               [value]="bkg.value"
               *ngFor="let bkg of availableBackgrounds"
@@ -89,10 +89,17 @@
             type="number"
             [(ngModel)]="options.plotting.n"
             (change)="render()"
+            [disabled]="!plotReady()"
             [min]="5"
             [max]="50"
           />
         </mat-form-field>
+
+        <app-download-plot
+        plotSvgId="ea-svg"
+        plotId="GSEA"
+        [disabled]="!plotReady()"
+        ></app-download-plot>
 
         <!-- <div class="toggle-container">
           <span class="toggle-label">Shorten GO Term labels</span>
@@ -114,7 +121,7 @@
     </div>
 
     <!-- show hint text at the top of the viz -->
-    <ng-container *ngIf="!loadingBackgroundDataset">
+    <ng-container *ngIf="plotReady()">
       <div class="hints">
         <p>
           Hover over a point to highlight the term's genes on the volcano plot. Overlapping genes from your selection will be a <span class="icon">&#8902;</span>

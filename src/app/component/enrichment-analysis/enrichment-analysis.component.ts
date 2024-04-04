@@ -8,6 +8,7 @@ import {
   OnInit,
   Output,
   EventEmitter,
+  ViewChild,
 } from "@angular/core";
 import {
   EnrichmentAnalysisService,
@@ -17,6 +18,8 @@ import { Observable } from "rxjs";
 import { IVolcanoSelection } from "../volcano/volcano.component.types";
 import { MatSelectChange } from "@angular/material";
 import { VolcanoLayoutManagerService } from 'app/service/volcano-layout-manager.service';
+import { DownloadPlotFileType } from 'app/service/plot-download.service';
+import { DownloadPlotComponent } from '../download-plot/download-plot.component';
 
 type EnrichmentAnalysisVizOptions = {
   preprocessing: PreprocessingOptions;
@@ -103,6 +106,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   public loading = false;
   public loadingBackgroundDatasetMapping = false;
 
+  public downloadPlotType: DownloadPlotFileType = DownloadPlotFileType.SVG;
+
   private options: EnrichmentAnalysisVizOptions =
     EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
 
@@ -143,6 +148,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   get availableBackgrounds(): typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"] {
     return EnrichmentAnalysisService.AVAILABLE_BACKGROUNDS;
   }
+
+  @ViewChild(DownloadPlotComponent, {static: false})
+  downloadPlotComponent: DownloadPlotComponent;
 
   @Input() id: string;
 
@@ -231,6 +239,10 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   }
 
+  public downloadPlot(downloadPlotType: DownloadPlotFileType = null): void {
+    this.downloadPlotComponent.download(downloadPlotType);
+  }
+
   /**
    * @description Set the annotation dataset to use for the visualization. Will trigger an API call and a rerender.
    * @param datasetId ID of the annotation dataset to use (GO:xxxxxxx)
@@ -253,19 +265,21 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   async render(options: EnrichmentAnalysisVizOptions = this.options): Promise<void> {
+
+    // if the tab is not active or the data is not loaded, don't render
     if (this.data === undefined) return;
     if (!this._active) return;
+
+
+    // Calculate the available width and height for the plot
     const availableWidth = Number(
       window
         .getComputedStyle(document.getElementById("tabs-container"))
         .width.replace("px", "")
     );
-
-    // Calculate the available height for the visualization based on the panel heights
     const availableHeight = this.layout.getAvailableHeightForActiveTab();
 
     // Set up the SVG container dimensions
-
     const width =
       availableWidth -
       EnrichmentAnalysisComponent.MARGIN.left -
@@ -292,6 +306,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .slice(0, options.plotting.n);
 
     this.removeSVG();
+
 
     // Create the SVG container
     const svg = d3
@@ -456,7 +471,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           .transition()
           .duration(200)
           .attr("fill", colorScale(d[options.plotting.colorBy]));
-        self.hideTooltip();
+        self.removeTooltip();
         self.onmouseout.emit();
       });
 
@@ -476,6 +491,12 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     //@ts-ignore
     this.drawLegend(legend, data, options, colorScale, sizeScale);
+  }
+
+  plotReady(): boolean {
+    return !this.loadingBackgroundDatasetMapping &&
+    this.genes.length > 0 &&
+    !this.loading
   }
 
   private showTooltip(event: any, options: PlottingOptions) {
@@ -501,7 +522,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       `);
   }
 
-  private hideTooltip() {
+  private removeTooltip() {
     d3.select(".ea-tooltip").remove();
   }
 
@@ -687,46 +708,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   private removeSVG() {
     d3.select(`#ea-svg-container`).selectAll("svg").remove();
-  }
-
-  private calculateAvailableHeight(): Promise<number> {
-    return new Promise((resolve, reject) => {
-      // wait until all id elements are rendered
-
-      const idsToSubstract: string[] = ["enrichment-dot-plot-controls"];
-      const classesToSubtract: string[] = ["mat-tab-labels"];
-
-      const tabsHeight = Number(
-        window
-          .getComputedStyle(document.getElementById("side-bar-tabs"))
-          .height.replace("px", "")
-      );
-
-      setTimeout(() => {
-        const idsHeight = idsToSubstract.reduce((prev, curr) => {
-          const temp = document.getElementById(curr);
-          return temp
-            ? Number(window.getComputedStyle(temp).height.replace("px", "")) +
-                prev
-            : 0 + prev;
-        }, 0);
-
-        const classesHeight = classesToSubtract.reduce((prev, curr) => {
-          return (
-            Number(
-              window
-                .getComputedStyle(document.getElementsByClassName(curr)[0])
-                .height.replace("px", "")
-            ) + prev
-          );
-        }, 0);
-
-        console.log("tabsHeight", tabsHeight, "idsHeight", idsHeight, "classesHeight", classesHeight);
-
-        const availableHeight = tabsHeight - idsHeight - classesHeight;
-        resolve(availableHeight);
-      }, 100); // Adjust the timeout value as needed
-    });
+    // tooltip is on the body, not the svg, so we need to remove it manually
+    this.removeTooltip();
   }
 
   ngAfterViewInit(): void {

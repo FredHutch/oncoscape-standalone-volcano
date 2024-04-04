@@ -1,0 +1,21 @@
+:host {
+  #download-type-select {
+    font-size: 10px;
+    width: 100px;
+  }
+
+  button {
+    font-size: 10px;
+  }
+  .download-link {
+    color: white;
+  }
+  .download-link:visited {
+    color: white;
+  }
+
+  skinny-button {
+    line-height: normal;
+    padding: 5px;
+  }
+}

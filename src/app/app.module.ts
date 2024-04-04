@@ -40,6 +40,8 @@ import { MatSliderModule } from "@angular/material";
 import { MatTabsModule } from "@angular/material/tabs";
 import { EnrichmentAnalysisComponent } from "./component/enrichment-analysis/enrichment-analysis.component";
 import { VolcanoLayoutManagerService } from "./service/volcano-layout-manager.service";
+import { PlotDownloadService } from "./service/plot-download.service";
+import { DownloadPlotComponent } from "./component/download-plot/download-plot.component";
 
 @NgModule({
   declarations: [
@@ -54,6 +56,7 @@ import { VolcanoLayoutManagerService } from "./service/volcano-layout-manager.se
     StatusIconComponent,
     DeaInputComponent,
     EnrichmentAnalysisComponent,
+    DownloadPlotComponent
   ],
   imports: [
     BrowserModule,
@@ -88,7 +91,8 @@ import { VolcanoLayoutManagerService } from "./service/volcano-layout-manager.se
     PythonService,
     WorkerService,
     EnrichmentAnalysisService,
-    VolcanoLayoutManagerService
+    VolcanoLayoutManagerService,
+    PlotDownloadService
   ],
   bootstrap: [AppComponent],
   entryComponents: [DeleteJobDialogComponent, CancelJobDialogComponent],

@@ -1,0 +1,20 @@
+<div id="download-plot-form-container">
+  <!-- mat select dropdown of save type (svg, png, pdf) -->
+  <mat-form-field id="download-type-select">
+    <mat-label>Select download type</mat-label>
+    <mat-select [(value)]="downloadPlotType" [disabled]="disabled">
+      <mat-option value="svg">SVG</mat-option>
+      <mat-option value="png">PNG</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <button
+    id="download-button"
+    class="skinny-button"
+    mat-flat-button
+    color="primary"
+    [disabled]="disabled"
+    (click)="download()"
+  >
+    <a [id]="downloadLinkId" class="download-link">Download Plot</a>
+  </button>
+</div>

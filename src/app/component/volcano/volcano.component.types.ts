@@ -154,7 +154,7 @@ export interface IVolcanoVisualization {
   selectGenesByName(genes: string[], options?: { label ?: boolean; fill?: string}): void;
 
   /** Event listener for clicking download plot. Can be manually invoked with an optinoally file type. Defaults to `this.downloadPlotType` */
-  onDownloadImageClick(downloadPlotType?: "svg" | "png"): void;
+  downloadPlot(downloadPlotType?: "svg" | "png"): void;
 
   /** Update the color of up/down-regulated genes */
   updateRegulationColor(color: string, regulation: "up" | "down"): void;

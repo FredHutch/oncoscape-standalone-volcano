@@ -30,6 +30,8 @@ import {
 } from "app/service/enrichment-analysis/enrichment-analysis.service";
 import { EnrichmentAnalysisComponent } from "../enrichment-analysis/enrichment-analysis.component";
 import { VolcanoLayoutManagerService, VolcanoTab, VolcanoPanel } from 'app/service/volcano-layout-manager.service';
+import { DownloadPlotFileType } from 'app/service/plot-download.service';
+import { DownloadPlotComponent } from '../download-plot/download-plot.component';
 
 @Component({
   selector: "app-visualization-volcano",
@@ -71,6 +73,9 @@ export class VolcanoComponent
   @Input() id: string;
   @Input() tabs = [VolcanoTab.Table, VolcanoTab.EnrichmentAnalysis];
 
+  @ViewChild(DownloadPlotComponent, { static: false })
+  downloadPlotComponent: DownloadPlotComponent;
+
   @ViewChild(VolcanoGeneTableComponent, { static: false })
   geneTable: VolcanoGeneTableComponent;
 
@@ -87,6 +92,10 @@ export class VolcanoComponent
 
   get points(): VolcanoPoint[] {
     return this._points;
+  }
+
+  get isFullScreen(): boolean {
+    return this.layout.isFullScreen;
   }
 
   // Used in adjusting axis ranges. Uncomment if we add this back in
@@ -112,8 +121,6 @@ export class VolcanoComponent
   //   yMin: 0,
   //   yMax: 0,
   // };
-
-  public downloadPlotType: "svg" | "png" = "svg";
 
   get selectByStatsForm(): SelectByStatsForm {
     return this._selectByStatsForm;
@@ -224,6 +231,15 @@ export class VolcanoComponent
   private cancelSelectByGOTerm$: Subject<void> = new Subject();
 
   // #region Public functions
+
+
+  downloadPlot(downloadPlotType: DownloadPlotFileType = null): void {
+    this.downloadPlotComponent.download(downloadPlotType);
+  }
+
+  toggleFullScreen(): void {
+    this.layout.toggleFullScreen();
+  }
 
   selectByTerm(
     backgroundDataset: typeof EnrichmentAnalysisService.AVAILABLE_BACKGROUNDS[number]["value"] | string,
@@ -432,20 +448,6 @@ export class VolcanoComponent
     } else {
       this._selectByStatsForm.downregulatedColor = color;
       d3.selectAll(".point.downregulated.selected").attr("fill", color);
-    }
-  }
-
-  onDownloadImageClick(downloadPlotType = this.downloadPlotType) {
-    switch (downloadPlotType) {
-      case "svg":
-        this.downloadAsSVG();
-        break;
-      case "png":
-        this.downloadAsPNG();
-        break;
-      default:
-        console.error("Invalid download type");
-        break;
     }
   }
 
@@ -963,116 +965,6 @@ private isMouseOutsideSvg(event) {
         return this._selectByStatsForm.downregulatedColor;
       default:
         return selection.config.colorSelected;
-    }
-  }
-
-  private downloadAsPNG() {
-    // get SVG element
-    var svg = document.getElementById(this.svgId);
-
-    // get SVG source
-    var serializer = new XMLSerializer();
-    var source = serializer.serializeToString(svg);
-
-    // add namespaces
-    if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
-      source = source.replace(
-        /^<svg/,
-        '<svg xmlns="http://www.w3.org/2000/svg"'
-      );
-    }
-    if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
-      source = source.replace(
-        /^<svg/,
-        '<svg xmlns:xlink="http://www.w3.org/1999/xlink"'
-      );
-    }
-
-    // add XML declaration
-    source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
-
-    // create a Blob from the SVG source
-    var blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
-
-    // create an image element
-    var img = new Image();
-
-    // create a data URL from the Blob
-    var url = URL.createObjectURL(blob);
-
-    // set the image source to the SVG data URL
-    img.src = url;
-
-    // create a canvas
-    var canvas = document.createElement("canvas");
-    var context = canvas.getContext("2d");
-
-    // set canvas dimensions to match the SVG
-    // @ts-ignore
-    canvas.width = svg.width.baseVal.value;
-    // @ts-ignore
-    canvas.height = svg.height.baseVal.value;
-
-    // set background to white
-    context.fillStyle = "white";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    // wait for the image to load before drawing on the canvas
-    img.onload = function () {
-      // draw the image onto the canvas
-      context.drawImage(img, 0, 0);
-
-      // convert canvas content to data URL in PNG format
-      var pngUrl = canvas.toDataURL("image/png");
-
-      // set the PNG data URL as the href attribute of the download link
-      var saveLink = document.getElementById(
-        "download-link"
-      ) as HTMLAnchorElement;
-      if (saveLink) {
-        saveLink.href = pngUrl;
-        saveLink.download = `volcano-plot-${new Date().toISOString()}.png`;
-      }
-    };
-  }
-
-  private downloadAsSVG() {
-    //get svg element.
-    var svg = document.getElementById(this.svgId);
-
-    //get svg source.
-    var serializer = new XMLSerializer();
-    var source = serializer.serializeToString(svg);
-
-    // get svg source.
-    var serializer = new XMLSerializer();
-    var source = serializer.serializeToString(svg);
-
-    // add name spaces.
-    if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
-      source = source.replace(
-        /^<svg/,
-        '<svg xmlns="http://www.w3.org/2000/svg"'
-      );
-    }
-    if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
-      source = source.replace(
-        /^<svg/,
-        '<svg xmlns:xlink="http://www.w3.org/1999/xlink"'
-      );
-    }
-
-    // add xml declaration
-    source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
-
-    // convert svg source to URI data scheme.
-    var url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
-
-    // set url value to the download link's href attribute.
-    var dLink = document.getElementById("download-link") as HTMLAnchorElement;
-    if (dLink) {
-      dLink.href = url;
-      dLink.download = `volcano-plot-${new Date().toISOString()}.svg`;
     }
   }
 
@@ -1846,7 +1738,7 @@ private isMouseOutsideSvg(event) {
     svg
       .append("text")
       .attr("class", "x-axis-label")
-      .attr("x", VolcanoComponent.WIDTH / 2)
+      .attr("x", VolcanoComponent.WIDTH / 2 + VolcanoComponent.MARGIN.left + VolcanoComponent.AXIS_LABEL_PADDING)
       .attr("y", VolcanoComponent.HEIGHT + VolcanoComponent.MARGIN.bottom)
       .attr("text-anchor", "middle")
       .text(`Log2 Fold Change`);
@@ -1929,6 +1821,7 @@ private isMouseOutsideSvg(event) {
   constructor(
     private cd: ChangeDetectorRef,
     private ea: EnrichmentAnalysisService,
-    public layout: VolcanoLayoutManagerService
+
+    public layout: VolcanoLayoutManagerService,
   ) {}
 }
