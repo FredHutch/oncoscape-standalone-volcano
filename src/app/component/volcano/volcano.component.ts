@@ -142,7 +142,6 @@ export class VolcanoComponent
     return this._activeSelectionType;
   }
   set activeSelectionType(type: VolcanoSelectionType) {
-    console.log("Changing activeSelectionType to", type);
     this._activeSelectionType = type;
 
     const selection = this.getActiveSelection();
@@ -310,7 +309,6 @@ export class VolcanoComponent
 
       // mark the points as overlapping with the selection.
       //This will help later when we want to create a selection with the overlapping points
-      console.log("AS", this.getActiveSelection())
       this.getActiveSelection().markPointsAsOverlappingWithOtherSelection(overlappingPoints);
 
 
@@ -356,6 +354,8 @@ export class VolcanoComponent
   }
 
   exitGOTermSelection(): void {
+    // re-render the Enrichment Analysis component, since it this point it will be in a "selected" state
+    this.eaComponent.render();
     this.activeSelectionType = VolcanoSelectionType.Standard;
   }
 
@@ -609,7 +609,7 @@ export class VolcanoComponent
 
           // if the mouse is outside the svg, stop dragging
           document.addEventListener("mousemove", (e) => {
-            if (this.isMouseOutsideSvg(e)) {
+            if (this.isMouseOutsideSvg(e) && this.isDragging) {
               this.onMouseUp();
             }
           })
@@ -707,8 +707,6 @@ export class VolcanoComponent
       const currentDraw = this.getEventCoords(event).draw;
       const svgElement = document.getElementById(this.svgId);
       const svgRect = svgElement.getBoundingClientRect();
-      console.log("svgRect", svgRect);
-      console.log("currentDraw", currentDraw);
 
       // draw the rectangle
       d3.select(`#${this.svgId}`)

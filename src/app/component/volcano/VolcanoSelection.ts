@@ -44,6 +44,10 @@ export class VolcanoSelection implements IVolcanoSelection {
 
 
   markPointsAsOverlappingWithOtherSelection(points: VolcanoPoint[]): void {
+
+    // first reset all points to not be part of the selection overlap
+    this.points.forEach((p) => (p.partOfSelectionOverlap = false));
+
     const genes = points.map((p) => p.gene);
     this.applyFuncToPointsByGeneName(genes, (p) => {
       p.partOfSelectionOverlap = true;

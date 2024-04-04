@@ -108,6 +108,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   public downloadPlotType: DownloadPlotFileType = DownloadPlotFileType.SVG;
 
+  private lastSelectedTerm: string;
+
   private options: EnrichmentAnalysisVizOptions =
     EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
 
@@ -221,6 +223,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   private runEnrichrGSEA() {
+    // dont let lastSelectedTerm persist between runs
+    console.log("running enrichr gsea")
+    this.lastSelectedTerm = undefined;
     this.loading = true;
     this.removeSVG();
     this.ea
@@ -450,27 +455,41 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .attr("cx", (d) => this.xScale(d[options.plotting.x]))
       .attr("cy", (d) => this.yScale(d.termId) + this.yScale.bandwidth() / 2)
       .attr("r", (d) => sizeScale(d[options.plotting.sizeBy]))
-      .attr("fill", (d) => colorScale(d[options.plotting.colorBy]));
+      .attr("fill", (d) => colorScale(d[options.plotting.colorBy]))
+      .style("stroke", "none")
+      .style("stroke-width", 0);
 
     this.circles
       .on("mouseover", function (event, d) {
+
+        self.showTooltip(event, options.plotting);
+
+        self.lastSelectedTerm = d.termId;
         d3.select(this)
-          .transition()
-          .duration(200)
           .attr(
             "fill",
             self.darkenColor(colorScale(d[options.plotting.colorBy]))
+          ).style(
+            "stroke", "black"
+          )
+          .style(
+            "stroke-width", 5
           );
-        self.showTooltip(event, options.plotting);
+
+
+
+        // select all other circles and remove their stroke
+        self.circles
+          .filter((c) => c.termId !== d.termId)
+          .style("stroke", "none")
+          .style("stroke-width", 0)
+
+
 
         self.loadingBackgroundDatasetMapping = true;
         self.onmouseover.emit(d.termId);
       })
       .on("mouseout", function (event, d) {
-        d3.select(this)
-          .transition()
-          .duration(200)
-          .attr("fill", colorScale(d[options.plotting.colorBy]));
         self.removeTooltip();
         self.onmouseout.emit();
       });
