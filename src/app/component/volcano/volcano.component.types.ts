@@ -1,3 +1,4 @@
+import { VolcanoPoint } from './volcano.component.types';
 import { EnrichmentAnalysisService } from "app/service/enrichment-analysis/enrichment-analysis.service";
 import { Observable } from "rxjs";
 
@@ -28,7 +29,10 @@ export enum VolcanoSelectionTrigger {
   GOTermTab = "GOTermTab",
 
   /** The selection was triggered by interacting with the Enrichment Analysis tab (hovering over GO term) */
-  EnrichmentAnalysisTab = "EnrichmentAnalysisTab"
+  EnrichmentAnalysisTab = "EnrichmentAnalysisTab",
+
+  /** The selection was triggered by interacting with the Enrichment Analysis buttons */
+  EnrichmentAnalysisButtons = "EnrichmentAnalysisButtons"
 }
 
 export type VolcanoSelectionConfig = {
@@ -51,7 +55,14 @@ export type VolcanoSelectionConfig = {
   labelOnSelection: boolean;
 }
 
-export type VolcanoPoint = { x: number; y: number; gene: string; labelled: boolean; selected: boolean };
+export type VolcanoPoint = {
+  x: number;
+  y: number;
+  gene: string;
+  labelled: boolean;
+  selected: boolean;
+  partOfSelectionOverlap: boolean;
+};
 
 export enum VolcanoInteractivityMode {
   SELECT = "select",
@@ -64,6 +75,9 @@ export interface IVolcanoSelection {
   config: VolcanoSelectionConfig,
   selectedPoints: (VolcanoPoint & {selected: true})[]
   labelledPoints: (VolcanoPoint & {labelled: true})[]
+
+  /** Manually mark an overlap with another selection. The subset of overlapping points must already be known (via something like GSEA) */
+  markPointsAsOverlappingWithOtherSelection(points: VolcanoPoint[]): void;
 
   /** Reset the data for the selection. All selected and label flags will be lost */
   resetData(points: VolcanoPoint[]): void;
@@ -119,9 +133,6 @@ export interface IVolcanoVisualization {
 
   selectionOfType$(type: VolcanoSelectionType): Observable<IVolcanoSelection>
 
-  /** Selected plot type to download (used for an ngModel) */
-  downloadPlotType: "svg" | "png";
-
   /** The values used by the Select By Stats form. Read-only. See `updateSelectByStatsForm` */
   selectByStatsForm: SelectByStatsForm;
 
@@ -143,6 +154,9 @@ export interface IVolcanoVisualization {
    * @param type The selection type to clear. Defaults to `this.activeSelectionType` if not specified.
   */
   clearSelection(type?: VolcanoSelectionType): void;
+
+  /** When in a GO Term selection, if any of the points are marked as `partOfSelectionOverlap`, create a standard selection from this overlap.  */
+  selectFromTermOverlap(): void
 
   /** Select genes by a GO Term. */
   selectByTerm(

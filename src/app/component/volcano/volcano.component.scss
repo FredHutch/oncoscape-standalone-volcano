@@ -105,7 +105,8 @@
   .volcano-container {
     display: flex;
     margin: 0;
-    height: 80vh;
+    margin-bottom: 50px;
+    height: 85vh;
     overflow: hidden;
   }
 
@@ -127,12 +128,12 @@
     letter-spacing: normal;
   }
 
-  #mode .mat-button-toggle-label-content {
+  .tiny-btn-group .mat-button-toggle-label-content {
     padding: 0 !important;
     margin-top: -5px;
   }
 
-  #mode p {
+  .tiny-btn-group p {
     font-size: 10px;
     color: gray;
     font-weight: lighter;
@@ -173,6 +174,26 @@
 
   .volcano-tooltip {
     z-index: 1000;
+  }
+
+  #go-term-selection-buttons {
+    position: relative;
+    top: -50px;
+    font-size: 10px;
+    height: 30px !important;
+
+  }
+
+  #go-term-selection-buttons .mat-button-toggle-label-content{
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    margin-top: -7px;
+  }
+
+  .icon {
+    font-size: 2em;
+    position: relative;
+    top: 2px;
   }
 }
 

@@ -17,7 +17,7 @@
       </div>
 
       <div id="top-bar-right">
-        <div id="mode">
+        <div id="mode" class="tiny-btn-group">
           <p>Mode</p>
             <mat-button-toggle-group  aria-label="Mode"  style="height: 30px" [value]="mode">
               <mat-button-toggle value="select" (click)="setMode('select')">
@@ -70,9 +70,23 @@
 
     <svg [id]="'volcano-' + id"></svg>
 
-    <ng-container *ngIf="shouldShowGOTermButtons()">
-    <button>test</button>
-    </ng-container>
+    <!--  *ngIf="shouldShowGOTermSelectionButtons()" -->
+
+    <div id="go-term-selection-buttons" class="tiny-btn-group" *ngIf="shouldShowGOTermSelectionButtons()">
+      <p>Enrichment Analysis actions</p>
+        <mat-button-toggle-group  aria-label="Mode"  style="height: 30px">
+          <mat-button-toggle (click)="exitGOTermSelection()">
+            Exit Enrichment Analysis highlight mode
+          </mat-button-toggle>
+
+          <mat-button-toggle (click)="selectFromTermOverlap()">
+            Create selection from overlap
+            (<mat-icon style="font-size: 10px; transform: translate(0, 6px); width: 12px;" matTooltip="Pan/Zoom"
+              >star</mat-icon
+            >)
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+    </div>
   </div>
 
   <div id="side-bar" *ngIf="showSidebar && !plotOnly">
@@ -179,7 +193,6 @@
           [id]="id"
           [selectionObservable]="selectionOfType$('Standard')"
           (onmouseover)="handleEAmouseover($event)"
-          (onmouseout)="handleEAmouseout()"
           [active]="layout.activeTab === 'enrichmentAnalysis'"></app-enrichment-analysis>
         </mat-tab>
 

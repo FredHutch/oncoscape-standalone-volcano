@@ -232,6 +232,15 @@ export class VolcanoComponent
 
   // #region Public functions
 
+  selectFromTermOverlap(): void {
+    const overlappingPoints = this.getActiveSelection().selectedPoints.filter(p => p.partOfSelectionOverlap);
+    const standardSelection = this.selections.find(s => s.type === VolcanoSelectionType.Standard);
+    standardSelection.selectPoints(overlappingPoints);
+    standardSelection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisButtons;
+    this.exitGOTermSelection();
+    this.emitSelectionUpdate();
+  }
+
 
   downloadPlot(downloadPlotType: DownloadPlotFileType = null): void {
     this.downloadPlotComponent.download(downloadPlotType);
@@ -274,7 +283,7 @@ export class VolcanoComponent
     );
   }
 
-  shouldShowGOTermButtons(): boolean {
+  shouldShowGOTermSelectionButtons(): boolean {
     return this.activeSelectionType === VolcanoSelectionType.GOTerm;
   }
 
@@ -284,6 +293,8 @@ export class VolcanoComponent
 
     this.selectByTerm(backgroundDataset, term).then(() => {
       this.eaComponent.loadingBackgroundDatasetMapping = false;
+
+      const GOTermSelection = this.getActiveSelection()
 
       // get the points from the standard selection, and use them to search the cache, which will give us the overlapping genes with the term
       const standardSelection = this.selections.find(s => s.type === VolcanoSelectionType.Standard);
@@ -297,6 +308,10 @@ export class VolcanoComponent
       const overlappingPoints = this.points.filter(p => overlappingGenes.includes(p.gene))
       this.labelPoints(overlappingPoints);
 
+      // mark the points as overlapping with the selection.
+      //This will help later when we want to create a selection with the overlapping points
+      console.log("AS", this.getActiveSelection())
+      this.getActiveSelection().markPointsAsOverlappingWithOtherSelection(overlappingPoints);
 
 
       const star = d3.symbol().type(d3.symbolStar).size(20);
@@ -338,15 +353,6 @@ export class VolcanoComponent
       const selection = this.getActiveSelection();
       selection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisTab;
     });
-  }
-
-  handleEAmouseout(): void {
-    this.cancelSelectByGOTerm$.next();
-    this.eaComponent.loadingBackgroundDatasetMapping = false;
-    // mark the API call as cancelled when we leave an EA point so the volcano plot doesn't update later
-    this.exitGOTermSelection();
-    const selection = this.getActiveSelection();
-    selection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisTab;
   }
 
   exitGOTermSelection(): void {
@@ -636,6 +642,9 @@ export class VolcanoComponent
       return;
     }
 
+    const activeSelectionConfig = this.getActiveSelection().config;
+    if (activeSelectionConfig.disableMouseSelection) return;
+
     const shiftKeyPressed = event.shiftKey || this.artificallyHoldingShift;
     const altKeyPressed = event.altKey;
 
@@ -645,9 +654,7 @@ export class VolcanoComponent
     // If the mouse is over a point, do nothing. Let the point's click event handle it.
     if (this.hovered) return;
 
-    const activeSelectionConfig = this.getActiveSelection().config;
 
-    if (activeSelectionConfig.disableMouseSelection) return;
 
     const anyModifierKeyPressed = shiftKeyPressed || altKeyPressed;
     if (!anyModifierKeyPressed) {
@@ -866,6 +873,7 @@ export class VolcanoComponent
     const altKeyPressed = event.altKey;
 
     const selection = this.getActiveSelection();
+    if (selection.config.disableMouseSelection) return;
     selection.trigger = VolcanoSelectionTrigger.Click;
 
     const alreadySelected = selection.isPointSelected(point);
@@ -1005,6 +1013,7 @@ private isMouseOutsideSvg(event) {
         gene: genes[i],
         labelled: false,
         selected: false,
+        partOfSelectionOverlap: false
       };
     });
 

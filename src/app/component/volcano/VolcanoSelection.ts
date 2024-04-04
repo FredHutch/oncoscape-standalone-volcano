@@ -42,6 +42,14 @@ export class VolcanoSelection implements IVolcanoSelection {
     );
   }
 
+
+  markPointsAsOverlappingWithOtherSelection(points: VolcanoPoint[]): void {
+    const genes = points.map((p) => p.gene);
+    this.applyFuncToPointsByGeneName(genes, (p) => {
+      p.partOfSelectionOverlap = true;
+    });
+  }
+
   sortSelection(compareFn: (a: VolcanoPoint, b: VolcanoPoint) => number) {
     this.points.sort(compareFn);
   }

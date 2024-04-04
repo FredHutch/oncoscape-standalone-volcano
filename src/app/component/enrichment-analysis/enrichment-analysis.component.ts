@@ -99,7 +99,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     }
   };
 
-  static MARGIN = { top: 20, right: 40, bottom: 100, left: 20 };
+  static MARGIN = { top: 40, right: 40, bottom: 100, left: 20 };
   static LEGEND_WIDTH = 100;
   static LEGEND_PADDING = 10;
 
