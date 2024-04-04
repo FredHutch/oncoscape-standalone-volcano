@@ -18,7 +18,7 @@ export class DownloadPlotComponent implements OnInit {
 
   public downloadLinkId: string = "download-plot-link";
 
-  private downloadPlotType: DownloadPlotFileType = DownloadPlotFileType.SVG;
+  public downloadPlotType: DownloadPlotFileType = DownloadPlotFileType.SVG;
 
   /** Invoke the download of the plot. Optionally override the download plot type which is internally managed from the form. */
   public download(downloadPlotType: DownloadPlotFileType = this.downloadPlotType) {
