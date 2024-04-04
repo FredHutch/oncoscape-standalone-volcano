@@ -1,15 +1,15 @@
-<div class="volcano-container" [ngClass]="{ 'full-screen': isFullScreen }">
+<div class="volcano-container" [ngClass]="{ 'full-screen': layout.isFullScreen }">
   <div>
     <div id="top-bar" *ngIf="showPlotControls && !plotOnly">
       <div id="top-bar-left">
         <button
           mat-icon-button
           matTooltip="Toggle Fullscreen"
-          (click)="toggleFullScreen()"
+          (click)="layout.toggleFullScreen()"
           id="toggle-fullscreen-button"
         >
-          <mat-icon *ngIf="isFullScreen">fullscreen_exit</mat-icon>
-          <mat-icon *ngIf="!isFullScreen">fullscreen</mat-icon>
+          <mat-icon *ngIf="layout.isFullScreen">fullscreen_exit</mat-icon>
+          <mat-icon *ngIf="!layout.isFullScreen">fullscreen</mat-icon>
         </button>
         <!-- save button -->
 
@@ -87,6 +87,10 @@
     </div>
 
     <svg [id]="'volcano-' + id"></svg>
+
+    <ng-container *ngIf="shouldShowGOTermButtons()">
+    <button>test</button>
+    </ng-container>
   </div>
 
   <div id="side-bar" *ngIf="showSidebar && !plotOnly">

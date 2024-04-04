@@ -104,13 +104,24 @@
     </mat-expansion-panel>
   </div>
   <div id="ea-svg-container">
-    <div id="loading-genes-container" *ngIf="loadingBackgroundDataset">
+
+    <!-- If we are loading the background dataset we put it in place of any hints -->
+    <div class="hints" *ngIf="loadingBackgroundDataset">
       <img src="assets/icons/spinner.gif" width="15px" height="15px" />
-      <p style="display: inline-block; margin-left: 10px; font-size: 10px">
+      <p>
         Getting background dataset information
       </p>
     </div>
-  </div>
+
+    <!-- show hint text at the top of the viz -->
+    <ng-container *ngIf="!loadingBackgroundDataset">
+      <div class="hints">
+        <p>
+          Hover over a point to highlight the term's genes on the volcano plot. Overlapping genes from your selection will be a <span class="icon">&#8902;</span>
+        </p>
+      </div>
+    </ng-container>
+
 </div>
 
 <div

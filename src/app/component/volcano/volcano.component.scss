@@ -144,6 +144,7 @@
     z-index: $full-screen-z-index;
     background-color: white;
     padding: $full-screen-padding;
+    overflow: hidden;
   }
 
   .mat-expansion-panel-header-title {

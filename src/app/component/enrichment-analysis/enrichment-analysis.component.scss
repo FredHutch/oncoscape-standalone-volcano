@@ -34,14 +34,25 @@
     margin-bottom: 5px; /* Adjust spacing as needed */
   }
 
-  #loading-genes-container {
+  .hints {
     position: absolute;
-    top: 0;
+    top: -20px;
     left: 0;
     background-color: white;
     display: flex;
     align-items: center;
-    font-weight: bold;
+
+    p {
+      display: inline-block;
+      margin-left: 10px;
+      font-size: 10px
+    }
+
+    .icon {
+      font-size: 2em;
+      position: relative;
+      top: 2px;
+    }
   }
 
   .control-wrapper {

@@ -21,6 +21,10 @@ export class VolcanoLayoutManagerService {
   private panelStates: Map<VolcanoPanel, boolean> = new Map();
   private _enabledTabs: VolcanoTab[] = [VolcanoTab.Table, VolcanoTab.EnrichmentAnalysis];
   public panelStates$: Subject<Map<VolcanoPanel, boolean>> = new Subject();
+  private _isFullScreen = false;
+  get isFullScreen(): boolean {
+    return this._isFullScreen;
+  }
 
   constructor() { }
 
@@ -48,6 +52,16 @@ export class VolcanoLayoutManagerService {
       [VolcanoPanel.SelectByStats]: getHeightOrZero("select-by-stats-panel"),
       [VolcanoPanel.TableOptions]: getHeightOrZero("table-options-panel"),
       [VolcanoPanel.EnrichmentAnalysisOptions]: getHeightOrZero("enrichment-analysis-options-panel")
+    }
+  }
+
+  toggleFullScreen() {
+    this._isFullScreen = !this._isFullScreen;
+
+    if (this._isFullScreen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
     }
   }
 

@@ -160,8 +160,6 @@ export class VolcanoComponent
 
   public selectByStatsFormCollapsed: boolean = false;
 
-  public isFullScreen = false;
-
   private selections$: BehaviorSubject<IVolcanoSelection[]> =
     new BehaviorSubject([
       createEmptyVolcanoSelection(VolcanoSelectionType.Standard),
@@ -258,6 +256,10 @@ export class VolcanoComponent
         throw error;
       }
     );
+  }
+
+  shouldShowGOTermButtons(): boolean {
+    return this.activeSelectionType === VolcanoSelectionType.GOTerm;
   }
 
   handleEAmouseover(term: string) {
@@ -358,9 +360,7 @@ export class VolcanoComponent
     this._showSelectByStatsForm = !this._showSelectByStatsForm;
   }
 
-  toggleFullScreen() {
-    this.isFullScreen = !this.isFullScreen;
-  }
+
 
   toggleSidebar() {
     this._showSidebar = !this._showSidebar;
@@ -598,6 +598,13 @@ export class VolcanoComponent
             .on("mousedown", this.onMouseDown.bind(this))
             .on("mousemove", this.onMouseMove.bind(this))
             .on("mouseup", this.onMouseUp.bind(this));
+
+          // if the mouse is outside the svg, stop dragging
+          document.addEventListener("mousemove", (e) => {
+            if (this.isMouseOutsideSvg(e)) {
+              this.onMouseUp();
+            }
+          })
         },
         disable: () => {
           d3.select(`#${this.svgId}`)
@@ -672,12 +679,15 @@ export class VolcanoComponent
     }
 
     if (this.isDragging) {
-      selection.trigger = VolcanoSelectionTrigger.Drag;
+
       // remove any existing rectangle
       d3.select(`#${this.svgId}`).selectAll(".drag-rectangle").remove();
       d3.select(`#${this.svgId}`)
         .selectAll(".drag-rectangle-coordinates")
         .remove();
+
+      selection.trigger = VolcanoSelectionTrigger.Drag;
+
 
       let color = altKeyPressed ? "#d16666" : "lightblue";
 
@@ -686,6 +696,10 @@ export class VolcanoComponent
       const currentDomain = this.getEventCoords(event).domain;
       const startDraw = this.eventCoords.draw;
       const currentDraw = this.getEventCoords(event).draw;
+      const svgElement = document.getElementById(this.svgId);
+      const svgRect = svgElement.getBoundingClientRect();
+      console.log("svgRect", svgRect);
+      console.log("currentDraw", currentDraw);
 
       // draw the rectangle
       d3.select(`#${this.svgId}`)
@@ -920,6 +934,18 @@ export class VolcanoComponent
   // #endregion
 
   // #region Helper functions
+
+  // Function to check if mouse is outside SVG element
+private isMouseOutsideSvg(event) {
+  const svgElement = document.getElementById(this.svgId); // Get the SVG element
+  const svgRect = svgElement.getBoundingClientRect(); // Get bounding rectangle of SVG element
+  return (
+    event.clientX < svgRect.left ||
+    event.clientX > svgRect.right ||
+    event.clientY < svgRect.top ||
+    event.clientY > svgRect.bottom
+  );
+}
 
   private getActiveSelection(): IVolcanoSelection {
     return this.selections.find((s) => s.type === this.activeSelectionType);
