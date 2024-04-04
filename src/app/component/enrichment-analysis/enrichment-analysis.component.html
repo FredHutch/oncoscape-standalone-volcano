@@ -3,8 +3,9 @@
     <mat-expansion-panel
       [hideToggle]="false"
       [expanded]="true"
-      (afterCollapse)="render()"
-      (afterExpand)="render()"
+      (afterCollapse)="layout.setPanelCollapsed('enrichmentAnalysisOptions', true)"
+      (afterExpand)="layout.setPanelCollapsed('enrichmentAnalysisOptions', false)"
+      id="enrichment-analysis-options-panel"
     >
       <mat-expansion-panel-header>
         <mat-panel-title style="text-transform: none">

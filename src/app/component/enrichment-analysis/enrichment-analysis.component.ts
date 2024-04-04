@@ -16,6 +16,7 @@ import * as d3 from "d3";
 import { Observable } from "rxjs";
 import { IVolcanoSelection } from "../volcano/volcano.component.types";
 import { MatSelectChange } from "@angular/material";
+import { VolcanoLayoutManagerService } from 'app/service/volcano-layout-manager.service';
 
 type EnrichmentAnalysisVizOptions = {
   preprocessing: PreprocessingOptions;
@@ -95,8 +96,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     }
   };
 
-  static MARGIN = { top: 20, right: 40, bottom: 60, left: 20 };
-  static LEGEND_WIDTH = 200;
+  static MARGIN = { top: 20, right: 40, bottom: 100, left: 20 };
+  static LEGEND_WIDTH = 100;
   static LEGEND_PADDING = 10;
 
   public loading = false;
@@ -156,7 +157,6 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   @Input() set active(value: boolean) {
     this._active = value;
     if (this._active && this._genes.length > 0) {
-      console.log(`Running EA with ${this._genes.length} genes`);
       this.runEnrichrGSEA();
     }
   }
@@ -190,7 +190,6 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     termLabel: string;
     number_in_list: number;
   })[] {
-    console.log("preprocessing data", data, options)
 
     const resultWithRatios = data.map((d) => {
       return {
@@ -253,17 +252,17 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     this.render();
   }
 
-  async render(options: EnrichmentAnalysisVizOptions = this.options) {
+  async render(options: EnrichmentAnalysisVizOptions = this.options): Promise<void> {
     if (this.data === undefined) return;
     if (!this._active) return;
-
-    console.log("Rendering Enrichment analysis dotplot with options:", options);
     const availableWidth = Number(
       window
-        .getComputedStyle(document.getElementById("side-bar-tabs"))
+        .getComputedStyle(document.getElementById("tabs-container"))
         .width.replace("px", "")
     );
-    const availableHeight = await this.calculateAvailableHeight();
+
+    // Calculate the available height for the visualization based on the panel heights
+    const availableHeight = this.layout.getAvailableHeightForActiveTab();
 
     // Set up the SVG container dimensions
 
@@ -292,14 +291,13 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       })
       .slice(0, options.plotting.n);
 
-    console.log("preprocessed EA data", data);
-
     this.removeSVG();
 
     // Create the SVG container
     const svg = d3
       .select(`#ea-svg-container`)
       .append("svg")
+      .attr("id", "ea-svg")
       .attr(
         "width",
         EnrichmentAnalysisComponent.MARGIN.left +
@@ -317,6 +315,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     this.plot = svg
       .append("g")
+      .attr("id", "ea-plot")
       .attr(
         "transform",
         "translate(" +
@@ -328,6 +327,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     const legend = svg
       .append("g")
+      .attr("id", "ea-legend")
       .attr(
         "transform",
         "translate(" +
@@ -721,6 +721,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           );
         }, 0);
 
+        console.log("tabsHeight", tabsHeight, "idsHeight", idsHeight, "classesHeight", classesHeight);
+
         const availableHeight = tabsHeight - idsHeight - classesHeight;
         resolve(availableHeight);
       }, 100); // Adjust the timeout value as needed
@@ -729,11 +731,13 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   ngAfterViewInit(): void {
     this.setBackgroundDataset(EnrichrPathwaysBackground.REACTOME_2022)
+    this.layout.panelStates$.subscribe((panelStates) => {
+      this.render();
+    });
 
-    window.addEventListener("resize", this.render.bind(this));
+    window.addEventListener("resize", () => this.render.bind(this));
 
     this.selectionObservable.subscribe((selection) => {
-      console.log("new selection for ea:", selection, "active=", this._active);
       this._genes = selection.selectedPoints.map((p) => p.gene);
       if (this._genes === undefined || this._genes.length === 0) {
         this.removeSVG();
@@ -752,5 +756,5 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   ngOnInit(): void {}
 
-  constructor(public ea: EnrichmentAnalysisService, private http: HttpClient) {}
+  constructor(public ea: EnrichmentAnalysisService, private layout: VolcanoLayoutManagerService) {}
 }

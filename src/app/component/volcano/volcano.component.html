@@ -95,9 +95,9 @@
       <mat-expansion-panel
       [hideToggle]="false"
       [expanded]="true"
-      (opened)="selectByStatsFormCollapsed = false"
-      (closed)="selectByStatsFormCollapsed = true"
-      id="select-by-stats-exp-panel"
+      (afterCollapse)="layout.setPanelCollapsed('selectByStats', true)"
+      (afterExpand)="layout.setPanelCollapsed('selectByStats', false)"
+      id="select-by-stats-options-panel"
     >
       <mat-expansion-panel-header>
         <mat-panel-title style="text-transform: none"
@@ -175,27 +175,26 @@
     </mat-expansion-panel>
     </div>
 
-    <div style="flex: 1; display: flex; flex-direction: column;">
-      <mat-tab-group preserveContent style="display: flex; flex-direction: column;" id="side-bar-tabs" (selectedTabChange)="selectedTabChange($event)">
+    <div style="flex: 1; display: flex; flex-direction: column;" id="tabs-container">
+      <mat-tab-group preserveContent style="display: flex; flex-direction: column; min-height: 100%" (selectedTabChange)="selectedTabChange($event)">
 
-        <mat-tab label="Table" style="height: 20px" id="table-tab" *ngIf="isTabEnabled('Table')">
+        <mat-tab label="Table" id="table-tab" *ngIf="layout.isTabEnabled('table')">
           <app-volcano-gene-table
         [upregulatedColor]="selectByStatsForm.upregulatedColor"
         [downregulatedColor]="selectByStatsForm.downregulatedColor"
         [getGeneRegulation]="getGeneRegulation.bind(this)"
-        [selectByStatsFormCollapsed]="selectByStatsFormCollapsed"
         [points]="points"
         [selectionObservable]="selectionOfType$('Standard')"
         (selectionChanged)="labelPoints($event)"
       ></app-volcano-gene-table>
         </mat-tab>
-        <mat-tab label="Enrichment Analysis" id="enrichment-dotplot-tab" *ngIf="isTabEnabled('EnrichmentAnalysis')">
+        <mat-tab label="Enrichment Analysis" id="enrichment-dotplot-tab" *ngIf="layout.isTabEnabled('enrichmentAnalysis')">
           <app-enrichment-analysis
           [id]="id"
           [selectionObservable]="selectionOfType$('Standard')"
           (onmouseover)="handleEAmouseover($event)"
           (onmouseout)="handleEAmouseout()"
-          [active]="activeTabName === 'Enrichment Analysis'"></app-enrichment-analysis>
+          [active]="layout.activeTab === 'enrichmentAnalysis'"></app-enrichment-analysis>
         </mat-tab>
 
       </mat-tab-group>

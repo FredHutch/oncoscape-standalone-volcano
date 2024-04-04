@@ -4,9 +4,9 @@
   *ngIf="points.length > 0"
   [hideToggle]="false"
   [expanded]="true"
-  (opened)="controlsOpen = true"
-  (closed)="controlsOpen = false"
-  id="controls"
+  (afterCollapse)="layout.setPanelCollapsed('tableOptions', true)"
+  (afterExpand)="layout.setPanelCollapsed('tableOptions', false)"
+  id="table-options-panel"
   style="margin-bottom: 10px"
 >
   <mat-expansion-panel-header>

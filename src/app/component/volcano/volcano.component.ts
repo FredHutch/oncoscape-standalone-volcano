@@ -8,21 +8,14 @@ import {
   OnInit,
   ViewChild,
 } from "@angular/core";
-import {
-  ComponentFactoryResolver,
-  Injector,
-  ApplicationRef,
-  Injectable,
-} from "@angular/core";
 // import { OncoData } from "app/oncoData";
 import * as d3 from "d3";
 
 import { VolcanoGeneTableComponent } from "./volcano-gene-table/volcano-gene-table.component";
-import { MatSpinner, MatTabChangeEvent } from "@angular/material";
+import { MatTabChangeEvent } from "@angular/material";
 import {
   IVolcanoVisualization,
   VolcanoPoint,
-  VolcanoTab,
   IVolcanoSelection,
   VolcanoSelectionType,
   VolcanoSelectionTrigger,
@@ -31,12 +24,12 @@ import { VolcanoInteractivityMode } from "./volcano.component.types";
 import { SelectByStatsForm } from "./volcano.component.types";
 import { createEmptyVolcanoSelection } from "./volcanoSelectionTypesConfig";
 import { BehaviorSubject, Observable, Subject } from "rxjs";
-import { filter, map, takeUntil } from "rxjs/operators";
+import { filter, map } from "rxjs/operators";
 import {
-  EA_API,
   EnrichmentAnalysisService,
 } from "app/service/enrichment-analysis/enrichment-analysis.service";
 import { EnrichmentAnalysisComponent } from "../enrichment-analysis/enrichment-analysis.component";
+import { VolcanoLayoutManagerService, VolcanoTab, VolcanoPanel } from 'app/service/volcano-layout-manager.service';
 
 @Component({
   selector: "app-visualization-volcano",
@@ -157,13 +150,17 @@ export class VolcanoComponent
       .classed("upregulated", false)
       .classed("downregulated", false);
 
+    // remove all stars (from Standard + GO Term selections overlap)
+    d3.selectAll(".star").remove();
+
+    this.labelPoints(selection.labelledPoints)
+
     this.selectGenesByName(selection.selectedPoints.map((p) => p.gene));
   }
 
   public selectByStatsFormCollapsed: boolean = false;
 
   public isFullScreen = false;
-  public activeTabName: string = "Table";
 
   private selections$: BehaviorSubject<IVolcanoSelection[]> =
     new BehaviorSubject([
@@ -263,10 +260,62 @@ export class VolcanoComponent
     );
   }
 
-  handleEAmouseover(termId: string) {
+  handleEAmouseover(term: string) {
 
-    this.selectByTerm(this.eaComponent.currentBackgroundDataset, termId).then(() => {
+    const backgroundDataset = this.eaComponent.currentBackgroundDataset;
+
+    this.selectByTerm(backgroundDataset, term).then(() => {
       this.eaComponent.loadingBackgroundDatasetMapping = false;
+
+      // get the points from the standard selection, and use them to search the cache, which will give us the overlapping genes with the term
+      const standardSelection = this.selections.find(s => s.type === VolcanoSelectionType.Standard);
+      const selectedGenes = standardSelection.selectedPoints.map(p => p.gene);
+      const GSEAResults = this.ea.getCachedResult(selectedGenes, backgroundDataset)
+      const overlappingGenes = GSEAResults.find(r => r.term === term).overlappingGenes;
+      if (overlappingGenes === undefined) {
+        console.error("Could not get overlapping genes in selection with term", term, `. No GSEA results found in cache for dataset ${backgroundDataset}.`);
+        return;
+      }
+      const overlappingPoints = this.points.filter(p => overlappingGenes.includes(p.gene))
+      this.labelPoints(overlappingPoints);
+
+
+
+      const star = d3.symbol().type(d3.symbolStar).size(20);
+      overlappingPoints.forEach((point) => {
+        this.stylePointOnHover(null, point, {fill: "transparent"})
+        const x =
+          this.zoomXScale(point.x) +
+          VolcanoComponent.MARGIN.left +
+          VolcanoComponent.AXIS_LABEL_PADDING;
+        const y =
+          this.zoomYScale(point.y) +
+          VolcanoComponent.MARGIN.top +
+          VolcanoComponent.TITLE_PADDING;
+
+        // draw a star at the point
+        this.plot
+          .append("path")
+          .classed("star", true)
+          .attr("d", star)
+          .attr("transform", `translate(${x},${y})`)
+          .attr("fill", this.getSelectedColor(point, standardSelection));
+      });
+
+
+      // d3.selectAll(".star")
+      //   .data(overlappingPoints)
+      //   .enter()
+      //   .append("path")
+      //   .attr("d", star)
+      //   .attr("transform", (d: VolcanoPoint) => {
+      //     return `translate(${
+      //       this.zoomXScale(d.x) + VolcanoComponent.MARGIN.left
+      //     },${this.zoomYScale(d.y) + VolcanoComponent.MARGIN.top})`;
+      //   })
+      //   .attr("fill", (d: VolcanoPoint) => {
+      //     return this.getSelectedColor(d, standardSelection);
+      //   });
 
       const selection = this.getActiveSelection();
       selection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisTab;
@@ -280,7 +329,6 @@ export class VolcanoComponent
     this.exitGOTermSelection();
     const selection = this.getActiveSelection();
     selection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisTab;
-    console.log("handleEAmouseout", selection);
   }
 
   exitGOTermSelection(): void {
@@ -295,7 +343,11 @@ export class VolcanoComponent
   }
 
   selectedTabChange(event: MatTabChangeEvent) {
-    this.activeTabName = event.tab.textLabel;
+    const textLabelToTab = {
+      "Enrichment Analysis": VolcanoTab.EnrichmentAnalysis,
+      "Table": VolcanoTab.Table,
+    }
+    this.layout.activeTab = textLabelToTab[event.tab.textLabel];
   }
 
   togglePlotControls(): void {
@@ -312,10 +364,6 @@ export class VolcanoComponent
 
   toggleSidebar() {
     this._showSidebar = !this._showSidebar;
-  }
-
-  isTabEnabled(tab: VolcanoTab): boolean {
-    return this.tabs.findIndex((t) => t === tab) !== -1;
   }
 
   updateSelectByStatsForm(event: Event) {
@@ -877,8 +925,7 @@ export class VolcanoComponent
     return this.selections.find((s) => s.type === this.activeSelectionType);
   }
 
-  private getSelectedColor(point: VolcanoPoint): string {
-    const selection = this.getActiveSelection();
+  private getSelectedColor(point: VolcanoPoint, selection = this.getActiveSelection()): string {
 
     if (!selection.config.useSelectByStatColorLogic)
       return selection.config.colorSelected;
@@ -1837,6 +1884,8 @@ export class VolcanoComponent
   ngOnInit(): void {
     this.selections$.next(this.selections);
 
+    this.layout.setEnabledTabs(this.tabs)
+
     // listen for window size changes
     window.addEventListener("resize", () => {
       VolcanoComponent.WIDTH =
@@ -1846,7 +1895,6 @@ export class VolcanoComponent
         Number(
           window.getComputedStyle(document.body).height.replace("px", "")
         ) / 1.5;
-      // this.ngAfterViewInit();
     });
   }
 
@@ -1855,8 +1903,6 @@ export class VolcanoComponent
   constructor(
     private cd: ChangeDetectorRef,
     private ea: EnrichmentAnalysisService,
-    private componentFactoryResolver: ComponentFactoryResolver,
-    private injector: Injector,
-    private appRef: ApplicationRef
+    public layout: VolcanoLayoutManagerService
   ) {}
 }

@@ -35,6 +35,13 @@ export class EnrichmentAnalysisService {
     duration: 3000,
   };
 
+  /** Given a list of genes and background Type, get cached results, if any */
+  getCachedResult(genes: string[], backgroundType: string): EnrichrGSEAResults {
+    const sortedGenesToCache = [...genes].sort()
+    const cacheKey = [...sortedGenesToCache, backgroundType].join("+");
+    return this.cachedResults[cacheKey];
+  }
+
   async loadBackgroundDatasetMapping(dataset: string, cancel: Subject<void> = new Subject(), onCanceled: () => void = () => {}): Promise<Map<string, string[]>> {
     if (dataset in this.cachedBackgrounds) {
       return this.cachedBackgrounds[dataset]

@@ -25,6 +25,7 @@ import { EventEmitter } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 import { IVolcanoSelection, VolcanoPoint } from "../volcano.component.types";
+import { VolcanoLayoutManagerService } from "app/service/volcano-layout-manager.service";
 
 let sortBy = (keys, data) => {
   return data.sort((i, j) => {
@@ -55,7 +56,6 @@ let sortBy = (keys, data) => {
   styleUrls: ["volcano-gene-table.component.scss"],
 })
 export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
-  controlsOpen: boolean = true;
 
   @Input() getGeneRegulation: (point: VolcanoPoint) => "up" | "down" | "none";
   @Input() upregulatedColor: string = "green";
@@ -374,6 +374,7 @@ export class VolcanoGeneTableComponent implements AfterViewInit, OnInit {
   constructor(
     public cd: ChangeDetectorRef,
     private _snackbar: MatSnackBar,
-    private http: HttpClient
+    private http: HttpClient,
+    public layout: VolcanoLayoutManagerService
   ) {}
 }

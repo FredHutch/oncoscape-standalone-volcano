@@ -39,6 +39,7 @@ import { MatPaginatorModule } from "@angular/material/paginator";
 import { MatSliderModule } from "@angular/material";
 import { MatTabsModule } from "@angular/material/tabs";
 import { EnrichmentAnalysisComponent } from "./component/enrichment-analysis/enrichment-analysis.component";
+import { VolcanoLayoutManagerService } from "./service/volcano-layout-manager.service";
 
 @NgModule({
   declarations: [
@@ -87,6 +88,7 @@ import { EnrichmentAnalysisComponent } from "./component/enrichment-analysis/enr
     PythonService,
     WorkerService,
     EnrichmentAnalysisService,
+    VolcanoLayoutManagerService
   ],
   bootstrap: [AppComponent],
   entryComponents: [DeleteJobDialogComponent, CancelJobDialogComponent],

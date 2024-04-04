@@ -58,11 +58,6 @@ export enum VolcanoInteractivityMode {
   PAN_ZOOM = "panZoom"
 }
 
-export enum VolcanoTab {
-  Table = "Table",
-  EnrichmentAnalysis = "EnrichmentAnalysis"
-}
-
 export interface IVolcanoSelection {
   type: VolcanoSelectionType,
   trigger: VolcanoSelectionTrigger,
@@ -106,9 +101,6 @@ export interface IVolcanoSelection {
 
 export interface IVolcanoVisualization {
 
-  /** List of tabs available in the side bar of the plot */
-  tabs: VolcanoTab[];
-
   /** Whether to only show the plot (no controls or sidebar) */
   plotOnly: boolean;
 
@@ -125,10 +117,6 @@ export interface IVolcanoVisualization {
   points: VolcanoPoint[];
   isFullScreen: boolean;
 
-  /** Name of the active tab in the sidebar */
-  activeTabName: string;
-  selectByStatsFormCollapsed: boolean;
-
   selectionOfType$(type: VolcanoSelectionType): Observable<IVolcanoSelection>
 
   /** Selected plot type to download (used for an ngModel) */
@@ -141,8 +129,6 @@ export interface IVolcanoVisualization {
   mode: VolcanoInteractivityMode;
 
   setMode(mode: string | VolcanoInteractivityMode): void;
-
-  isTabEnabled(tab: VolcanoTab): boolean
 
   /** Reset the zoom and pan of the plot */
   resetView(): void;
