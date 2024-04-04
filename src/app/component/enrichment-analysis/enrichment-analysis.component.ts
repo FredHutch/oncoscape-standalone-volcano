@@ -140,7 +140,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     return Object.keys(SortByOptions).map((key) => SortByOptions[key]);
   }
 
-  get currentBackgroundDataset(): string {
+  get currentBackgroundDataset(): typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"][number]["value"] {
     return this.options.api.backgroundDataset;
   }
   set currentBackgroundDataset(dataset: typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"][number]["value"]) {
