@@ -22,12 +22,11 @@ export class DeaInputComponent {
   private _cohortB: string[] = [];
   set cohortA(value: string) {
     // split by newline and trim each line
-    this._cohortA = value.split('\n').map((line) => line.trim());
-    console.log(this._cohortA);
+    this._cohortA = value.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
   }
   set cohortB(value: string) {
     // split by newline and trim each line
-    this._cohortB = value.split('\n').map((line) => line.trim());
+    this._cohortB = value.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
   }
 
   canRunDEA(): boolean {
