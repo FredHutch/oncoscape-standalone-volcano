@@ -12,7 +12,7 @@ import mapData from "assets/data/map.json";
 })
 export class DeaInputComponent {
 
-  static DEA_METHOD: 'server' | 'worker' = 'server'
+  static DEA_METHOD: 'server' | 'worker' = 'worker'
 
   public rawCounts: any;
   public sids: string[] = [];

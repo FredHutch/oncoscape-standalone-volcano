@@ -55,7 +55,7 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     // open
 
-    this.csv.loadResultsCSVFromFile('assets/data/example.csv').subscribe(data => {
+    this.csv.loadResultsCSVFromFile('assets/data/mng_example.csv').subscribe(data => {
       this._pythonService.createDummyJob(data, 'Example');
     })
 

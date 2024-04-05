@@ -835,6 +835,10 @@ export class VolcanoComponent
   }
 
   private onMouseUp() {
+
+    const selection = this.getActiveSelection();
+    if (selection.config.disableMouseSelection) return;
+
     // end the drag
     if (this.isDragging) {
       this.isDragging = false;
@@ -944,8 +948,9 @@ export class VolcanoComponent
   // #region Helper functions
 
   // Function to check if mouse is outside SVG element
-private isMouseOutsideSvg(event) {
+private isMouseOutsideSvg(event): boolean {
   const svgElement = document.getElementById(this.svgId); // Get the SVG element
+  if (!svgElement) return true; // If the SVG element doesn't exist, return true (mouse is outside SVG element
   const svgRect = svgElement.getBoundingClientRect(); // Get bounding rectangle of SVG element
   return (
     event.clientX < svgRect.left ||

@@ -108,8 +108,6 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   public downloadPlotType: DownloadPlotFileType = DownloadPlotFileType.SVG;
 
-  private lastSelectedTerm: string;
-
   private options: EnrichmentAnalysisVizOptions =
     EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
 
@@ -464,7 +462,6 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
         self.showTooltip(event, options.plotting);
 
-        self.lastSelectedTerm = d.termId;
         d3.select(this)
           .attr(
             "fill",
@@ -476,15 +473,11 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
             "stroke-width", 5
           );
 
-
-
         // select all other circles and remove their stroke
         self.circles
           .filter((c) => c.termId !== d.termId)
           .style("stroke", "none")
           .style("stroke-width", 0)
-
-
 
         self.loadingBackgroundDatasetMapping = true;
         self.onmouseover.emit(d.termId);
