@@ -221,9 +221,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   private runEnrichrGSEA() {
-    // dont let lastSelectedTerm persist between runs
     console.log("running enrichr gsea")
-    this.lastSelectedTerm = undefined;
     this.loading = true;
     this.removeSVG();
     this.ea
