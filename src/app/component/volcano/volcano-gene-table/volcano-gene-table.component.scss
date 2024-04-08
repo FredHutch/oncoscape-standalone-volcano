@@ -30,6 +30,17 @@
     margin: 0;
   }
 
+  #regulation {
+    font-size: 10px;
+    height: 30px !important;
+  }
+
+  #regulation .mat-button-toggle-label-content{
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    margin-top: -7px;
+  }
+
   /* Adjust the "rank" column to only take up 15% of the table width */
   .mat-column-rank {
     flex: 0 0 20%;

@@ -192,6 +192,9 @@
           <app-enrichment-analysis
           [id]="id"
           [selectionObservable]="selectionOfType$('Standard')"
+          [downregulatedColor]="selectByStatsForm.downregulatedColor"
+          [upregulatedColor]="selectByStatsForm.upregulatedColor"
+          [getGeneRegulation]="getGeneRegulation.bind(this)"
           (onmouseover)="handleEAmouseover($event)"
           [active]="layout.activeTab === 'enrichmentAnalysis'"></app-enrichment-analysis>
         </mat-tab>

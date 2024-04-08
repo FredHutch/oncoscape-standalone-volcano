@@ -15,16 +15,23 @@ import {
 } from "app/service/enrichment-analysis/enrichment-analysis.service";
 import * as d3 from "d3";
 import { Observable } from "rxjs";
-import { IVolcanoSelection } from "../volcano/volcano.component.types";
+import { IVolcanoSelection, VolcanoPoint } from "../volcano/volcano.component.types";
 import { MatSelectChange } from "@angular/material";
 import { VolcanoLayoutManagerService } from 'app/service/volcano-layout-manager.service';
 import { DownloadPlotFileType } from 'app/service/plot-download.service';
 import { DownloadPlotComponent } from '../download-plot/download-plot.component';
+import { FormControl, FormGroup } from '@angular/forms';
 
 type EnrichmentAnalysisVizOptions = {
-  preprocessing: PreprocessingOptions;
-  plotting: PlottingOptions;
+
+  /** Parameters passed to the API, and parameters that affectsthe data before it goes into the API. */
   api: APIOptions;
+
+  /** Parameters that affect the preprocessing of the data after the API, before d3 */
+  preprocessing: PreprocessingOptions;
+
+  /** Parameters that affect d3 */
+  plotting: PlottingOptions;
 };
 
 type PreprocessingOptions = {
@@ -47,6 +54,7 @@ type PlottingOptions = {
 
 type APIOptions = {
   backgroundDataset: typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"][number]["value"];
+  regulation: 'up' | 'down';
 }
 
 enum ColorByOptions {
@@ -96,6 +104,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     },
     api: {
       backgroundDataset: EnrichrPathwaysBackground.REACTOME_2022,
+      regulation: 'up'
     }
   };
 
@@ -106,10 +115,11 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   public loading = false;
   public loadingBackgroundDatasetMapping = false;
 
-  public downloadPlotType: DownloadPlotFileType = DownloadPlotFileType.SVG;
+  public regulationForm = new FormGroup({
+    regulation: new FormControl(EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS.api.regulation)
+  });
 
-  private options: EnrichmentAnalysisVizOptions =
-    EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
+  public downloadPlotType: DownloadPlotFileType = DownloadPlotFileType.SVG;
 
   public get useIdsForTermLabels(): boolean {
     return this.options.plotting.useIdsForTermLabels;
@@ -153,8 +163,12 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   downloadPlotComponent: DownloadPlotComponent;
 
   @Input() id: string;
+  @Input() downregulatedColor: string;
+  @Input() upregulatedColor: string;
+  @Input() getGeneRegulation: (point: VolcanoPoint) => 'up' | 'down' | 'none';
 
   private _genes: string[] = [];
+  private _regulationMap: Map<string, 'up' | 'down' | 'none'> = new Map();
   get genes(): string[] {
     return this._genes;
   }
@@ -171,6 +185,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   @Output() onmouseover: EventEmitter<string> = new EventEmitter();
   @Output() onmouseout: EventEmitter<void> = new EventEmitter();
+
+  private options: EnrichmentAnalysisVizOptions =
+    EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
 
   /** key is userListId_dataset */
   private data: EnrichrGSEAResults;
@@ -221,11 +238,17 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   private runEnrichrGSEA() {
-    console.log("running enrichr gsea")
+    console.log("running enrichr gsea with options", this.options.api)
     this.loading = true;
     this.removeSVG();
+
+    const regulation = this.options.api.regulation;
+    const backgroundDataset = this.options.api.backgroundDataset;
+    const regulatedGenes = this._genes.filter((g) => this._regulationMap.get(g) === regulation);
+
+
     this.ea
-      .runEnrichrGSEA(this._genes, this.options.api.backgroundDataset).then((observable) => {
+      .runEnrichrGSEA(regulatedGenes, backgroundDataset, regulation).then((observable) => {
         observable.subscribe((res) => {
 
           if (res === undefined) {
@@ -738,6 +761,8 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
         return;
       }
 
+      this._regulationMap = new Map(selection.selectedPoints.map((p) => [p.gene, this.getGeneRegulation(p)]));
+
       // if genes update but the EA tab is not active, don't run the analysis
       if (!this._active) {
         return;
@@ -747,7 +772,12 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     });
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.regulationForm.valueChanges.subscribe((value) => {
+      this.options.api.regulation = value.regulation;
+      this.runEnrichrGSEA();
+    });
+  }
 
   constructor(public ea: EnrichmentAnalysisService, private layout: VolcanoLayoutManagerService) {}
 }

@@ -48,6 +48,17 @@
     color: white;
   }
 
+  #regulation {
+    font-size: 10px;
+    height: 30px !important;
+  }
+
+  #regulation .mat-button-toggle-label-content{
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    margin-top: -7px;
+  }
+
 
   .hints {
     position: absolute;
@@ -72,6 +83,7 @@
 
   .control-wrapper {
     display: flex;
+    justify-content: space-between;
     gap: 5px;
   }
 }

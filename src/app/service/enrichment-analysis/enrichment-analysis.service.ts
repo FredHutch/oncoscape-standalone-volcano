@@ -114,14 +114,22 @@ export class EnrichmentAnalysisService {
     return this.http.post<any>(ENDPOINT, formData, { headers: headers });
   }
 
+  /**
+   *
+   * @param genes list of genes
+   * @param backgroundType Background Dataset type (e.g. "KEGG_2019_Human" or "GO_Biological_Process_2018")
+   * @param regulation "up" or "down" for upregulated or downregulated genes (not used in calculation, just for caching lookup purposes)
+   * @returns
+   */
   async runEnrichrGSEA(
     genes: string[],
-    backgroundType: (typeof EnrichmentAnalysisService)["AVAILABLE_BACKGROUNDS"][number]["value"]
+    backgroundType: (typeof EnrichmentAnalysisService)["AVAILABLE_BACKGROUNDS"][number]["value"],
+    regulation: "up" | "down" = "up"
   ): Promise<Observable<EnrichrGSEAResults>> {
 
     // create a key for the cache
     const sortedGenesToCache = [...genes].sort()
-    const cacheKey = [...sortedGenesToCache, backgroundType].join("+");
+    const cacheKey = [...sortedGenesToCache, backgroundType, regulation].join("+");
 
     // see if we have the results cached
     if (cacheKey in this.cachedResults) {

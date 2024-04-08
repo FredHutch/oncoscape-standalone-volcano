@@ -3,8 +3,12 @@
     <mat-expansion-panel
       [hideToggle]="false"
       [expanded]="true"
-      (afterCollapse)="layout.setPanelCollapsed('enrichmentAnalysisOptions', true)"
-      (afterExpand)="layout.setPanelCollapsed('enrichmentAnalysisOptions', false)"
+      (afterCollapse)="
+        layout.setPanelCollapsed('enrichmentAnalysisOptions', true)
+      "
+      (afterExpand)="
+        layout.setPanelCollapsed('enrichmentAnalysisOptions', false)
+      "
       id="enrichment-analysis-options-panel"
     >
       <mat-expansion-panel-header>
@@ -71,35 +75,78 @@
       </div> -->
 
       <div class="control-wrapper">
-        <mat-form-field id="select-ann-dataset">
-          <mat-label>Background dataset</mat-label>
-          <mat-select [(ngModel)]="currentBackgroundDataset" [disabled]="!plotReady()">
-            <mat-option
-              [value]="bkg.value"
-              *ngFor="let bkg of availableBackgrounds"
-              >{{ bkg.name }}</mat-option
-            >
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field id="n-input" style="width: 75px">
-          <mat-label># GO Terms</mat-label>
-          <input
-            matInput
-            type="number"
-            [(ngModel)]="options.plotting.n"
-            (change)="render()"
-            [disabled]="!plotReady()"
-            [min]="5"
-            [max]="50"
-          />
-        </mat-form-field>
-
         <app-download-plot
-        plotSvgId="ea-svg"
-        plotId="GSEA"
-        [disabled]="!plotReady()"
+          plotSvgId="ea-svg"
+          plotId="GSEA"
+          [disabled]="!plotReady()"
         ></app-download-plot>
+
+        <div style="display: flex; gap: 5px">
+          <mat-form-field id="select-ann-dataset">
+            <mat-label>Background dataset</mat-label>
+            <mat-select
+              [(ngModel)]="currentBackgroundDataset"
+              [disabled]="!plotReady()"
+            >
+              <mat-option
+                [value]="bkg.value"
+                *ngFor="let bkg of availableBackgrounds"
+                >{{ bkg.name }}</mat-option
+              >
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field id="n-input" style="width: 75px">
+            <mat-label># GO Terms</mat-label>
+            <input
+              matInput
+              type="number"
+              [(ngModel)]="options.plotting.n"
+              (change)="render()"
+              [disabled]="!plotReady()"
+              [min]="5"
+              [max]="50"
+            />
+          </mat-form-field>
+
+          <form
+            [formGroup]="regulationForm"
+            style="font-size: 12px"
+            id="regulation-form"
+          >
+            <div>
+              <div style="text-align: left; color: rgba(0, 0, 0, 0.6); font-size: 10px; margin-top: -3px;">Regulation filter</div>
+              <mat-button-toggle-group
+                formControlName="regulation"
+                aria-label="Regulation"
+                id="regulation"
+              >
+                <mat-button-toggle value="down">
+                  <span>
+                    <mat-icon
+                      style="font-size: small"
+                      [style.color]="downregulatedColor"
+                      matTooltip="downregulated"
+                      >arrow_downward</mat-icon
+                    >
+                  </span>
+                  Downregulated
+                </mat-button-toggle>
+                <mat-button-toggle value="up">
+                  <span>
+                    <mat-icon
+                      style="font-size: small"
+                      [style.color]="upregulatedColor"
+                      matTooltip="upregulated"
+                      >arrow_upward</mat-icon
+                    >
+                  </span>
+                  Upregulated
+                </mat-button-toggle>
+              </mat-button-toggle-group>
+            </div>
+          </form>
+        </div>
 
         <!-- <div class="toggle-container">
           <span class="toggle-label">Shorten GO Term labels</span>
@@ -111,51 +158,50 @@
     </mat-expansion-panel>
   </div>
   <div id="ea-svg-container">
-
     <!-- If we are loading the background dataset we put it in place of any hints -->
     <div class="hints" *ngIf="loadingBackgroundDatasetMapping">
       <img src="assets/icons/spinner.gif" width="15px" height="15px" />
-      <p>
-        Getting background dataset information
-      </p>
+      <p>Getting background dataset information</p>
     </div>
 
     <!-- show hint text at the top of the viz -->
     <ng-container *ngIf="plotReady()">
       <div class="hints">
         <p>
-          Hover over a point to highlight the term's genes on the volcano plot. Overlapping genes from your selection will be a <span class="icon">&#8902;</span>
+          Hover over a point to highlight the term's genes on the volcano plot.
+          Overlapping genes from your selection will be a
+          <span class="icon">&#8902;</span>
         </p>
       </div>
     </ng-container>
+  </div>
 
-</div>
+  <div
+    *ngIf="genes.length === 0"
+    style="
+      width: 100%;
+      height: 40vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    "
+  >
+    <p id="no-genes-hint">
+      Select genes on the volcano plot to view Enrichment Analysis
+    </p>
+  </div>
 
-<div
-  *ngIf="genes.length === 0"
-  style="
-    width: 100%;
-    height: 40vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  "
->
-  <p id="no-genes-hint">
-    Select genes on the volcano plot to view Enrichment Analysis
-  </p>
-</div>
-
-<div
-  *ngIf="loading"
-  style="
-    width: 100%;
-    height: 40vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  "
->
-  <mat-spinner></mat-spinner>
-  <p style="margin-left: 10px">Running Enrichment Analysis</p>
+  <div
+    *ngIf="loading"
+    style="
+      width: 100%;
+      height: 40vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    "
+  >
+    <mat-spinner></mat-spinner>
+    <p style="margin-left: 10px">Running Enrichment Analysis</p>
+  </div>
 </div>
