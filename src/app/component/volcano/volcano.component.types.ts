@@ -1,4 +1,3 @@
-import { VolcanoPoint } from './volcano.component.types';
 import { EnrichmentAnalysisService } from "app/service/enrichment-analysis/enrichment-analysis.service";
 import { Observable } from "rxjs";
 

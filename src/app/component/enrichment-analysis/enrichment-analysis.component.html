@@ -121,7 +121,7 @@
                 aria-label="Regulation"
                 id="regulation"
               >
-                <mat-button-toggle value="down">
+                <mat-button-toggle value="down" [disabled]="downregulatedGenes.length <= 0">
                   <span>
                     <mat-icon
                       style="font-size: small"
@@ -132,7 +132,7 @@
                   </span>
                   Downregulated
                 </mat-button-toggle>
-                <mat-button-toggle value="up">
+                <mat-button-toggle value="up" [disabled]="upregulatedGenes.length <= 0">
                   <span>
                     <mat-icon
                       style="font-size: small"

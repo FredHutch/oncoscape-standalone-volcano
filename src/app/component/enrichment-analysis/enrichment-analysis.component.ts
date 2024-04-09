@@ -81,6 +81,14 @@ enum SortByOptions {
   FoldEnrichment = "fold_enrichment",
 }
 
+export type EAPlotPoint = (EnrichrGSEAResults[number] & {
+  // bgRatio: number;
+  geneRatio: number;
+  termId: string;
+  termLabel: string;
+  number_in_list: number;
+});
+
 @Component({
   selector: "app-enrichment-analysis",
   templateUrl: "./enrichment-analysis.component.html",
@@ -166,13 +174,22 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   @Input() downregulatedColor: string;
   @Input() upregulatedColor: string;
   @Input() getGeneRegulation: (point: VolcanoPoint) => 'up' | 'down' | 'none';
+  @Input() selectionObservable: Observable<IVolcanoSelection>;
 
   private _genes: string[] = [];
-  private _regulationMap: Map<string, 'up' | 'down' | 'none'> = new Map();
   get genes(): string[] {
     return this._genes;
   }
-  @Input() selectionObservable: Observable<IVolcanoSelection>;
+  private _downregulatedGenes: string[] = [];
+  private _upregulatedGenes: string[] = [];
+  get downregulatedGenes(): string[] {
+    return this._downregulatedGenes;
+  }
+  get upregulatedGenes(): string[] {
+    return this._upregulatedGenes;
+  }
+
+
 
   // We have this active flag so we don't render hit the API endpoint when the viz is not open.
   private _active: boolean = false;
@@ -183,7 +200,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     }
   }
 
-  @Output() onmouseover: EventEmitter<string> = new EventEmitter();
+  @Output() onmouseover: EventEmitter<EAPlotPoint> = new EventEmitter();
   @Output() onmouseout: EventEmitter<void> = new EventEmitter();
 
   private options: EnrichmentAnalysisVizOptions =
@@ -197,7 +214,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   private yScale: d3.ScaleBand<string>;
   private circles: d3.Selection<
     SVGCircleElement,
-    ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>[number],
+    EAPlotPoint,
     SVGGElement,
     unknown
   >;
@@ -244,7 +261,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     const regulation = this.options.api.regulation;
     const backgroundDataset = this.options.api.backgroundDataset;
-    const regulatedGenes = this._genes.filter((g) => this._regulationMap.get(g) === regulation);
+    const regulatedGenes = regulation === 'up' ? this._upregulatedGenes : this._downregulatedGenes;
 
 
     this.ea
@@ -479,7 +496,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .style("stroke-width", 0);
 
     this.circles
-      .on("mouseover", function (event, d) {
+      .on("mouseover", function (event, _d) {
+
+        const d: EAPlotPoint = _d as any;
 
         self.showTooltip(event, options.plotting);
 
@@ -501,7 +520,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           .style("stroke-width", 0)
 
         self.loadingBackgroundDatasetMapping = true;
-        self.onmouseover.emit(d.termId);
+        self.onmouseover.emit(d);
       })
       .on("mouseout", function (event, d) {
         self.removeTooltip();
@@ -533,9 +552,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   private showTooltip(event: any, options: PlottingOptions) {
-    const d: ReturnType<
-      typeof EnrichmentAnalysisComponent.preprocessData
-    >[number] = event.srcElement.__data__;
+    const d: EAPlotPoint = event.srcElement.__data__;
 
     d3
       .select(`body`)
@@ -576,7 +593,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   private drawLegend(
     legend: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
-    data: ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>,
+    data: EAPlotPoint[],
     options: EnrichmentAnalysisVizOptions,
     colorScale: d3.ScaleSequential<string, never>,
     sizeScale: d3.ScaleLinear<number, number, never>
@@ -600,7 +617,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   private drawSizeLegend(
     legend: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
-    data: ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>,
+    data: EAPlotPoint[],
     options: EnrichmentAnalysisVizOptions,
     sizeScale: d3.ScaleLinear<number, number, never>,
     heightOffset: number
@@ -659,7 +676,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   private drawColorLegend(
     legend: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
-    data: ReturnType<typeof EnrichmentAnalysisComponent.preprocessData>,
+    data: EAPlotPoint[],
     options: EnrichmentAnalysisVizOptions,
     colorScale: d3.ScaleSequential<string, never>
   ): number {
@@ -760,8 +777,20 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
         this.loading = false;
         return;
       }
+      this._upregulatedGenes = selection.selectedPoints.filter((p) => this.getGeneRegulation(p) === 'up').map((p) => p.gene);
+      this._downregulatedGenes = selection.selectedPoints.filter((p) => this.getGeneRegulation(p) === 'down').map((p) => p.gene);
+      if (this.upregulatedGenes.length === 0 && this.downregulatedGenes.length === 0) {
+        this.removeSVG();
+        this.loading = false;
+        return;
+      }
 
-      this._regulationMap = new Map(selection.selectedPoints.map((p) => [p.gene, this.getGeneRegulation(p)]));
+      // try to set regulation by default to up whenever the data changes, unless there are only downregulated genes
+      if (this.upregulatedGenes.length > 0) {
+        this.options.api.regulation = 'up';
+      } else {
+        this.options.api.regulation = 'down';
+      }
 
       // if genes update but the EA tab is not active, don't run the analysis
       if (!this._active) {

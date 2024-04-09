@@ -28,7 +28,7 @@ import { filter, map } from "rxjs/operators";
 import {
   EnrichmentAnalysisService,
 } from "app/service/enrichment-analysis/enrichment-analysis.service";
-import { EnrichmentAnalysisComponent } from "../enrichment-analysis/enrichment-analysis.component";
+import { EAPlotPoint, EnrichmentAnalysisComponent } from "../enrichment-analysis/enrichment-analysis.component";
 import { VolcanoLayoutManagerService, VolcanoTab, VolcanoPanel } from 'app/service/volcano-layout-manager.service';
 import { DownloadPlotFileType } from 'app/service/plot-download.service';
 import { DownloadPlotComponent } from '../download-plot/download-plot.component';
@@ -286,30 +286,23 @@ export class VolcanoComponent
     return this.activeSelectionType === VolcanoSelectionType.GOTerm;
   }
 
-  handleEAmouseover(term: string) {
+  handleEAmouseover(point: EAPlotPoint) {
+
 
     const backgroundDataset = this.eaComponent.currentBackgroundDataset;
 
-    this.selectByTerm(backgroundDataset, term).then(() => {
+    this.selectByTerm(backgroundDataset, point.termId).then(() => {
       this.eaComponent.loadingBackgroundDatasetMapping = false;
 
-      const GOTermSelection = this.getActiveSelection()
-
-      // get the points from the standard selection, and use them to search the cache, which will give us the overlapping genes with the term
-      const standardSelection = this.selections.find(s => s.type === VolcanoSelectionType.Standard);
-      const selectedGenes = standardSelection.selectedPoints.map(p => p.gene);
-      const GSEAResults = this.ea.getCachedResult(selectedGenes, backgroundDataset)
-      const overlappingGenes = GSEAResults.find(r => r.term === term).overlappingGenes;
-      if (overlappingGenes === undefined) {
-        console.error("Could not get overlapping genes in selection with term", term, `. No GSEA results found in cache for dataset ${backgroundDataset}.`);
-        return;
-      }
-      const overlappingPoints = this.points.filter(p => overlappingGenes.includes(p.gene))
+      // get the points that is the intersection of the standard selection and the GO Term selection
+      const overlappingPoints = this.points.filter(p => point.overlappingGenes.includes(p.gene))
       this.labelPoints(overlappingPoints);
 
       // mark the points as overlapping with the selection.
       //This will help later when we want to create a selection with the overlapping points
       this.getActiveSelection().markPointsAsOverlappingWithOtherSelection(overlappingPoints);
+
+      const standardSelection = this.selections.find(s => s.type === VolcanoSelectionType.Standard);
 
 
       const star = d3.symbol().type(d3.symbolStar).size(20);

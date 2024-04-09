@@ -28,17 +28,10 @@ export class EnrichmentAnalysisService {
   /** key is gene names concatted with a + and the background dataset name */
   private cachedResults: { [key: string]: EnrichrGSEAResults } = {};
 
-
-  private snackbarConfig: MatSnackBarConfig<any> = {
-    horizontalPosition: "right",
-    verticalPosition: "top",
-    duration: 3000,
-  };
-
   /** Given a list of genes and background Type, get cached results, if any */
-  getCachedResult(genes: string[], backgroundType: string): EnrichrGSEAResults {
+  getCachedResult(genes: string[], backgroundType: string, regulation: 'up' | 'down' | 'none'): EnrichrGSEAResults {
     const sortedGenesToCache = [...genes].sort()
-    const cacheKey = [...sortedGenesToCache, backgroundType].join("+");
+    const cacheKey = this.generateCacheKey(sortedGenesToCache, backgroundType, regulation);
     return this.cachedResults[cacheKey];
   }
 
@@ -114,6 +107,11 @@ export class EnrichmentAnalysisService {
     return this.http.post<any>(ENDPOINT, formData, { headers: headers });
   }
 
+  private generateCacheKey(genes: string[], backgroundType: string, regulation: 'up' | 'down' | 'none'): string {
+    const sortedGenesToCache = [...genes].sort((a, b) => a.localeCompare(b)); // Custom sorting function
+    return [...sortedGenesToCache, backgroundType, regulation].join("+");
+  }
+
   /**
    *
    * @param genes list of genes
@@ -128,8 +126,7 @@ export class EnrichmentAnalysisService {
   ): Promise<Observable<EnrichrGSEAResults>> {
 
     // create a key for the cache
-    const sortedGenesToCache = [...genes].sort()
-    const cacheKey = [...sortedGenesToCache, backgroundType, regulation].join("+");
+    const cacheKey = this.generateCacheKey(genes, backgroundType, regulation);
 
     // see if we have the results cached
     if (cacheKey in this.cachedResults) {
