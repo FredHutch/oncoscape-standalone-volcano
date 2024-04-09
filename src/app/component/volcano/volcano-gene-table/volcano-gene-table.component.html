@@ -11,7 +11,7 @@
 >
   <mat-expansion-panel-header>
     <mat-panel-title>
-      Controls
+      Table Controls
     </mat-panel-title>
     <mat-panel-description>
     </mat-panel-description>
@@ -21,7 +21,7 @@
   <form [formGroup]="filterForm" style="font-size: 12px" id="filter-form">
     <div id="selection">
       <div id="box">
-        <mat-checkbox formControlName="onlySelection" color="primary" (change)="applyFilter()">Only show selection</mat-checkbox>
+        <mat-checkbox formControlName="onlySelection" color="primary" (change)="applyFilter()">Only include selection</mat-checkbox>
         <br/>
         <button
             mat-icon-button

@@ -42,6 +42,14 @@ export type VolcanoSelectionConfig = {
   colorSelected: string,
   colorUnselected: string;
 
+  /** If defined, will use the value as the stroke attribute for the circle's `stroke` attribute when selected. */
+  strokeSelected: string;
+  /** If defined, will use the value as the stroke attribute for the circle's `stroke` attribute when unselected. */
+  strokeUnselected: string;
+
+  strokeWidthSelected: number;
+  strokeWidthUnselected: number;
+
   /** If true, significantly regulated genes will be colored by the regulation colors. If false, any selected point will be colored by `this.colorSelected`. Defaults to True */
   useSelectByStatColorLogic: boolean;
 
@@ -52,6 +60,11 @@ export type VolcanoSelectionConfig = {
 
   /** Whether to label a point when it is selection. Defaults to false */
   labelOnSelection: boolean;
+
+  /**
+   * If set, the interactive coloring logic will be deferred to the selection of this type. This is useful for GO Term selection, where we want to color the points on hover based on the Standard selection logic.
+   */
+  deferInteractiveColoringLogicTo: VolcanoSelectionType | null;
 }
 
 export type VolcanoPoint = {
@@ -77,6 +90,9 @@ export interface IVolcanoSelection {
 
   /** Manually mark an overlap with another selection. The subset of overlapping points must already be known (via something like GSEA) */
   markPointsAsOverlappingWithOtherSelection(points: VolcanoPoint[]): void;
+
+  /** Find the points selected in both selections */
+  intersection(otherSelection: IVolcanoSelection): VolcanoPoint[];
 
   /** Reset the data for the selection. All selected and label flags will be lost */
   resetData(points: VolcanoPoint[]): void;

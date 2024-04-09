@@ -34,6 +34,10 @@ export class VolcanoSelection implements IVolcanoSelection {
     );
   }
 
+  intersection(otherSelection: IVolcanoSelection): VolcanoPoint[] {
+    return this.points.filter((p) => p.selected && otherSelection.isPointSelected(p));
+  }
+
   resetData(points: VolcanoPoint[]) {
     // make this.points a deep copy of points
     this.points = JSON.parse(JSON.stringify(points));

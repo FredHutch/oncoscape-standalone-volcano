@@ -53,6 +53,9 @@ export class EnrichmentAnalysisService {
       )
       .toPromise()
       .then((tsvData: string) => {
+        if (!tsvData) {
+          return
+        }
         // Split the TSV data into rows
         const rows = tsvData.split("\n");
         const termToGenesMapping = new Map<string, string[]>();

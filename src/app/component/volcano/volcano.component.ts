@@ -19,10 +19,11 @@ import {
   IVolcanoSelection,
   VolcanoSelectionType,
   VolcanoSelectionTrigger,
+  VolcanoSelectionConfig,
 } from "./volcano.component.types";
 import { VolcanoInteractivityMode } from "./volcano.component.types";
 import { SelectByStatsForm } from "./volcano.component.types";
-import { createEmptyVolcanoSelection } from "./volcanoSelectionTypesConfig";
+import { GOTermVolcanoSelectionConfig, StandardVolcanoSelectionConfig, createEmptyVolcanoSelection } from "./volcanoSelectionTypesConfig";
 import { BehaviorSubject, Observable, Subject } from "rxjs";
 import { filter, map } from "rxjs/operators";
 import {
@@ -42,9 +43,6 @@ import { DownloadPlotComponent } from '../download-plot/download-plot.component'
 export class VolcanoComponent
   implements AfterViewInit, OnInit, IVolcanoVisualization
 {
-  static readonly OPACITY = 0.2;
-  static readonly OPACITY_HOVER = 0.5;
-  static readonly OPACITY_SELECTED = 1;
   static readonly AXIS_LABEL_PADDING = 20;
   static readonly TITLE_PADDING = 0;
   static readonly MARGIN = { top: 20, right: 20, bottom: 30, left: 30 };
@@ -146,18 +144,16 @@ export class VolcanoComponent
 
     const selection = this.getActiveSelection();
 
-    // put all points into an "unselected" styling and then recalculate the styling with selectGenesByName based on the active selection
     d3.select(`#${this.svgId}`)
       .selectAll(".point")
       .data(this._points, (d: VolcanoPoint) => d.gene)
       .attr("fill", selection.config.colorUnselected)
       .attr("opacity", selection.config.opacity)
+      .attr("stroke", selection.config.strokeUnselected)
+      .attr("stroke-width", selection.config.strokeUnselected ? 1 : 0)
       .classed("selected", false)
       .classed("upregulated", false)
       .classed("downregulated", false);
-
-    // remove all stars (from Standard + GO Term selections overlap)
-    d3.selectAll(".star").remove();
 
     this.labelPoints(selection.labelledPoints)
 
@@ -165,6 +161,10 @@ export class VolcanoComponent
   }
 
   public selectByStatsFormCollapsed: boolean = false;
+
+
+  /** When the go term selection is only temporary (user hovered over EA but didn't click), we dismiss the buttons */
+  private dismissGOTermSelectionButtons: boolean = false;
 
   private selections$: BehaviorSubject<IVolcanoSelection[]> =
     new BehaviorSubject([
@@ -228,6 +228,7 @@ export class VolcanoComponent
   private hovered: VolcanoPoint;
 
   private cancelSelectByGOTerm$: Subject<void> = new Subject();
+  private lastEAPoint: EAPlotPoint = null;
 
   // #region Public functions
 
@@ -283,66 +284,76 @@ export class VolcanoComponent
   }
 
   shouldShowGOTermSelectionButtons(): boolean {
-    return this.activeSelectionType === VolcanoSelectionType.GOTerm;
+    return !this.dismissGOTermSelectionButtons && (this.activeSelectionType === VolcanoSelectionType.GOTerm);
   }
 
-  handleEAmouseover(point: EAPlotPoint) {
+  handleEAmouseout() {
+    this.cancelSelectByGOTerm$.next();
+    this.eaComponent.loadingBackgroundDatasetMapping = false;
+    this.exitGOTermSelection();
+  }
 
+  handleEAmouseclick(point: EAPlotPoint | null) {
+    const self = this;
+    if (point) {
+      // turn on the GO Term selection buttons
+      this.dismissGOTermSelectionButtons = false;
+
+      // if this is a different point than the last one, call mouseover, which will put the volcano plot into go term selection mode for that point
+      const differentThanLastPoint = this.lastEAPoint === null || (this.lastEAPoint && this.lastEAPoint.termId !== point.termId);
+      if (differentThanLastPoint) {
+        this.lastEAPoint = point;
+        this.handleEAmouseover(point).then(() => {
+          // even though we called hover, this is areally a click, so we want to go into the GO Term selection mode. Show the buttons
+          self.dismissGOTermSelectionButtons = false;
+        })
+      }
+    } else {
+      this.exitGOTermSelection();
+    }
+  }
+
+  /**
+   * @description Handle the mouseover event from the Enrichment Analysis component.
+   * This creates a GO Term selection and then does combined styling of points to illustrate the overlap between selections.
+   * @param point The point (GO Term or pathway) that was clicked on in the Enrichment Analysis component
+   * @returns list of genes in the term
+   */
+  async handleEAmouseover(point: EAPlotPoint): Promise<string[]> {
 
     const backgroundDataset = this.eaComponent.currentBackgroundDataset;
 
-    this.selectByTerm(backgroundDataset, point.termId).then(() => {
+    return this.selectByTerm(backgroundDataset, point.termId).then((genesInTerm) => {
       this.eaComponent.loadingBackgroundDatasetMapping = false;
+      this.dismissGOTermSelectionButtons = true;
 
-      // get the points that is the intersection of the standard selection and the GO Term selection
-      const overlappingPoints = this.points.filter(p => point.overlappingGenes.includes(p.gene))
-      this.labelPoints(overlappingPoints);
-
-      // mark the points as overlapping with the selection.
-      //This will help later when we want to create a selection with the overlapping points
-      this.getActiveSelection().markPointsAsOverlappingWithOtherSelection(overlappingPoints);
-
+      const goTermSelection = this.getActiveSelection();
       const standardSelection = this.selections.find(s => s.type === VolcanoSelectionType.Standard);
 
+      const overlappingPoints = standardSelection.intersection(goTermSelection)
 
-      const star = d3.symbol().type(d3.symbolStar).size(20);
-      overlappingPoints.forEach((point) => {
-        this.stylePointOnHover(null, point, {fill: "transparent"})
-        const x =
-          this.zoomXScale(point.x) +
-          VolcanoComponent.MARGIN.left +
-          VolcanoComponent.AXIS_LABEL_PADDING;
-        const y =
-          this.zoomYScale(point.y) +
-          VolcanoComponent.MARGIN.top +
-          VolcanoComponent.TITLE_PADDING;
+      // used later to create a selection from the overlapping points
+      goTermSelection.markPointsAsOverlappingWithOtherSelection(overlappingPoints);
 
-        // draw a star at the point
-        this.plot
-          .append("path")
-          .classed("star", true)
-          .attr("d", star)
-          .attr("transform", `translate(${x},${y})`)
-          .attr("fill", this.getSelectedColor(point, standardSelection));
-      });
+      // style the standard selection regularly
+      this.stylePointsOnClick(null, standardSelection.selectedPoints, { selectionConfig: standardSelection.config, forceMode: 'selected' });
 
+      // style  overlap with combined styling
+      const goTermSelectionConfigWithColorByStats: VolcanoSelectionConfig = {
+        ...GOTermVolcanoSelectionConfig,
+        useSelectByStatColorLogic: true,
+      }
+      this.stylePointsOnClick(null, overlappingPoints, { selectionConfig: goTermSelectionConfigWithColorByStats, forceMode: 'selected' });
 
-      // d3.selectAll(".star")
-      //   .data(overlappingPoints)
-      //   .enter()
-      //   .append("path")
-      //   .attr("d", star)
-      //   .attr("transform", (d: VolcanoPoint) => {
-      //     return `translate(${
-      //       this.zoomXScale(d.x) + VolcanoComponent.MARGIN.left
-      //     },${this.zoomYScale(d.y) + VolcanoComponent.MARGIN.top})`;
-      //   })
-      //   .attr("fill", (d: VolcanoPoint) => {
-      //     return this.getSelectedColor(d, standardSelection);
-      //   });
+      // restyle points in term, not in the overlap. This is so they are brought to the front
+      const pointsNotInOverlap = goTermSelection.selectedPoints.filter(p => !p.partOfSelectionOverlap);
+      this.stylePointsOnClick(null, pointsNotInOverlap, { selectionConfig: goTermSelection.config, forceMode: 'selected' });
+
 
       const selection = this.getActiveSelection();
       selection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisTab;
+
+      return genesInTerm;
     });
   }
 
@@ -361,7 +372,7 @@ export class VolcanoComponent
 
   selectedTabChange(event: MatTabChangeEvent) {
     const textLabelToTab = {
-      "Enrichment Analysis": VolcanoTab.EnrichmentAnalysis,
+      "Enrichment Analysis (GSEA)": VolcanoTab.EnrichmentAnalysis,
       "Table": VolcanoTab.Table,
     }
     this.layout.activeTab = textLabelToTab[event.tab.textLabel];
@@ -473,15 +484,18 @@ export class VolcanoComponent
   }
 
   clearSelection(type = this.activeSelectionType) {
+
+    const selection = this.selections.find((s) => s.type === type);
+
     // clear out the selected cohort subsets
-    this.selections.find((s) => s.type === type).selectPoints([]);
+    selection.selectPoints([]);
 
     // reset the points to unselected style
     d3.selectAll(".point")
-      .attr("fill", VolcanoComponent.COLOR_UNSELECTED)
+      .attr("fill", selection.config.colorUnselected)
       .attr("opacity", function (d, i, nodes) {
         const outOfView = d3.select(this).classed("out-of-view");
-        return outOfView ? 0 : VolcanoComponent.OPACITY;
+        return outOfView ? 0 : selection.config.opacity;
       })
       .classed("selected", false);
 
@@ -860,6 +874,7 @@ export class VolcanoComponent
     }
 
     this.hovered = point;
+
     this.stylePointOnHover(event, point);
   }
 
@@ -867,7 +882,7 @@ export class VolcanoComponent
     const shiftPressed = event.shiftKey || this.artificallyHoldingShift;
     const altKeyPressed = event.altKey;
 
-    const selection = this.getActiveSelection();
+    let selection = this.getActiveSelection();
     if (selection.config.disableMouseSelection) return;
     selection.trigger = VolcanoSelectionTrigger.Click;
 
@@ -957,10 +972,10 @@ private isMouseOutsideSvg(event): boolean {
     return this.selections.find((s) => s.type === this.activeSelectionType);
   }
 
-  private getSelectedColor(point: VolcanoPoint, selection = this.getActiveSelection()): string {
+  private getSelectedColor(point: VolcanoPoint, selectionConfig = this.getActiveSelection().config): string {
 
-    if (!selection.config.useSelectByStatColorLogic)
-      return selection.config.colorSelected;
+    if (!selectionConfig.useSelectByStatColorLogic)
+      return selectionConfig.colorSelected;
 
     switch (this.getGeneRegulation(point)) {
       case "up":
@@ -968,7 +983,7 @@ private isMouseOutsideSvg(event): boolean {
       case "down":
         return this._selectByStatsForm.downregulatedColor;
       default:
-        return selection.config.colorSelected;
+        return selectionConfig.colorSelected;
     }
   }
 
@@ -1023,56 +1038,70 @@ private isMouseOutsideSvg(event): boolean {
     };
   }
 
-  private onPointMouseOut(event, point) {
+  /** Returns a promise once the event hander is done. */
+  private async onPointMouseOut(event, point): Promise<void> {
     // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
     this.activeGeneTooltips.splice(
       this.activeGeneTooltips.indexOf(point.gene),
       1
     );
 
-    setTimeout(() => {
-      // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
-      if (this.activeGeneTooltips.includes(point.gene)) {
-        return;
-      }
+    let selection = this.getActiveSelection();
+    if (selection.config.deferInteractiveColoringLogicTo) {
+      selection = this.selections.find(s => s.type === selection.config.deferInteractiveColoringLogicTo);
+    }
 
-      this.hovered = null;
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
+        if (this.activeGeneTooltips.includes(point.gene)) {
+          resolve();
+          return;
+        }
 
-      if (this.mostRecentSelectedPoint === point) {
-        this.mostRecentSelectedPoint = null;
-        return;
-      }
+        this.hovered = null;
 
-      // remove the tooltip
-      d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
-      this.activeGeneTooltips.splice(
-        this.activeGeneTooltips.indexOf(point.gene),
-        1
-      );
+        if (this.mostRecentSelectedPoint === point) {
+          this.mostRecentSelectedPoint = null;
+          resolve();
+          return;
+        }
 
-      if (this.getActiveSelection().isPointSelected(point)) {
-        return;
-      }
-
-      // see if the point has the "selected" class
-      const isSelected = d3
-        .select(`.point[name="${point.gene}"]`)
-        .classed("selected");
-
-      d3.select(`.point[name="${point.gene}"]`)
-        .attr(
-          "fill",
-          isSelected
-            ? VolcanoComponent.COLOR_SELECTED
-            : VolcanoComponent.COLOR_UNSELECTED
-        )
-        .attr(
-          "opacity",
-          isSelected
-            ? VolcanoComponent.OPACITY_SELECTED
-            : VolcanoComponent.OPACITY
+        // remove the tooltip
+        d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
+        this.activeGeneTooltips.splice(
+          this.activeGeneTooltips.indexOf(point.gene),
+          1
         );
-    }, 1);
+
+        if (selection.isPointSelected(point)) {
+          resolve();
+          return;
+        }
+
+        // see if the point has the "selected" class
+        const isSelected = d3
+          .select(`.point[name="${point.gene}"]`)
+          .classed("selected");
+
+        d3.select(`.point[name="${point.gene}"]`)
+          .attr(
+            "fill",
+            isSelected
+              ? selection.config.colorSelected
+              : VolcanoComponent.COLOR_UNSELECTED
+          )
+          .attr(
+            "opacity",
+            isSelected
+              ? selection.config.opacitySelected
+              : selection.config.opacity
+          );
+          resolve();
+      }, 1);
+    })
+
+
   }
 
   private emitSelectionUpdate(): void {
@@ -1274,15 +1303,17 @@ private isMouseOutsideSvg(event): boolean {
     options: {
       tooltip?: boolean;
       fill?: string;
+      selectionConfig?: VolcanoSelectionConfig;
     } = {
       tooltip: true,
+      selectionConfig: this.getActiveSelection().config,
     }
   ) {
     if (this.isDragging) {
       return;
     }
 
-    const activeSelectionConfig = this.getActiveSelection().config;
+    const activeSelectionConfig = options.selectionConfig;
 
     // see if the point has the "selected" class
     const isSelected = d3
@@ -1328,11 +1359,15 @@ private isMouseOutsideSvg(event): boolean {
     options?: {
       tooltip?: boolean;
       fill?: string;
+      selectionConfig?: VolcanoSelectionConfig;
+      /** By default, this function checks the clicked state of each points, and toggles it into the other state. If you want to force a selected or deselected mode into the points, set `forceMode`. */
+      forceMode?: 'selected' | 'deselected'
     }
   ) {
     const DEFAULT_OPTIONS = {
       tooltip: true,
       fill: undefined,
+      selectionConfig: this.getActiveSelection().config,
     };
     options = { ...DEFAULT_OPTIONS, ...options };
 
@@ -1341,34 +1376,54 @@ private isMouseOutsideSvg(event): boolean {
       .selectAll(".point")
       .data(points, (d: VolcanoPoint) => d.gene);
 
-    const selectedPoints = selection.filter(".selected");
-    const unselectedPoints = selection.filter(":not(.selected)");
+    const selectionConfig = options.selectionConfig;
 
-    const activeSelectionConfig = this.getActiveSelection().config;
-
-    // deselect selected points
-    selectedPoints
-      .attr(
-        "fill",
-        options.fill ? options.fill : activeSelectionConfig.colorUnselected
-      )
-      .attr("opacity", activeSelectionConfig.opacity)
-      .classed("selected", false)
-      .classed("upregulated", false)
-      .classed("downregulated", false);
-
-    // select unselected points
-    unselectedPoints
+    const applySelectedStyling = (selection: d3.Selection<d3.BaseType, VolcanoPoint, d3.BaseType, unknown>) => {
+      selection
       .attr("fill", (d) =>
-        options.fill ? options.fill : this.getSelectedColor(d)
+        options.fill ? options.fill : this.getSelectedColor(d, options.selectionConfig)
       )
-      .attr("opacity", activeSelectionConfig.opacitySelected)
+      .attr("opacity", selectionConfig.opacitySelected)
+      .attr("stroke", selectionConfig.strokeSelected)
+      .attr("stroke-width", selectionConfig.strokeWidthSelected)
       .classed("selected", true)
       .classed("upregulated", (d) => this.getGeneRegulation(d) === "up")
       .classed("downregulated", (d) => this.getGeneRegulation(d) === "down")
       .raise();
+    }
 
-    if (options.tooltip && !activeSelectionConfig.disableTooltip) {
+    const applyDeselectedStyling = (selection: d3.Selection<d3.BaseType, VolcanoPoint, d3.BaseType, unknown>) => {
+      selection
+      .attr(
+        "fill",
+        options.fill ? options.fill : selectionConfig.colorUnselected
+      )
+      .attr("opacity", selectionConfig.opacity)
+      .attr("stroke", selectionConfig.strokeUnselected)
+      .attr("stroke-width", selectionConfig.strokeWidthSelected)
+      .classed("selected", false)
+      .classed("upregulated", false)
+      .classed("downregulated", false);
+    }
+
+    if (options.forceMode === 'selected') {
+      applySelectedStyling(selection);
+      return;
+    }
+
+    if (options.forceMode === 'deselected') {
+      applyDeselectedStyling(selection);
+      return;
+    }
+
+    const selectedPoints = selection.filter(".selected");
+    const unselectedPoints = selection.filter(":not(.selected)");
+
+    // for each group, toggle into the other styling state
+    applyDeselectedStyling(selectedPoints);
+    applySelectedStyling(unselectedPoints);
+
+    if (options.tooltip && !selectionConfig.disableTooltip) {
       points.forEach((p) => this.drawTooltip(event, p));
     }
   }

@@ -188,14 +188,16 @@
         (selectionChanged)="labelPoints($event)"
       ></app-volcano-gene-table>
         </mat-tab>
-        <mat-tab label="Enrichment Analysis" id="enrichment-dotplot-tab" *ngIf="layout.isTabEnabled('enrichmentAnalysis')">
+        <mat-tab label="Enrichment Analysis (GSEA)" id="enrichment-dotplot-tab" *ngIf="layout.isTabEnabled('enrichmentAnalysis')">
           <app-enrichment-analysis
           [id]="id"
           [selectionObservable]="selectionOfType$('Standard')"
           [downregulatedColor]="selectByStatsForm.downregulatedColor"
           [upregulatedColor]="selectByStatsForm.upregulatedColor"
           [getGeneRegulation]="getGeneRegulation.bind(this)"
+          (onmouseclick)="handleEAmouseclick($event)"
           (onmouseover)="handleEAmouseover($event)"
+          (onmouseout)="handleEAmouseout()"
           [active]="layout.activeTab === 'enrichmentAnalysis'"></app-enrichment-analysis>
         </mat-tab>
 

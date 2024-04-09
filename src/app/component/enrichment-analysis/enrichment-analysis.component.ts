@@ -59,7 +59,7 @@ type APIOptions = {
 
 enum ColorByOptions {
   FDR = "fdr",
-  PValue = "pValue",
+  adjPValue = "adjPValue",
   FoldEnrichment = "fold_enrichment",
 }
 
@@ -71,13 +71,13 @@ enum SizeByOptions {
 enum XAxisOptions {
   GeneRatio = "geneRatio",
   BgRatio = "bgRatio",
-  // PValue = "pValue",
+  // adjPValue = "adjPValue",
 }
 
 enum SortByOptions {
   GeneRatio = "geneRatio",
   BgRatio = "bgRatio",
-  // PValue = "pValue",
+  // adjPValue = "adjPValue",
   FoldEnrichment = "fold_enrichment",
 }
 
@@ -105,7 +105,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       x: XAxisOptions.GeneRatio,
       sortBy: SortByOptions.GeneRatio,
       sortDirection: "desc",
-      colorBy: ColorByOptions.PValue,
+      colorBy: ColorByOptions.adjPValue,
       sizeBy: SizeByOptions.NumberInList,
       n: 20,
       useIdsForTermLabels: false,
@@ -202,6 +202,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
   @Output() onmouseover: EventEmitter<EAPlotPoint> = new EventEmitter();
   @Output() onmouseout: EventEmitter<void> = new EventEmitter();
+  @Output() onmouseclick: EventEmitter<EAPlotPoint | null> = new EventEmitter();
 
   private options: EnrichmentAnalysisVizOptions =
     EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
@@ -210,8 +211,11 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   private data: EnrichrGSEAResults;
   private plot: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
 
+  private clickedPoint: string | null = null;
+
   private xScale: d3.ScaleLinear<any, any>;
   private yScale: d3.ScaleBand<string>;
+  private colorScale: d3.ScaleSequential<string, never>;
   private circles: d3.Selection<
     SVGCircleElement,
     EAPlotPoint,
@@ -252,6 +256,15 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     });
 
     return resultWithTermInfo;
+  }
+
+  private exitSelection() {
+    this.clickedPoint = null;
+    this.removeTooltip();
+    // set all circles to default color and no stroke
+    this.circles.style("fill", (d) => this.colorScale(d[this.options.plotting.colorBy]))
+      .style("stroke", "none")
+      .style("stroke-width", 0);
   }
 
   private runEnrichrGSEA() {
@@ -346,7 +359,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       })
       .slice(0, options.plotting.n);
 
+    // clean up from previous render
     this.removeSVG();
+    this.clickedPoint = null;
 
 
     // Create the SVG container
@@ -408,7 +423,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .padding(0.1);
 
     // Define color scale based on fdr values
-    const colorScale = d3
+    this.colorScale = d3
       .scaleSequential()
       .domain([0, d3.max(data, (d) => d[options.plotting.colorBy])])
       .interpolator(d3.interpolateRgb("purple", "red")); // Adjust the color scale as needed
@@ -491,21 +506,26 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .attr("cx", (d) => this.xScale(d[options.plotting.x]))
       .attr("cy", (d) => this.yScale(d.termId) + this.yScale.bandwidth() / 2)
       .attr("r", (d) => sizeScale(d[options.plotting.sizeBy]))
-      .attr("fill", (d) => colorScale(d[options.plotting.colorBy]))
+      .attr("fill", (d) => this.colorScale(d[options.plotting.colorBy]))
       .style("stroke", "none")
       .style("stroke-width", 0);
 
     this.circles
       .on("mouseover", function (event, _d) {
 
+        self.showTooltip(event, options.plotting);
+
+        // disable onmouseover if any point was clicked
+        if (self.clickedPoint) return;
+
         const d: EAPlotPoint = _d as any;
 
-        self.showTooltip(event, options.plotting);
+
 
         d3.select(this)
           .attr(
             "fill",
-            self.darkenColor(colorScale(d[options.plotting.colorBy]))
+            self.darkenColor(self.colorScale(d[options.plotting.colorBy]))
           ).style(
             "stroke", "black"
           )
@@ -522,9 +542,35 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
         self.loadingBackgroundDatasetMapping = true;
         self.onmouseover.emit(d);
       })
+      .on("click", function (event, _d) {
+
+        // ignore click events if a point is already clicked
+        if (self.clickedPoint === _d.termId) return;
+        // if a different point is currently clicked, then exit the selection and emit a null click event (as if empty space was clicked)
+        if (self.clickedPoint && self.clickedPoint !== _d.termId) {
+          self.exitSelection();
+          self.onmouseclick.emit(null);
+          return
+        }
+
+        // lighten all other circles
+        self.circles
+          .filter((d) => d.termId !== _d.termId)
+          .attr("fill", (d) => self.makeColorPale(self.colorScale(d[options.plotting.colorBy])))
+
+
+        self.onmouseclick.emit(_d as EAPlotPoint);
+        self.clickedPoint = _d.termId;
+        self.showTooltip(event, options.plotting);
+      })
       .on("mouseout", function (event, d) {
         self.removeTooltip();
-        self.onmouseout.emit();
+
+        // dont emit onmouseout if the point was clicked
+        if (!self.clickedPoint) {
+          self.onmouseout.emit();
+        }
+
       });
 
     // Adding x-axis label
@@ -542,7 +588,16 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .text(options.plotting.x);
 
     //@ts-ignore
-    this.drawLegend(legend, data, options, colorScale, sizeScale);
+    this.drawLegend(legend, data, options, this.colorScale, sizeScale);
+
+    svg.on("click", (event) => {
+
+      if (event.target.tagName === "circle") return;
+
+      this.exitSelection();
+      this.onmouseclick.emit(null);
+      this.clickedPoint = null;
+    });
   }
 
   plotReady(): boolean {
@@ -565,7 +620,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
       .style("left", event.pageX + 15 + "px")
       .style("top", event.pageY - 20 + "px")
       .style("font-size", "12px").html(`
-        <div><b>${d.termLabel}</b> (${d.termId})</div>
+        <div><b>${d.termLabel}</b></div>
         <div>${options.x}: ${d[options.x]}</div>
         <div>${options.sizeBy}: ${d[options.sizeBy]}</div>
         <div>${options.colorBy}: ${d[options.colorBy]}</div>
@@ -573,7 +628,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   }
 
   private removeTooltip() {
-    d3.select(".ea-tooltip").remove();
+    d3.selectAll(".ea-tooltip").remove();
   }
 
   /** Helper function to darken a color by a given factor. */
@@ -589,6 +644,17 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     );
 
     return darkenedColor.toString();
+  }
+
+  private makeColorPale(color: string, factor = 0.5): string {
+    const rgbColor = d3.rgb(color);
+    const paleColor = d3.rgb(
+      rgbColor.r + (255 - rgbColor.r) * factor,
+      rgbColor.g + (255 - rgbColor.g) * factor,
+      rgbColor.b + (255 - rgbColor.b) * factor
+    );
+
+    return paleColor.toString();
   }
 
   private drawLegend(
