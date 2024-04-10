@@ -1,7 +1,6 @@
-import { EnrichrBackgroundType, EnrichrGSEAResults, EnrichrPathwaysBackground } from './../../service/enrichment-analysis/enrichment-analysis.service.types';
-import { HttpClient } from "@angular/common/http";
+import { EnrichrGSEAResults, EnrichrPathwaysBackground } from "./../../service/enrichment-analysis/enrichment-analysis.service.types"
 import {
-  ChangeDetectionStrategy,
+ChangeDetectionStrategy,
   Component,
   Input,
   AfterViewInit,
@@ -22,7 +21,7 @@ import { DownloadPlotFileType } from 'app/service/plot-download.service';
 import { DownloadPlotComponent } from '../download-plot/download-plot.component';
 import { FormControl, FormGroup } from '@angular/forms';
 
-type EnrichmentAnalysisVizOptions = {
+export type EnrichmentAnalysisVizOptions = {
 
   /** Parameters passed to the API, and parameters that affectsthe data before it goes into the API. */
   api: APIOptions;
@@ -32,6 +31,9 @@ type EnrichmentAnalysisVizOptions = {
 
   /** Parameters that affect d3 */
   plotting: PlottingOptions;
+
+  /** Parameters passed pack to the volcano chart on hover/click events */
+  volcano: VolcanoOptions;
 };
 
 type PreprocessingOptions = {
@@ -55,6 +57,10 @@ type PlottingOptions = {
 type APIOptions = {
   backgroundDataset: typeof EnrichmentAnalysisService["AVAILABLE_BACKGROUNDS"][number]["value"];
   regulation: 'up' | 'down';
+}
+
+type VolcanoOptions = {
+  numGenesToLabel: number;
 }
 
 enum ColorByOptions {
@@ -113,6 +119,9 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     api: {
       backgroundDataset: EnrichrPathwaysBackground.REACTOME_2022,
       regulation: 'up'
+    },
+    volcano: {
+      numGenesToLabel: 20
     }
   };
 
@@ -136,6 +145,20 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   public set useIdsForTermLabels(value: boolean) {
     this.options.plotting.useIdsForTermLabels = value;
     this.render();
+  }
+
+  public get numGenesToLabel(): number {
+    return this.options.volcano.numGenesToLabel;
+  }
+  public set numGenesToLabel(value: number) {
+    this.options.volcano.numGenesToLabel = value;
+    if (this.clickedPoint) {
+      // update the volcano plot with a mouseclick
+      this.onmouseclick.emit({
+        point: this.clickedPoint,
+        options: this.options.volcano
+      });
+    }
   }
 
 
@@ -200,9 +223,15 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     }
   }
 
-  @Output() onmouseover: EventEmitter<EAPlotPoint> = new EventEmitter();
+  @Output() onmouseover: EventEmitter<{
+    point: EAPlotPoint,
+    options: VolcanoOptions
+  }> = new EventEmitter();
   @Output() onmouseout: EventEmitter<void> = new EventEmitter();
-  @Output() onmouseclick: EventEmitter<EAPlotPoint | null> = new EventEmitter();
+  @Output() onmouseclick: EventEmitter<{
+    point: EAPlotPoint,
+    options: VolcanoOptions
+  } | null> = new EventEmitter();
 
   private options: EnrichmentAnalysisVizOptions =
     EnrichmentAnalysisComponent.DEFAULT_RENDER_OPTIONS;
@@ -211,7 +240,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
   private data: EnrichrGSEAResults;
   private plot: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
 
-  private clickedPoint: string | null = null;
+  private clickedPoint: EAPlotPoint | null = null;
 
   private xScale: d3.ScaleLinear<any, any>;
   private yScale: d3.ScaleBand<string>;
@@ -384,6 +413,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           EnrichmentAnalysisComponent.MARGIN.bottom
       );
 
+    // @ts-ignore
     this.plot = svg
       .append("g")
       .attr("id", "ea-plot")
@@ -483,6 +513,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
     this.plot
     .append("g")
     .attr("class", "y axis")
+    // @ts-ignore
     .call(yAxis);
 
     this.plot.selectAll('.y.axis>.tick') // gs for all ticks
@@ -540,14 +571,18 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           .style("stroke-width", 0)
 
         self.loadingBackgroundDatasetMapping = true;
-        self.onmouseover.emit(d);
+        self.onmouseover.emit({
+          point: d,
+          options: self.options.volcano
+        });
       })
-      .on("click", function (event, _d) {
+      // @ts-ignore
+      .on("click", function(event, _d: EAPlotPoint) {
 
         // ignore click events if a point is already clicked
-        if (self.clickedPoint === _d.termId) return;
+        if (self.clickedPoint === _d) return;
         // if a different point is currently clicked, then exit the selection and emit a null click event (as if empty space was clicked)
-        if (self.clickedPoint && self.clickedPoint !== _d.termId) {
+        if (self.clickedPoint && self.clickedPoint !== _d) {
           self.exitSelection();
           self.onmouseclick.emit(null);
           return
@@ -559,8 +594,11 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
           .attr("fill", (d) => self.makeColorPale(self.colorScale(d[options.plotting.colorBy])))
 
 
-        self.onmouseclick.emit(_d as EAPlotPoint);
-        self.clickedPoint = _d.termId;
+        self.onmouseclick.emit({
+          point: _d as EAPlotPoint,
+          options: self.options.volcano
+        });
+        self.clickedPoint = _d;
         self.showTooltip(event, options.plotting);
       })
       .on("mouseout", function (event, d) {
@@ -592,6 +630,7 @@ export class EnrichmentAnalysisComponent implements AfterViewInit, OnInit {
 
     svg.on("click", (event) => {
 
+      // @ts-ignore
       if (event.target.tagName === "circle") return;
 
       this.exitSelection();

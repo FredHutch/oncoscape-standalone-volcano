@@ -29,7 +29,7 @@ import { filter, map } from "rxjs/operators";
 import {
   EnrichmentAnalysisService,
 } from "app/service/enrichment-analysis/enrichment-analysis.service";
-import { EAPlotPoint, EnrichmentAnalysisComponent } from "../enrichment-analysis/enrichment-analysis.component";
+import { EAPlotPoint, EnrichmentAnalysisComponent, EnrichmentAnalysisVizOptions } from "../enrichment-analysis/enrichment-analysis.component";
 import { VolcanoLayoutManagerService, VolcanoTab, VolcanoPanel } from 'app/service/volcano-layout-manager.service';
 import { DownloadPlotFileType } from 'app/service/plot-download.service';
 import { DownloadPlotComponent } from '../download-plot/download-plot.component';
@@ -293,21 +293,25 @@ export class VolcanoComponent
     this.exitGOTermSelection();
   }
 
-  handleEAmouseclick(point: EAPlotPoint | null) {
+  handleEAmouseclick(data: {
+    point: EAPlotPoint;
+    options: EnrichmentAnalysisVizOptions["volcano"]
+  } | null) {
+
     const self = this;
-    if (point) {
+    if (data) {
+      const {
+        point,
+        options
+      } = data
       // turn on the GO Term selection buttons
       this.dismissGOTermSelectionButtons = false;
 
-      // if this is a different point than the last one, call mouseover, which will put the volcano plot into go term selection mode for that point
-      const differentThanLastPoint = this.lastEAPoint === null || (this.lastEAPoint && this.lastEAPoint.termId !== point.termId);
-      if (differentThanLastPoint) {
-        this.lastEAPoint = point;
-        this.handleEAmouseover(point).then(() => {
+      this.lastEAPoint = point;
+        this.handleEAmouseover({point, options}).then(() => {
           // even though we called hover, this is areally a click, so we want to go into the GO Term selection mode. Show the buttons
           self.dismissGOTermSelectionButtons = false;
         })
-      }
     } else {
       this.exitGOTermSelection();
     }
@@ -319,9 +323,16 @@ export class VolcanoComponent
    * @param point The point (GO Term or pathway) that was clicked on in the Enrichment Analysis component
    * @returns list of genes in the term
    */
-  async handleEAmouseover(point: EAPlotPoint): Promise<string[]> {
+  async handleEAmouseover({
+    point,
+    options
+  }: {
+    point: EAPlotPoint;
+    options: EnrichmentAnalysisVizOptions["volcano"]
+  }): Promise<string[]> {
 
     const backgroundDataset = this.eaComponent.currentBackgroundDataset;
+    const {numGenesToLabel} = options;
 
     return this.selectByTerm(backgroundDataset, point.termId).then((genesInTerm) => {
       this.eaComponent.loadingBackgroundDatasetMapping = false;
@@ -349,6 +360,26 @@ export class VolcanoComponent
       const pointsNotInOverlap = goTermSelection.selectedPoints.filter(p => !p.partOfSelectionOverlap);
       this.stylePointsOnClick(null, pointsNotInOverlap, { selectionConfig: goTermSelection.config, forceMode: 'selected' });
 
+      // label the top n points in the GO Term selection, based on the combination of x and y
+      const topN = numGenesToLabel;
+      const topNPoints = overlappingPoints.slice().sort((a, b) => {
+        return (b.x + b.y) - (a.x + a.y);
+      }).slice(0, topN);
+      this.labelPoints(topNPoints);
+
+      const self = this;
+
+      // set standard selection points to use standard selection config
+      d3.selectAll(".point")
+        .filter((d: VolcanoPoint) => standardSelection.isPointSelected(d))
+        .on("mouseout", (event, d: VolcanoPoint) => self.onPointMouseOut(event, d, standardSelection))
+        .on("mouseover", (event, d: VolcanoPoint) => self.onPointMouseOver(event, d, standardSelection))
+
+      // set go term selection points to use go term selection config
+      d3.selectAll(".point")
+        .filter((d: VolcanoPoint) => goTermSelection.isPointSelected(d) && !d.partOfSelectionOverlap)
+        .on("mouseout", (event, d: VolcanoPoint) => self.onPointMouseOut(event, d, goTermSelection))
+        .on("mouseover", (event, d: VolcanoPoint) => self.onPointMouseOver(event, d, goTermSelection))
 
       const selection = this.getActiveSelection();
       selection.trigger = VolcanoSelectionTrigger.EnrichmentAnalysisTab;
@@ -867,7 +898,66 @@ export class VolcanoComponent
     this.onPointMouseOut(event, point);
   }
 
-  private onPointMouseOver(event: MouseEvent, point: VolcanoPoint) {
+  /** Returns a promise once the event hander is done. */
+  private async onPointMouseOut(event, point, selection = this.getActiveSelection()): Promise<void> {
+    // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
+    this.activeGeneTooltips.splice(
+      this.activeGeneTooltips.indexOf(point.gene),
+      1
+    );
+
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
+        if (this.activeGeneTooltips.includes(point.gene)) {
+          resolve();
+          return;
+        }
+
+        this.hovered = null;
+
+        if (this.mostRecentSelectedPoint === point) {
+          this.mostRecentSelectedPoint = null;
+          resolve();
+          return;
+        }
+
+        // remove the tooltip
+        d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
+        this.activeGeneTooltips.splice(
+          this.activeGeneTooltips.indexOf(point.gene),
+          1
+        );
+
+        if (selection.isPointSelected(point)) {
+          resolve();
+          return;
+        }
+
+        // see if the point has the "selected" class
+        const isSelected = d3.select(`.point[name="${point.gene}"]`).classed("selected");
+
+        d3.select(`.point[name="${point.gene}"]`)
+          .attr(
+            "fill",
+            isSelected
+              ? selection.config.colorSelected
+              : selection.config.colorUnselected
+          )
+          .attr(
+            "opacity",
+            isSelected
+              ? selection.config.opacitySelected
+              : selection.config.opacity
+          );
+          resolve();
+      }, 1);
+    })
+
+
+  }
+
+  private onPointMouseOver(event: MouseEvent, point: VolcanoPoint, selection = this.getActiveSelection()) {
     // don't call the same hover event twice
     if (this.hovered == point) {
       return;
@@ -875,7 +965,10 @@ export class VolcanoComponent
 
     this.hovered = point;
 
-    this.stylePointOnHover(event, point);
+    this.stylePointOnHover(event, point, {
+      tooltip: true,
+      selectionConfig: selection.config,
+    });
   }
 
   private onPointClick(event: MouseEvent, point: VolcanoPoint) {
@@ -1038,71 +1131,7 @@ private isMouseOutsideSvg(event): boolean {
     };
   }
 
-  /** Returns a promise once the event hander is done. */
-  private async onPointMouseOut(event, point): Promise<void> {
-    // immediately remove the tooltip from the list of active tooltips when the mouse leaves. If the tooltip's mouseover event is called, it will be added back to the list before the timeout
-    this.activeGeneTooltips.splice(
-      this.activeGeneTooltips.indexOf(point.gene),
-      1
-    );
 
-    let selection = this.getActiveSelection();
-    if (selection.config.deferInteractiveColoringLogicTo) {
-      selection = this.selections.find(s => s.type === selection.config.deferInteractiveColoringLogicTo);
-    }
-
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // After the timeout, if the tooltip is still active, then that means the user has hovered over the tooltip
-        if (this.activeGeneTooltips.includes(point.gene)) {
-          resolve();
-          return;
-        }
-
-        this.hovered = null;
-
-        if (this.mostRecentSelectedPoint === point) {
-          this.mostRecentSelectedPoint = null;
-          resolve();
-          return;
-        }
-
-        // remove the tooltip
-        d3.select(`.volcano-tooltip[name=${point.gene}]`).remove();
-        this.activeGeneTooltips.splice(
-          this.activeGeneTooltips.indexOf(point.gene),
-          1
-        );
-
-        if (selection.isPointSelected(point)) {
-          resolve();
-          return;
-        }
-
-        // see if the point has the "selected" class
-        const isSelected = d3
-          .select(`.point[name="${point.gene}"]`)
-          .classed("selected");
-
-        d3.select(`.point[name="${point.gene}"]`)
-          .attr(
-            "fill",
-            isSelected
-              ? selection.config.colorSelected
-              : VolcanoComponent.COLOR_UNSELECTED
-          )
-          .attr(
-            "opacity",
-            isSelected
-              ? selection.config.opacitySelected
-              : selection.config.opacity
-          );
-          resolve();
-      }, 1);
-    })
-
-
-  }
 
   private emitSelectionUpdate(): void {
     // emit gets called when we programatically select a bunch of points, but we want to wait until the selection completes to emit
@@ -1529,6 +1558,7 @@ private isMouseOutsideSvg(event): boolean {
       // @ts-ignore
       .on("mouseover", (e, d) => this.onPointMouseOver(e, d))
       .on("mouseout", (e, d) => this.onPointMouseOut(e, d))
+      // @ts-ignore
       .on("click", (e, d) => this.onPointClick(e, d));
   }
 
@@ -1656,6 +1686,7 @@ private isMouseOutsideSvg(event): boolean {
       // @ts-ignore
       .on("mouseover", (e, d) => this.onPointMouseOver(e, d))
       .on("mouseout", (e, d) => this.onPointMouseOut(e, d))
+      //@ts-ignore
       .on("click", (e, d) => this.onPointClick(e, d))
 
       // make points visible again
